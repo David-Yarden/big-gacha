@@ -1,0 +1,26 @@
+{
+  "name": "big-gacha",
+  "version": "1.0.0",
+  "description": "Big Gacha — Multi-game gacha database API for Genshin Impact, HSR, ZZZ, Wuthering Waves, and Arknights: Endfield",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "seed:genshin": "node src/scripts/seedGenshin.js",
+    "seed:genshin:force": "node src/scripts/seedGenshin.js --force"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "genshin-db": "^5.2.7",
+    "mongoose": "^8.9.5",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  },
+  "keywords": ["genshin", "hsr", "zzz", "wuthering-waves", "endfield", "gacha", "database", "api"],
+  "author": "David",
+  "license": "MIT"
+}
