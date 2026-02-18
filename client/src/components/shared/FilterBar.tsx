@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 export interface FilterGroup {
   key: string;
   label: string;
-  options: { value: string; label: string }[];
+  options: { value: string; label: string; icon?: string }[];
 }
 
 export interface SortOption {
@@ -95,6 +95,7 @@ export function FilterBar({
               className="h-7 text-xs"
               onClick={() => toggleFilter(group.key, opt.value)}
             >
+              {opt.icon && <img src={opt.icon} className="h-3.5 w-3.5 shrink-0" alt="" />}
               {opt.label}
             </Button>
           ))}

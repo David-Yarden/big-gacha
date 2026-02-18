@@ -8,7 +8,7 @@ import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { RarityStars } from "@/components/shared/RarityStars";
 import { getCharacters } from "@/lib/api";
 import { useInfiniteList } from "@/hooks/useInfiniteList";
-import { characterIconUrl } from "@/lib/images";
+import { characterIconUrl, elementIconUrl, weaponTypeIconUrl } from "@/lib/images";
 import {
   GENSHIN_ELEMENTS,
   GENSHIN_WEAPON_TYPES,
@@ -23,12 +23,12 @@ const CHARACTER_FILTERS: FilterGroup[] = [
   {
     key: "element",
     label: "Element",
-    options: GENSHIN_ELEMENTS.map((el) => ({ value: el, label: el })),
+    options: GENSHIN_ELEMENTS.map((el) => ({ value: el, label: el, icon: elementIconUrl(el) ?? undefined })),
   },
   {
     key: "weaponType",
     label: "Weapon",
-    options: GENSHIN_WEAPON_TYPES.map((wt) => ({ value: wt, label: wt })),
+    options: GENSHIN_WEAPON_TYPES.map((wt) => ({ value: wt, label: wt, icon: weaponTypeIconUrl(wt) ?? undefined })),
   },
   {
     key: "rarity",
@@ -61,15 +61,23 @@ function CharacterCard({ character, game }: { character: Character; game: string
             className="h-full w-full object-contain"
           />
           <Badge
-            className={`absolute top-2 right-2 ${elementClass} border-0 text-white text-xs`}
+            className={`absolute top-2 right-2 ${elementClass} border-0 text-white text-xs flex items-center gap-1`}
           >
+            {elementIconUrl(character.element) && (
+              <img src={elementIconUrl(character.element)!} className="h-3.5 w-3.5" alt="" />
+            )}
             {character.element}
           </Badge>
         </div>
         <CardContent className="p-3">
           <p className="font-semibold text-sm truncate">{character.name}</p>
           <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-            <span>{character.weaponType}</span>
+            <span className="flex items-center gap-1">
+              {weaponTypeIconUrl(character.weaponType) && (
+                <img src={weaponTypeIconUrl(character.weaponType)!} className="h-3 w-3" alt="" />
+              )}
+              {character.weaponType}
+            </span>
             <RarityStars rarity={character.rarity} className="text-xs" />
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground truncate">

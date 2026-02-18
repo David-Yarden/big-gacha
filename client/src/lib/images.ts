@@ -94,3 +94,37 @@ export function materialIconUrl(images?: Record<string, string>): string | null 
   if (images?.filename_icon) return enkaUrl(images.filename_icon);
   return null;
 }
+
+// ── Elements ─────────────────────────────────────────────
+
+// genshin.jmp.blue hosts element icons at /elements/{lowercase}/icon (WebP, verified 200)
+const ELEMENT_SLUG: Record<string, string> = {
+  Pyro:    "pyro",
+  Hydro:   "hydro",
+  Anemo:   "anemo",
+  Electro: "electro",
+  Cryo:    "cryo",
+  Geo:     "geo",
+  Dendro:  "dendro",
+};
+
+export function elementIconUrl(element?: string): string | null {
+  if (!element) return null;
+  const slug = ELEMENT_SLUG[element];
+  return slug ? `https://genshin.jmp.blue/elements/${slug}/icon` : null;
+}
+
+// ── Weapon Types ──────────────────────────────────────────
+
+const WEAPON_TYPE_ICON: Record<string, string> = {
+  Sword:    "/weapons/Icon_Sword.webp",
+  Claymore: "/weapons/Icon_Claymore.webp",
+  Polearm:  "/weapons/Icon_Polearm.webp",
+  Catalyst: "/weapons/Icon_Catalyst.webp",
+  Bow:      "/weapons/Icon_Bow.webp",
+};
+
+export function weaponTypeIconUrl(weaponType?: string): string | null {
+  if (!weaponType) return null;
+  return WEAPON_TYPE_ICON[weaponType] ?? null;
+}

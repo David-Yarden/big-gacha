@@ -16,6 +16,8 @@ import {
   characterIconUrl,
   talentIconUrl,
   constellationIconUrl,
+  elementIconUrl,
+  weaponTypeIconUrl,
 } from "@/lib/images";
 import { parseLabel } from "@/lib/formatters";
 import {
@@ -265,7 +267,10 @@ export function CharacterDetailPage() {
           <div>
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-3xl font-bold">{character.name}</h1>
-              <Badge className={`${elementClass} border-0 text-white`}>
+              <Badge className={`${elementClass} border-0 text-white flex items-center gap-1`}>
+                {elementIconUrl(character.element) && (
+                  <img src={elementIconUrl(character.element)!} className="h-4 w-4" alt="" />
+                )}
                 {character.element}
               </Badge>
             </div>
@@ -278,8 +283,11 @@ export function CharacterDetailPage() {
 
           <div className="grid grid-cols-2 gap-3 text-sm">
             {character.weaponType && (
-              <div>
+              <div className="flex items-center gap-1">
                 <span className="text-muted-foreground">Weapon: </span>
+                {weaponTypeIconUrl(character.weaponType) && (
+                  <img src={weaponTypeIconUrl(character.weaponType)!} className="h-4 w-4" alt="" />
+                )}
                 {character.weaponType}
               </div>
             )}
