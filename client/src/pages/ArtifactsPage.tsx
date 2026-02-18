@@ -1,16 +1,16 @@
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { FilterBar } from "@/components/shared/FilterBar";
-import { Pagination } from "@/components/shared/Pagination";
 import { ResourceGrid } from "@/components/shared/ResourceGrid";
 import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { RarityStars } from "@/components/shared/RarityStars";
 import { getArtifacts } from "@/lib/api";
-import { useApiQuery } from "@/hooks/useApiQuery";
+import { useInfiniteList } from "@/hooks/useInfiniteList";
 import { artifactIconUrl } from "@/lib/images";
 import { ARTIFACT_RARITIES } from "@/lib/constants";
 import type { Game, Artifact } from "@/lib/types";
-import type { FilterGroup } from "@/components/shared/FilterBar";
+import type { FilterGroup, SortOption } from "@/components/shared/FilterBar";
 
 const ARTIFACT_FILTERS: FilterGroup[] = [
   {
@@ -23,10 +23,13 @@ const ARTIFACT_FILTERS: FilterGroup[] = [
   },
 ];
 
+const SORT_OPTIONS: SortOption[] = [
+  { value: "name", label: "Name" },
+  { value: "version", label: "Release" },
+];
+
 function ArtifactCard({ artifact, game }: { artifact: Artifact; game: string }) {
-  const maxRarity = artifact.rarity
-    ? Math.max(...artifact.rarity)
-    : 0;
+  const maxRarity = artifact.rarity ? Math.max(...artifact.rarity) : 0;
 
   return (
     <Link to={`/${game}/artifacts/${artifact.name}`}>
@@ -56,32 +59,42 @@ function ArtifactCard({ artifact, game }: { artifact: Artifact; game: string }) 
   );
 }
 
+function buildSort(sortBy: string, sortDir: string): string {
+  const desc = sortDir === "desc";
+  if (sortBy === "version") return desc ? "-version,name" : "version,name";
+  if (sortBy === "name") return desc ? "-name" : "name";
+  return "name";
+}
+
 export function ArtifactsPage() {
   const { game } = useParams<{ game: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const page = Number(searchParams.get("page") ?? "1");
   const search = searchParams.get("search") ?? undefined;
+  const rarity = searchParams.get("rarity") ?? undefined;
+  const sortBy = searchParams.get("sortBy") ?? "";
+  const sortDir = searchParams.get("sortDir") ?? "asc";
 
-  const { data, loading, error } = useApiQuery(
-    () =>
+  const sort = buildSort(sortBy, sortDir);
+
+  const { items, total, loading, error, hasMore, sentinelRef } = useInfiniteList(
+    (page) =>
       getArtifacts(game as Game, {
         page,
-        limit: 20,
+        limit: 25,
         search,
-        sort: "name",
+        rarity: rarity ? Number(rarity) : undefined,
+        sort,
       }),
-    [game, page, search]
+    [game, search, rarity, sort]
   );
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Artifacts</h1>
-        {data && (
-          <span className="text-sm text-muted-foreground">
-            {data.total} total
-          </span>
+        {total > 0 && (
+          <span className="text-sm text-muted-foreground">{total} total</span>
         )}
       </div>
 
@@ -90,6 +103,7 @@ export function ArtifactsPage() {
         setSearchParams={setSearchParams}
         searchPlaceholder="Search artifact sets..."
         filterGroups={ARTIFACT_FILTERS}
+        sortOptions={SORT_OPTIONS}
       />
 
       {error && (
@@ -99,22 +113,27 @@ export function ArtifactsPage() {
       )}
 
       <ResourceGrid
-        loading={loading}
-        empty={(data?.data.length ?? 0) === 0 && !loading}
+        loading={loading && items.length === 0}
+        empty={items.length === 0 && !loading}
         emptyMessage="No artifact sets found"
       >
-        {data?.data.map((a) => (
+        {items.map((a) => (
           <ArtifactCard key={a._id} artifact={a} game={game!} />
         ))}
       </ResourceGrid>
 
-      {data && (
-        <Pagination
-          page={data.page}
-          totalPages={data.totalPages}
-          searchParams={searchParams}
-          setSearchParams={setSearchParams}
-        />
+      {loading && items.length > 0 && (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      <div ref={sentinelRef} className="h-px" />
+
+      {!hasMore && items.length > 0 && (
+        <p className="text-center text-xs text-muted-foreground py-2">
+          All {total} artifact sets loaded
+        </p>
       )}
     </div>
   );

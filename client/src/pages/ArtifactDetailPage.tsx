@@ -137,7 +137,7 @@ export function ArtifactDetailPage() {
                       {piece.name}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {piece.relicType ?? PIECE_LABELS[pieceKey]}
+                      {PIECE_LABELS[pieceKey]}
                     </p>
                   </div>
                 </div>

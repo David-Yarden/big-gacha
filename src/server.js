@@ -74,8 +74,8 @@ async function autoSeed() {
       refinements: [d.r1, d.r2, d.r3, d.r4, d.r5].filter(Boolean), costs: d.costs, images: d.images, url: d.url,
     })},
     { name: "artifacts", Model: Artifact, map: (d) => ({
-      game: GAME, name: d.name, rarity: d.rarity, twoPieceBonus: d.twoPieceBonus,
-      fourPieceBonus: d.fourPieceBonus, version: d.version,
+      game: GAME, name: d.name, rarity: d.rarityList, twoPieceBonus: d.effect2Pc,
+      fourPieceBonus: d.effect4Pc, version: d.version,
       pieces: { flower: d.flower, plume: d.plume, sands: d.sands, goblet: d.goblet, circlet: d.circlet },
       images: d.images, url: d.url,
     })},

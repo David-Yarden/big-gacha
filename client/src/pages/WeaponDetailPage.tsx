@@ -10,7 +10,7 @@ import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { RarityStars } from "@/components/shared/RarityStars";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { getWeapon } from "@/lib/api";
-import { weaponIconUrl, weaponAwakeIconUrl, weaponTypeIconUrl } from "@/lib/images";
+import { weaponIconUrl } from "@/lib/images";
 import {
   ASCENSION_LEVELS,
   levelToAscensionPhase,
@@ -63,7 +63,6 @@ export function WeaponDetailPage() {
 
   const weapon = data?.data;
   const rarityClass = RARITY_COLOR_MAP[weapon?.rarity ?? 1] ?? "bg-muted";
-  const typeIconUrl = weaponTypeIconUrl(weapon?.weaponType);
 
   const ascensionPhase = levelToAscensionPhase(weaponLevel);
   const ascensionMaterials = useMemo(
@@ -114,7 +113,7 @@ export function WeaponDetailPage() {
         <div className="w-full md:w-64 shrink-0">
           <Card className={`overflow-hidden ${rarityClass}/10`}>
             <ImageWithFallback
-              src={weaponAwakeIconUrl(weapon.images) ?? weaponIconUrl(weapon.images)}
+              src={weaponIconUrl(weapon.images)}
               alt={weapon.name}
               className="w-full h-64 object-contain p-4"
             />
@@ -127,12 +126,7 @@ export function WeaponDetailPage() {
             <div className="mt-1 flex items-center gap-2">
               <RarityStars rarity={weapon.rarity} className="text-lg" />
               {weapon.weaponType && (
-                <Badge variant="secondary" className="flex items-center gap-1.5">
-                  {typeIconUrl && (
-                    <img src={typeIconUrl} alt={weapon.weaponType} className="h-3.5 w-3.5 object-contain" />
-                  )}
-                  {weapon.weaponType}
-                </Badge>
+                <Badge variant="secondary">{weapon.weaponType}</Badge>
               )}
             </div>
           </div>
@@ -206,7 +200,7 @@ export function WeaponDetailPage() {
                         <td className="px-3 py-1.5 text-muted-foreground">
                           Value {i + 1}
                         </td>
-                        <td className="px-3 py-1.5 text-right font-mono font-semibold">
+                        <td className="px-3 py-1.5 text-right font-mono font-semibold text-amber-400">
                           {val}
                         </td>
                       </tr>

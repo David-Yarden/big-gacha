@@ -132,9 +132,9 @@ async function seedArtifacts() {
     await upsert(Artifact, { game: GAME, name: data.name }, {
       game: GAME,
       name: data.name,
-      rarity: data.rarity,
-      twoPieceBonus: data.twoPieceBonus,
-      fourPieceBonus: data.fourPieceBonus,
+      rarity: data.rarityList,
+      twoPieceBonus: data.effect2Pc,
+      fourPieceBonus: data.effect4Pc,
       version: data.version,
       pieces: {
         flower: data.flower,

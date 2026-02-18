@@ -1,47 +1,9 @@
 const ENKA_CDN = "https://enka.network/ui";
-const AMBR_CDN = "https://api.ambr.top/assets/UI";
 
 function enkaUrl(filename: string): string {
   return `${ENKA_CDN}/${filename}.png`;
 }
 
-export function ambrIconUrl(filename: string): string {
-  return `${AMBR_CDN}/${filename}.png`;
-}
-
-// ── Elements ─────────────────────────────────────────────
-
-const ELEMENT_ICON_FILENAMES: Record<string, string> = {
-  Pyro:    "UI_ElementIcon_Fire",
-  Hydro:   "UI_ElementIcon_Water",
-  Anemo:   "UI_ElementIcon_Wind",
-  Electro: "UI_ElementIcon_Electric",
-  Dendro:  "UI_ElementIcon_Grass",
-  Cryo:    "UI_ElementIcon_Ice",
-  Geo:     "UI_ElementIcon_Rock",
-};
-
-export function elementIconUrl(element?: string): string | null {
-  if (!element) return null;
-  const filename = ELEMENT_ICON_FILENAMES[element];
-  return filename ? enkaUrl(filename) : null;
-}
-
-// ── Weapon types ─────────────────────────────────────────
-
-const WEAPON_TYPE_ICON_FILENAMES: Record<string, string> = {
-  Sword:    "UI_EquipTypeIcon_Sword",
-  Claymore: "UI_EquipTypeIcon_Claymore",
-  Polearm:  "UI_EquipTypeIcon_Pole",
-  Catalyst: "UI_EquipTypeIcon_Catalyst",
-  Bow:      "UI_EquipTypeIcon_Bow",
-};
-
-export function weaponTypeIconUrl(weaponType?: string): string | null {
-  if (!weaponType) return null;
-  const filename = WEAPON_TYPE_ICON_FILENAMES[weaponType];
-  return filename ? enkaUrl(filename) : null;
-}
 
 // ── Characters ───────────────────────────────────────────
 
@@ -129,6 +91,6 @@ export function artifactIconUrl(
 // ── Materials ────────────────────────────────────────────
 
 export function materialIconUrl(images?: Record<string, string>): string | null {
-  if (images?.filename_icon) return ambrIconUrl(images.filename_icon);
+  if (images?.filename_icon) return enkaUrl(images.filename_icon);
   return null;
 }

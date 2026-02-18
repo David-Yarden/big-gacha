@@ -1,4 +1,4 @@
-import { Search } from "lucide-react";
+import { Search, ArrowUp, ArrowDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -8,11 +8,17 @@ export interface FilterGroup {
   options: { value: string; label: string }[];
 }
 
+export interface SortOption {
+  value: string;
+  label: string;
+}
+
 interface FilterBarProps {
   searchParams: URLSearchParams;
   setSearchParams: (params: URLSearchParams) => void;
   searchPlaceholder?: string;
   filterGroups: FilterGroup[];
+  sortOptions?: SortOption[];
 }
 
 export function FilterBar({
@@ -20,8 +26,11 @@ export function FilterBar({
   setSearchParams,
   searchPlaceholder = "Search...",
   filterGroups,
+  sortOptions,
 }: FilterBarProps) {
   const search = searchParams.get("search") ?? "";
+  const sortBy = searchParams.get("sortBy") ?? "";
+  const sortDir = searchParams.get("sortDir") ?? "asc";
 
   function toggleFilter(key: string, value: string) {
     const next = new URLSearchParams(searchParams);
@@ -40,6 +49,19 @@ export function FilterBar({
       next.set("search", value);
     } else {
       next.delete("search");
+    }
+    next.delete("page");
+    setSearchParams(next);
+  }
+
+  function toggleSort(value: string) {
+    const next = new URLSearchParams(searchParams);
+    if (sortBy === value) {
+      // Toggle direction
+      next.set("sortDir", sortDir === "asc" ? "desc" : "asc");
+    } else {
+      next.set("sortBy", value);
+      next.set("sortDir", "asc");
     }
     next.delete("page");
     setSearchParams(next);
@@ -74,6 +96,31 @@ export function FilterBar({
           ))}
         </div>
       ))}
+
+      {sortOptions && sortOptions.length > 0 && (
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground mr-1">Sort:</span>
+          {sortOptions.map((opt) => {
+            const isActive = sortBy === opt.value;
+            return (
+              <Button
+                key={opt.value}
+                variant={isActive ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => toggleSort(opt.value)}
+              >
+                {opt.label}
+                {isActive && (
+                  sortDir === "asc"
+                    ? <ArrowUp className="h-3 w-3" />
+                    : <ArrowDown className="h-3 w-3" />
+                )}
+              </Button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

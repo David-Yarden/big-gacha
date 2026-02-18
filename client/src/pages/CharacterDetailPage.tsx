@@ -14,7 +14,6 @@ import { getCharacter, getTalent, getConstellation } from "@/lib/api";
 import {
   characterSplashUrl,
   characterIconUrl,
-  elementIconUrl,
   talentIconUrl,
   constellationIconUrl,
 } from "@/lib/images";
@@ -82,7 +81,7 @@ function TalentSection({
                     <td className="px-3 py-1.5 text-muted-foreground">
                       {parsed.name}
                     </td>
-                    <td className="px-3 py-1.5 text-right font-mono">
+                    <td className="px-3 py-1.5 text-right font-mono font-semibold text-amber-400">
                       {parsed.value}
                     </td>
                   </tr>
@@ -238,7 +237,6 @@ export function CharacterDetailPage() {
   }
 
   const elementClass = ELEMENT_COLOR_MAP[character.element ?? ""] ?? "bg-muted";
-  const elIconUrl = elementIconUrl(character.element);
   const talentImages = talent?.images;
 
   return (
@@ -258,7 +256,7 @@ export function CharacterDetailPage() {
             <ImageWithFallback
               src={characterSplashUrl(character.images) ?? characterIconUrl(character.images)}
               alt={character.name}
-              className="w-full h-[420px] object-contain object-bottom"
+              className="w-full h-[420px] object-contain object-top"
             />
           </Card>
         </div>
@@ -268,10 +266,7 @@ export function CharacterDetailPage() {
           <div>
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-3xl font-bold">{character.name}</h1>
-              <Badge className={`${elementClass} border-0 text-white flex items-center gap-1.5`}>
-                {elIconUrl && (
-                  <img src={elIconUrl} alt={character.element} className="h-3.5 w-3.5 invert" />
-                )}
+              <Badge className={`${elementClass} border-0 text-white`}>
                 {character.element}
               </Badge>
             </div>
