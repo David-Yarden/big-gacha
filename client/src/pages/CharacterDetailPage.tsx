@@ -260,7 +260,8 @@ export function CharacterDetailPage() {
         </Card>
 
         {/* Info panel — stacked below on mobile, overlaid on desktop */}
-        <div className="mt-6 md:mt-0 md:absolute md:inset-y-0 md:right-0 md:w-[42%] md:flex md:flex-col md:justify-center md:px-6 md:bg-gradient-to-r md:from-transparent md:via-background/60 md:to-background/95 md:rounded-r-xl space-y-4">
+        <div className="mt-6 md:mt-0 md:absolute md:inset-y-0 md:right-0 md:w-[42%] md:flex md:flex-col md:justify-center md:p-6">
+          <div className="space-y-4 md:bg-background/90 md:backdrop-blur-sm md:rounded-xl md:p-5 md:border md:border-white/10">
           <div>
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-3xl font-bold">{character.name}</h1>
@@ -331,6 +332,7 @@ export function CharacterDetailPage() {
               {character.description}
             </p>
           )}
+          </div>
         </div>
       </div>
 
