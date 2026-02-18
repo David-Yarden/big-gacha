@@ -48,11 +48,6 @@ function ArtifactCard({ artifact, game }: { artifact: Artifact; game: string }) 
               <RarityStars rarity={maxRarity} className="text-xs" />
             </div>
           )}
-          {artifact.twoPieceBonus && (
-            <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-              2pc: {artifact.twoPieceBonus}
-            </p>
-          )}
         </CardContent>
       </Card>
     </Link>
