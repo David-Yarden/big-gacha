@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: oklch(0.145 0.02 270);
+  --color-foreground: oklch(0.95 0.01 270);
+  --color-card: oklch(0.18 0.02 270);
+  --color-card-foreground: oklch(0.95 0.01 270);
+  --color-popover: oklch(0.18 0.02 270);
+  --color-popover-foreground: oklch(0.95 0.01 270);
+  --color-primary: oklch(0.7 0.15 280);
+  --color-primary-foreground: oklch(0.98 0.005 270);
+  --color-secondary: oklch(0.25 0.02 270);
+  --color-secondary-foreground: oklch(0.9 0.01 270);
+  --color-muted: oklch(0.22 0.015 270);
+  --color-muted-foreground: oklch(0.6 0.02 270);
+  --color-accent: oklch(0.25 0.02 270);
+  --color-accent-foreground: oklch(0.9 0.01 270);
+  --color-destructive: oklch(0.55 0.2 25);
+  --color-destructive-foreground: oklch(0.98 0.005 270);
+  --color-border: oklch(0.3 0.02 270);
+  --color-input: oklch(0.3 0.02 270);
+  --color-ring: oklch(0.7 0.15 280);
+
+  /* Element colors */
+  --color-pyro: oklch(0.65 0.2 25);
+  --color-hydro: oklch(0.6 0.18 250);
+  --color-anemo: oklch(0.7 0.14 170);
+  --color-electro: oklch(0.6 0.2 300);
+  --color-dendro: oklch(0.65 0.18 145);
+  --color-cryo: oklch(0.75 0.1 220);
+  --color-geo: oklch(0.7 0.14 80);
+
+  /* Rarity colors */
+  --color-rarity-5: oklch(0.75 0.16 70);
+  --color-rarity-4: oklch(0.6 0.2 290);
+  --color-rarity-3: oklch(0.6 0.15 230);
+  --color-rarity-2: oklch(0.65 0.12 155);
+  --color-rarity-1: oklch(0.55 0.02 270);
+
+  --radius: 0.625rem;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+}

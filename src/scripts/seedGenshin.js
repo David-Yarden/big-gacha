@@ -108,7 +108,7 @@ async function seedWeapons() {
       effectName: data.effectName,
       effectTemplateRaw: data.effectTemplateRaw,
       version: data.version,
-      refinements: data.refinements,
+      refinements: [data.r1, data.r2, data.r3, data.r4, data.r5].filter(Boolean),
       costs: data.costs,
       images: data.images,
       url: data.url,

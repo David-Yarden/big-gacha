@@ -1,0 +1,54 @@
+/**
+ * Format a numeric value using genshin-db format codes.
+ * F1P = 1 decimal + percent, F2P = 2 decimal + percent,
+ * F1 = 1 decimal, F2 = 2 decimal, I = integer, P = percent (integer)
+ */
+export function formatValue(value: number, format: string): string {
+  switch (format) {
+    case "F1P":
+      return `${(value * 100).toFixed(1)}%`;
+    case "F2P":
+      return `${(value * 100).toFixed(2)}%`;
+    case "F1":
+      return value.toFixed(1);
+    case "F2":
+      return value.toFixed(2);
+    case "I":
+      return Math.round(value).toString();
+    case "P":
+      return `${Math.round(value * 100)}%`;
+    default:
+      return value.toString();
+  }
+}
+
+/**
+ * Parse a talent label string, replacing {paramN:FORMAT} tokens with actual values.
+ * label: e.g. "1-Hit DMG|{param1:F1P}"
+ * parameters: the parameters object from the talent data
+ * level: 0-indexed talent level (0 = Lv.1)
+ */
+export function parseLabel(
+  label: string,
+  parameters: Record<string, number[]> | undefined,
+  level: number
+): { name: string; value: string } {
+  const parts = label.split("|");
+  const name = parts[0];
+  const template = parts.slice(1).join("|");
+
+  if (!template || !parameters) {
+    return { name, value: template || "" };
+  }
+
+  const value = template.replace(
+    /\{(\w+):(\w+)\}/g,
+    (_match, paramKey: string, format: string) => {
+      const paramValues = parameters[paramKey];
+      if (!paramValues || level >= paramValues.length) return "?";
+      return formatValue(paramValues[level], format);
+    }
+  );
+
+  return { name, value };
+}
