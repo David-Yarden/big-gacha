@@ -6,3 +6,8 @@ dist/
 # Client
 client/node_modules/
 client/dist/
+
+# Claude / AI tooling
+.claude/
+CLAUDE-FEEDBACK.md
+feedback/

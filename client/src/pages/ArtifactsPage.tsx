@@ -72,8 +72,8 @@ export function ArtifactsPage() {
 
   const search = searchParams.get("search") ?? undefined;
   const rarity = searchParams.get("rarity") ?? undefined;
-  const sortBy = searchParams.get("sortBy") ?? "";
-  const sortDir = searchParams.get("sortDir") ?? "asc";
+  const sortBy = searchParams.get("sortBy") ?? "version";
+  const sortDir = searchParams.get("sortDir") ?? "desc";
 
   const sort = buildSort(sortBy, sortDir);
 
@@ -104,6 +104,8 @@ export function ArtifactsPage() {
         searchPlaceholder="Search artifact sets..."
         filterGroups={ARTIFACT_FILTERS}
         sortOptions={SORT_OPTIONS}
+        defaultSortBy="version"
+        defaultSortDir="desc"
       />
 
       {error && (

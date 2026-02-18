@@ -19,6 +19,8 @@ interface FilterBarProps {
   searchPlaceholder?: string;
   filterGroups: FilterGroup[];
   sortOptions?: SortOption[];
+  defaultSortBy?: string;
+  defaultSortDir?: string;
 }
 
 export function FilterBar({
@@ -27,10 +29,12 @@ export function FilterBar({
   searchPlaceholder = "Search...",
   filterGroups,
   sortOptions,
+  defaultSortBy = "",
+  defaultSortDir = "asc",
 }: FilterBarProps) {
   const search = searchParams.get("search") ?? "";
-  const sortBy = searchParams.get("sortBy") ?? "";
-  const sortDir = searchParams.get("sortDir") ?? "asc";
+  const sortBy = searchParams.get("sortBy") ?? defaultSortBy;
+  const sortDir = searchParams.get("sortDir") ?? defaultSortDir;
 
   function toggleFilter(key: string, value: string) {
     const next = new URLSearchParams(searchParams);

@@ -98,8 +98,8 @@ export function CharactersPage() {
   const element = searchParams.get("element") ?? undefined;
   const weaponType = searchParams.get("weaponType") ?? undefined;
   const rarity = searchParams.get("rarity") ?? undefined;
-  const sortBy = searchParams.get("sortBy") ?? "";
-  const sortDir = searchParams.get("sortDir") ?? "asc";
+  const sortBy = searchParams.get("sortBy") ?? "version";
+  const sortDir = searchParams.get("sortDir") ?? "desc";
 
   const sort = buildSort(sortBy, sortDir);
 
@@ -132,6 +132,8 @@ export function CharactersPage() {
         searchPlaceholder="Search characters..."
         filterGroups={CHARACTER_FILTERS}
         sortOptions={SORT_OPTIONS}
+        defaultSortBy="version"
+        defaultSortDir="desc"
       />
 
       {error && (
