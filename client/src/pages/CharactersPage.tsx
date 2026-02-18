@@ -72,11 +72,9 @@ function CharacterCard({ character, game }: { character: Character; game: string
             <span>{character.weaponType}</span>
             <RarityStars rarity={character.rarity} className="text-xs" />
           </div>
-          {character.region && (
-            <p className="mt-0.5 text-xs text-muted-foreground truncate">
-              {character.region}
-            </p>
-          )}
+          <p className="mt-0.5 text-xs text-muted-foreground truncate">
+            {character.region ?? "—"}
+          </p>
         </CardContent>
       </Card>
     </Link>

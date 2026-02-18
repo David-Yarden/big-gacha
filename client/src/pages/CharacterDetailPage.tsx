@@ -249,20 +249,18 @@ export function CharacterDetailPage() {
       </Link>
 
       {/* Header */}
-      <div className="flex flex-col gap-6 md:flex-row">
-        {/* Splash art */}
-        <div className="w-full md:w-72 shrink-0">
-          <Card className={`overflow-hidden ${elementClass}/10`}>
-            <ImageWithFallback
-              src={characterSplashUrl(character.images) ?? characterIconUrl(character.images)}
-              alt={character.name}
-              className="w-full h-[420px] object-contain object-top"
-            />
-          </Card>
-        </div>
+      <div className="relative">
+        {/* Hero: 2:1 aspect ratio matches the actual gacha splash dimensions */}
+        <Card className={`overflow-hidden aspect-[2/1] ${elementClass}/20`}>
+          <ImageWithFallback
+            src={characterSplashUrl(character.images) ?? characterIconUrl(character.images)}
+            alt={character.name}
+            className="w-full h-full object-contain"
+          />
+        </Card>
 
-        {/* Info panel */}
-        <div className="flex-1 space-y-4">
+        {/* Info panel — stacked below on mobile, overlaid on desktop */}
+        <div className="mt-6 md:mt-0 md:absolute md:inset-y-0 md:right-0 md:w-[42%] md:flex md:flex-col md:justify-center md:px-6 md:bg-gradient-to-r md:from-transparent md:via-background/60 md:to-background/95 md:rounded-r-xl space-y-4">
           <div>
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-3xl font-bold">{character.name}</h1>
