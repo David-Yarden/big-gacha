@@ -30,6 +30,25 @@
   --color-cryo: oklch(0.75 0.1 220);
   --color-geo: oklch(0.7 0.14 80);
 
+  /* HSR element (combat type) colors */
+  --color-hsr-physical:  oklch(0.65 0.03 270);
+  --color-hsr-fire:      oklch(0.62 0.2  22);
+  --color-hsr-ice:       oklch(0.70 0.13 218);
+  --color-hsr-lightning: oklch(0.58 0.22 295);
+  --color-hsr-wind:      oklch(0.68 0.15 168);
+  --color-hsr-quantum:   oklch(0.50 0.20 278);
+  --color-hsr-imaginary: oklch(0.75 0.15 82);
+
+  /* HSR path colors */
+  --color-hsr-destruction:  oklch(0.62 0.18 22);
+  --color-hsr-hunt:         oklch(0.68 0.15 158);
+  --color-hsr-erudition:    oklch(0.60 0.18 232);
+  --color-hsr-harmony:      oklch(0.65 0.15 312);
+  --color-hsr-nihility:     oklch(0.45 0.08 270);
+  --color-hsr-preservation: oklch(0.70 0.15 74);
+  --color-hsr-abundance:    oklch(0.65 0.18 148);
+  --color-hsr-remembrance:  oklch(0.72 0.10 213);
+
   /* Rarity colors */
   --color-rarity-5: oklch(0.75 0.16 70);
   --color-rarity-4: oklch(0.6 0.2 290);

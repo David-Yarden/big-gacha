@@ -10,7 +10,13 @@ import { Slider } from "@/components/ui/slider";
 import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { RarityStars } from "@/components/shared/RarityStars";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import { getCharacter, getTalent, getConstellation } from "@/lib/api";
+import {
+  getCharacter,
+  getTalent,
+  getConstellation,
+  getTrace,
+  getEidolon,
+} from "@/lib/api";
 import {
   characterSplashUrl,
   characterIconUrl,
@@ -25,7 +31,6 @@ import {
 import { parseLabel, formatSpecialized } from "@/lib/formatters";
 import {
   ASCENSION_LEVELS,
-  CHARACTER_LEVELS,
   levelToAscensionPhase,
   calculateAscensionMaterials,
   calculateTalentMaterials,
@@ -33,10 +38,27 @@ import {
   calculateBreakthroughMaterials,
   mergeAllMaterials,
 } from "@/lib/materials";
-import { ELEMENT_COLOR_MAP, resolveRegion } from "@/lib/constants";
-import type { Game, TalentCombat, Talent, Constellation } from "@/lib/types";
+import {
+  ELEMENT_COLOR_MAP,
+  HSR_ELEMENT_COLOR_MAP,
+  resolveRegion,
+} from "@/lib/constants";
+import type { Game, TalentCombat, Talent, Constellation, Trace, Eidolon } from "@/lib/types";
 import type { MaterialCostEntry } from "@/lib/materials";
 import { TotalCostCalculator } from "@/components/character/TotalCostCalculator";
+
+// HSR ascension checkpoints
+const HSR_ASCENSION_LEVELS = [1, 20, 30, 40, 50, 60, 70, 80] as const;
+
+function hsrLevelToAscensionPhase(level: number): number {
+  if (level <= 20) return 0;
+  if (level <= 30) return 1;
+  if (level <= 40) return 2;
+  if (level <= 50) return 3;
+  if (level <= 60) return 4;
+  if (level <= 70) return 5;
+  return 6;
+}
 
 // ── Stat icon ────────────────────────────────────────────────────────────────
 
@@ -46,6 +68,8 @@ function StatIcon({ substatType, className = "h-4 w-4 shrink-0" }: { substatType
   if (!url) return null;
   return <img src={url} className={className} alt="" />;
 }
+
+// ── Genshin talent section ────────────────────────────────────────────────────
 
 function TalentSection({
   talent,
@@ -136,6 +160,42 @@ function PassiveSection({
   );
 }
 
+// ── HSR trace section ─────────────────────────────────────────────────────────
+
+function HsrSkillSection({
+  skill,
+  label,
+}: {
+  skill: { name: string; maxLevel?: number; desc?: string; icon?: string };
+  label?: string;
+}) {
+  return (
+    <div className="flex gap-3">
+      {skill.icon && (
+        <img
+          src={skill.icon}
+          alt={skill.name}
+          className="h-10 w-10 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0 mt-0.5"
+        />
+      )}
+      <div className="flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          {label && <Badge variant="outline" className="text-xs">{label}</Badge>}
+          <h4 className="font-semibold">{skill.name}</h4>
+          {skill.maxLevel != null && skill.maxLevel > 1 && (
+            <span className="text-xs text-muted-foreground">Max Lv. {skill.maxLevel}</span>
+          )}
+        </div>
+        {skill.desc && (
+          <p className="mt-1 text-sm text-muted-foreground whitespace-pre-line">{skill.desc}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Material cost table ───────────────────────────────────────────────────────
+
 function MaterialCostTable({ materials }: { materials: MaterialCostEntry[] }) {
   if (materials.length === 0) {
     return (
@@ -177,10 +237,14 @@ function MaterialCostTable({ materials }: { materials: MaterialCostEntry[] }) {
   );
 }
 
+// ── Main page ─────────────────────────────────────────────────────────────────
+
 export function CharacterDetailPage() {
   const { game, name } = useParams<{ game: string; name: string }>();
+  const isHsr = game === "hsr";
 
-  const [charLevel, setCharLevel] = useState(90);
+  const defaultLevel = isHsr ? 80 : 90;
+  const [charLevel, setCharLevel] = useState(defaultLevel);
   const [talent1Level, setTalent1Level] = useState(10);
   const [talent2Level, setTalent2Level] = useState(10);
   const [talent3Level, setTalent3Level] = useState(10);
@@ -192,18 +256,24 @@ export function CharacterDetailPage() {
   );
 
   const { data: talentData } = useApiQuery(
-    () => getTalent(game as Game, name!),
+    () => isHsr ? getTrace(game as Game, name!) : getTalent(game as Game, name!),
     [game, name]
   );
 
   const { data: constellationData } = useApiQuery(
-    () => getConstellation(game as Game, name!),
+    () => isHsr ? getEidolon(game as Game, name!) : getConstellation(game as Game, name!),
     [game, name]
   );
 
   const character = charData?.data;
-  const talent = talentData?.data as Talent | undefined;
-  const constellation = constellationData?.data as Constellation | undefined;
+
+  // Genshin-only: talent / constellation
+  const talent = !isHsr ? (talentData?.data as Talent | undefined) : undefined;
+  const constellation = !isHsr ? (constellationData?.data as Constellation | undefined) : undefined;
+
+  // HSR-only: trace / eidolon
+  const trace = isHsr ? (talentData?.data as Trace | undefined) : undefined;
+  const eidolon = isHsr ? (constellationData?.data as Eidolon | undefined) : undefined;
 
   useEffect(() => {
     if (character?.availableElements?.length && !activeElement) {
@@ -211,7 +281,7 @@ export function CharacterDetailPage() {
     }
   }, [character]);
 
-  // For Travelers, derive active variant data from the selected element
+  // For Travelers (Genshin), derive active variant data from the selected element
   const isTraveler = !!talent?.isTraveler;
   const activeVariant      = isTraveler && activeElement ? talent?.elementVariants?.[activeElement] : null;
   const activeTalent       = activeVariant ?? talent;
@@ -223,20 +293,37 @@ export function CharacterDetailPage() {
   const activeConstellation  = activeConstVariant ?? constellation;
   const activeConstImages    = activeConstVariant?.images ?? constellation?.images;
 
-  const ascensionPhase = levelToAscensionPhase(charLevel);
+  // For Trailblazer (HSR), derive active variant from selected element
+  const isTrailblazer = !!trace?.isTraveler;
+  const activeTraceVariant = isTrailblazer && activeElement
+    ? (trace?.elementVariants?.[activeElement] as Partial<Trace> | undefined)
+    : null;
+  const activeTrace = activeTraceVariant ?? trace;
+
+  const activeEidolonVariant = eidolon?.isTraveler && activeElement
+    ? (eidolon?.elementVariants?.[activeElement] as Partial<Eidolon> | undefined)
+    : null;
+  const activeEidolon = activeEidolonVariant ?? eidolon;
+
+  // Level/ascension calculations
+  const ascLevels = isHsr ? HSR_ASCENSION_LEVELS : ASCENSION_LEVELS;
+  const toPhase = isHsr ? hsrLevelToAscensionPhase : levelToAscensionPhase;
+  const ascensionPhase = toPhase(charLevel);
+
   const ascensionMaterials = useMemo(
     () => calculateAscensionMaterials(character?.costs, ascensionPhase),
     [character?.costs, ascensionPhase]
   );
   const expMaterials = useMemo(
-    () => calculateExpMaterials(charLevel),
-    [charLevel]
+    () => isHsr ? [] : calculateExpMaterials(charLevel),
+    [isHsr, charLevel]
   );
   const breakthroughMaterials = useMemo(
-    () => calculateBreakthroughMaterials(charLevel),
-    [charLevel]
+    () => isHsr ? [] : calculateBreakthroughMaterials(charLevel),
+    [isHsr, charLevel]
   );
 
+  // Talent costs (Genshin only for now)
   const talentCosts = activeTalent?.costs;
   const talent1Materials = useMemo(
     () => calculateTalentMaterials(talentCosts, talent1Level),
@@ -264,9 +351,6 @@ export function CharacterDetailPage() {
     [ascensionMaterials, expMaterials, breakthroughMaterials, talent1Materials, talent2Materials, talent3Materials]
   );
 
-  const closestAscLevel =
-    ASCENSION_LEVELS.find((l) => l >= charLevel) ?? 90;
-
   if (charLoading) {
     return (
       <div className="space-y-4">
@@ -292,8 +376,12 @@ export function CharacterDetailPage() {
     );
   }
 
-  const displayElement = isTraveler ? (activeElement ?? character.element) : character.element;
-  const elementClass = ELEMENT_COLOR_MAP[displayElement ?? ""] ?? "bg-muted";
+  const displayElement = (isTraveler || isTrailblazer) ? (activeElement ?? character.element) : character.element;
+  const elementColorMap = isHsr ? HSR_ELEMENT_COLOR_MAP : ELEMENT_COLOR_MAP;
+  const elementClass = elementColorMap[displayElement ?? ""] ?? "bg-muted";
+
+  const tabTraces = isHsr ? "traces" : "talents";
+  const tabEidolons = isHsr ? "eidolons" : "constellations";
 
   return (
     <div className="space-y-6">
@@ -306,7 +394,6 @@ export function CharacterDetailPage() {
 
       {/* Header */}
       <div className="relative">
-        {/* Hero: 2:1 aspect ratio matches the actual gacha splash dimensions */}
         <Card className={`overflow-hidden aspect-[2/1] ${elementClass}/20`}>
           <ImageWithFallback
             src={characterSplashUrl(character.images) ?? characterIconUrl(character.images)}
@@ -315,14 +402,14 @@ export function CharacterDetailPage() {
           />
         </Card>
 
-        {/* Info panel — stacked below on mobile, overlaid on desktop */}
+        {/* Info panel */}
         <div className="mt-6 md:mt-0 md:absolute md:inset-y-0 md:right-0 md:w-[42%] md:flex md:flex-col md:justify-center md:p-6">
           <div className="space-y-4 md:bg-background/90 md:backdrop-blur-sm md:rounded-xl md:p-5 md:border md:border-white/10">
           <div>
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-3xl font-bold">{character.name}</h1>
               <Badge className={`${elementClass} border-0 text-white flex items-center gap-1`}>
-                {elementIconUrl(displayElement) && (
+                {!isHsr && elementIconUrl(displayElement) && (
                   <img src={elementIconUrl(displayElement)!} className="h-4 w-4" alt="" />
                 )}
                 {displayElement}
@@ -336,19 +423,30 @@ export function CharacterDetailPage() {
           <RarityStars rarity={character.rarity} className="text-lg" />
 
           <div className="grid grid-cols-2 gap-3 text-sm">
-            {character.weaponType && (
-              <div className="flex items-center gap-1">
-                <span className="text-muted-foreground">Weapon: </span>
-                {weaponTypeIconUrl(character.weaponType) && (
-                  <img src={weaponTypeIconUrl(character.weaponType)!} className="h-4 w-4" alt="" />
+            {isHsr ? (
+              character.path && (
+                <div>
+                  <span className="text-muted-foreground">Path: </span>
+                  {character.path}
+                </div>
+              )
+            ) : (
+              <>
+                {character.weaponType && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-muted-foreground">Weapon: </span>
+                    {weaponTypeIconUrl(character.weaponType) && (
+                      <img src={weaponTypeIconUrl(character.weaponType)!} className="h-4 w-4" alt="" />
+                    )}
+                    {character.weaponType}
+                  </div>
                 )}
-                {character.weaponType}
-              </div>
+                <div>
+                  <span className="text-muted-foreground">Region: </span>
+                  {resolveRegion(character.region, character.name)}
+                </div>
+              </>
             )}
-            <div>
-              <span className="text-muted-foreground">Region: </span>
-              {resolveRegion(character.region, character.name)}
-            </div>
             {character.substatText && (
               <div className="flex items-center gap-1">
                 <span className="text-muted-foreground">Asc. Stat: </span>
@@ -405,12 +503,12 @@ export function CharacterDetailPage() {
         </div>
       </div>
 
-      {/* Element selector for Travelers */}
+      {/* Element/path selector for multi-element characters */}
       {character.availableElements && character.availableElements.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm text-muted-foreground">Element:</span>
+          <span className="text-sm text-muted-foreground">{isHsr ? "Path:" : "Element:"}</span>
           {character.availableElements.map((el) => {
-            const elClass = ELEMENT_COLOR_MAP[el] ?? "bg-muted";
+            const elClass = elementColorMap[el] ?? "bg-muted";
             const isActive = activeElement === el;
             return (
               <button
@@ -422,7 +520,7 @@ export function CharacterDetailPage() {
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
                   }`}
               >
-                {elementIconUrl(el) && (
+                {!isHsr && elementIconUrl(el) && (
                   <img src={elementIconUrl(el)!} className="h-4 w-4" alt="" />
                 )}
                 {el}
@@ -433,137 +531,237 @@ export function CharacterDetailPage() {
       )}
 
       {/* Tabs */}
-      <Tabs defaultValue="talents">
+      <Tabs defaultValue={tabTraces}>
         <TabsList>
-          <TabsTrigger value="talents">Talents</TabsTrigger>
-          <TabsTrigger value="constellations">Constellations</TabsTrigger>
+          <TabsTrigger value={tabTraces}>
+            {isHsr ? "Traces" : "Talents"}
+          </TabsTrigger>
+          <TabsTrigger value={tabEidolons}>
+            {isHsr ? "Eidolons" : "Constellations"}
+          </TabsTrigger>
           <TabsTrigger value="ascension">Ascension</TabsTrigger>
         </TabsList>
 
-        {/* Talents tab */}
-        <TabsContent value="talents">
-          <div className="space-y-6">
-            {activeTalent?.combat1 && (
-              <Card>
-                <CardContent className="p-4">
-                  <TalentSection
-                    talent={activeTalent.combat1}
-                    level={talent1Level}
-                    onLevelChange={setTalent1Level}
-                    iconUrl={talentIconUrl(activeTalentImages, "combat1")}
-                  />
-                </CardContent>
-              </Card>
-            )}
-            {activeTalent?.combat2 && (
-              <Card>
-                <CardContent className="p-4">
-                  <TalentSection
-                    talent={activeTalent.combat2}
-                    level={talent2Level}
-                    onLevelChange={setTalent2Level}
-                    iconUrl={talentIconUrl(activeTalentImages, "combat2")}
-                  />
-                </CardContent>
-              </Card>
-            )}
-            {activeTalent?.combat3 && (
-              <Card>
-                <CardContent className="p-4">
-                  <TalentSection
-                    talent={activeTalent.combat3}
-                    level={talent3Level}
-                    onLevelChange={setTalent3Level}
-                    iconUrl={talentIconUrl(activeTalentImages, "combat3")}
-                  />
-                </CardContent>
-              </Card>
-            )}
-            {activeTalent?.combatsp && (
-              <Card>
-                <CardContent className="p-4">
-                  <TalentSection
-                    talent={activeTalent.combatsp}
-                    level={1}
-                    onLevelChange={() => {}}
-                    iconUrl={talentIconUrl(activeTalentImages, "combatsp")}
-                  />
-                </CardContent>
-              </Card>
-            )}
+        {/* Talents tab (Genshin) */}
+        {!isHsr && (
+          <TabsContent value="talents">
+            <div className="space-y-6">
+              {activeTalent?.combat1 && (
+                <Card>
+                  <CardContent className="p-4">
+                    <TalentSection
+                      talent={activeTalent.combat1}
+                      level={talent1Level}
+                      onLevelChange={setTalent1Level}
+                      iconUrl={talentIconUrl(activeTalentImages, "combat1")}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+              {activeTalent?.combat2 && (
+                <Card>
+                  <CardContent className="p-4">
+                    <TalentSection
+                      talent={activeTalent.combat2}
+                      level={talent2Level}
+                      onLevelChange={setTalent2Level}
+                      iconUrl={talentIconUrl(activeTalentImages, "combat2")}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+              {activeTalent?.combat3 && (
+                <Card>
+                  <CardContent className="p-4">
+                    <TalentSection
+                      talent={activeTalent.combat3}
+                      level={talent3Level}
+                      onLevelChange={setTalent3Level}
+                      iconUrl={talentIconUrl(activeTalentImages, "combat3")}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+              {activeTalent?.combatsp && (
+                <Card>
+                  <CardContent className="p-4">
+                    <TalentSection
+                      talent={activeTalent.combatsp}
+                      level={1}
+                      onLevelChange={() => {}}
+                      iconUrl={talentIconUrl(activeTalentImages, "combatsp")}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+              {(activeTalent?.passive1 || activeTalent?.passive2 || activeTalent?.passive3) && (
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold">Passive Talents</h3>
+                  {(
+                    [
+                      ["passive1", activeTalent?.passive1],
+                      ["passive2", activeTalent?.passive2],
+                      ["passive3", activeTalent?.passive3],
+                      ["passive4", activeTalent?.passive4],
+                    ] as const
+                  )
+                    .filter(([, p]) => p != null)
+                    .map(([key, passive]) => (
+                      <Card key={key}>
+                        <CardContent className="p-4">
+                          <PassiveSection
+                            passive={passive!}
+                            iconUrl={talentIconUrl(activeTalentImages, key)}
+                          />
+                        </CardContent>
+                      </Card>
+                    ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+        )}
 
-            {/* Passives */}
-            {(activeTalent?.passive1 || activeTalent?.passive2 || activeTalent?.passive3) && (
-              <div className="space-y-3">
-                <h3 className="text-lg font-semibold">Passive Talents</h3>
-                {(
+        {/* Traces tab (HSR) */}
+        {isHsr && (
+          <TabsContent value="traces">
+            <div className="space-y-4">
+              {activeTrace && (
+                (
                   [
-                    ["passive1", activeTalent?.passive1],
-                    ["passive2", activeTalent?.passive2],
-                    ["passive3", activeTalent?.passive3],
-                    ["passive4", activeTalent?.passive4],
-                  ] as const
+                    { skill: activeTrace.basicAtk,  label: "Basic ATK" },
+                    { skill: activeTrace.skill,     label: "Skill"     },
+                    { skill: activeTrace.ultimate,  label: "Ultimate"  },
+                    { skill: activeTrace.talent,    label: "Talent"    },
+                    { skill: activeTrace.technique, label: "Technique" },
+                  ] as Array<{ skill: { name: string; maxLevel?: number; desc?: string; icon?: string } | null | undefined; label: string }>
                 )
-                  .filter(([, p]) => p != null)
-                  .map(([key, passive]) => (
-                    <Card key={key}>
+                  .filter((e) => e.skill != null)
+                  .map((e) => (
+                    <Card key={e.label}>
                       <CardContent className="p-4">
-                        <PassiveSection
-                          passive={passive!}
-                          iconUrl={talentIconUrl(activeTalentImages, key)}
-                        />
+                        <HsrSkillSection skill={e.skill!} label={e.label} />
                       </CardContent>
                     </Card>
-                  ))}
-              </div>
-            )}
-          </div>
-        </TabsContent>
+                  ))
+              )}
+              {activeTrace?.statBonuses && activeTrace.statBonuses.length > 0 && (
+                <Card>
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold mb-3">Stat Bonuses</h4>
+                    <div className="rounded-lg border">
+                      <table className="w-full text-sm">
+                        <tbody>
+                          {activeTrace.statBonuses.map((bonus, i) => (
+                            <tr key={i} className="border-b last:border-0">
+                              <td className="px-3 py-1.5 text-muted-foreground">{bonus.stat}</td>
+                              <td className="px-3 py-1.5 text-right font-mono font-semibold text-amber-400">
+                                {bonus.value < 1
+                                  ? `+${(bonus.value * 100).toFixed(1)}%`
+                                  : `+${Math.round(bonus.value)}`}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+        )}
 
-        {/* Constellations tab */}
-        <TabsContent value="constellations">
-          <div className="space-y-3">
-            {activeConstellation &&
-              (
-                [
-                  ["c1", activeConstellation.c1],
-                  ["c2", activeConstellation.c2],
-                  ["c3", activeConstellation.c3],
-                  ["c4", activeConstellation.c4],
-                  ["c5", activeConstellation.c5],
-                  ["c6", activeConstellation.c6],
-                ] as const
-              ).map(([key, c]) =>
-                c ? (
-                  <Card key={key}>
-                    <CardContent className="p-4">
-                      <div className="flex gap-3">
-                        {(() => {
-                          const iconUrl = constellationIconUrl(activeConstImages, key);
-                          return iconUrl ? (
+        {/* Constellations tab (Genshin) */}
+        {!isHsr && (
+          <TabsContent value="constellations">
+            <div className="space-y-3">
+              {activeConstellation &&
+                (
+                  [
+                    ["c1", activeConstellation.c1],
+                    ["c2", activeConstellation.c2],
+                    ["c3", activeConstellation.c3],
+                    ["c4", activeConstellation.c4],
+                    ["c5", activeConstellation.c5],
+                    ["c6", activeConstellation.c6],
+                  ] as const
+                ).map(([key, c]) =>
+                  c ? (
+                    <Card key={key}>
+                      <CardContent className="p-4">
+                        <div className="flex gap-3">
+                          {(() => {
+                            const iconUrl = constellationIconUrl(activeConstImages, key);
+                            return iconUrl ? (
+                              <img
+                                src={iconUrl}
+                                alt={c.name}
+                                className="h-10 w-10 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0"
+                              />
+                            ) : null;
+                          })()}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline">{key.toUpperCase()}</Badge>
+                              <h4 className="font-semibold">{c.name}</h4>
+                            </div>
+                            <p className="mt-2 text-sm text-muted-foreground">
+                              {c.description}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : null
+                )}
+            </div>
+          </TabsContent>
+        )}
+
+        {/* Eidolons tab (HSR) */}
+        {isHsr && (
+          <TabsContent value="eidolons">
+            <div className="space-y-3">
+              {activeEidolon &&
+                (
+                  [
+                    ["e1", activeEidolon.e1],
+                    ["e2", activeEidolon.e2],
+                    ["e3", activeEidolon.e3],
+                    ["e4", activeEidolon.e4],
+                    ["e5", activeEidolon.e5],
+                    ["e6", activeEidolon.e6],
+                  ] as const
+                ).map(([key, e]) =>
+                  e ? (
+                    <Card key={key}>
+                      <CardContent className="p-4">
+                        <div className="flex gap-3">
+                          {activeEidolon.images?.[key] && (
                             <img
-                              src={iconUrl}
-                              alt={c.name}
+                              src={activeEidolon.images![key]}
+                              alt={e.name}
                               className="h-10 w-10 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0"
                             />
-                          ) : null;
-                        })()}
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline">{key.toUpperCase()}</Badge>
-                            <h4 className="font-semibold">{c.name}</h4>
+                          )}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline">{key.toUpperCase()}</Badge>
+                              <h4 className="font-semibold">{e.name}</h4>
+                            </div>
+                            <p className="mt-2 text-sm text-muted-foreground">
+                              {e.description}
+                            </p>
                           </div>
-                          <p className="mt-2 text-sm text-muted-foreground">
-                            {c.description}
-                          </p>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : null
-              )}
-          </div>
-        </TabsContent>
+                      </CardContent>
+                    </Card>
+                  ) : null
+                )}
+            </div>
+          </TabsContent>
+        )}
 
         {/* Ascension tab */}
         <TabsContent value="ascension">
@@ -572,20 +770,20 @@ export function CharacterDetailPage() {
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">Character Level</h3>
                 <span className="text-sm text-muted-foreground">
-                  Lv. {charLevel}{charLevel <= 90 ? ` (Phase ${ascensionPhase})` : " (Breakthrough)"}
+                  Lv. {charLevel}{charLevel <= (isHsr ? 80 : 90) ? ` (Phase ${ascensionPhase})` : " (Breakthrough)"}
                 </span>
               </div>
               <Slider
                 min={1}
-                max={90}
+                max={isHsr ? 80 : 90}
                 step={1}
-                value={[charLevel > 90 ? 90 : charLevel]}
+                value={[charLevel > (isHsr ? 80 : 90) ? (isHsr ? 80 : 90) : charLevel]}
                 onValueChange={([v]) => setCharLevel(v)}
-                disabled={charLevel > 90}
+                disabled={charLevel > (isHsr ? 80 : 90)}
               />
-              {/* Ascension quick-jump buttons (1-90, aligned under slider) */}
+              {/* Ascension quick-jump buttons */}
               <div className="flex justify-between text-xs text-muted-foreground">
-                {ASCENSION_LEVELS.map((l) => (
+                {ascLevels.map((l) => (
                   <button
                     key={l}
                     className={`px-1 ${charLevel === l ? "text-primary font-bold" : ""}`}
@@ -595,25 +793,41 @@ export function CharacterDetailPage() {
                   </button>
                 ))}
               </div>
-              {/* Breakthrough levels — separate from slider */}
-              <div className="flex items-center gap-2 pt-1 border-t">
-                <span className="text-xs text-muted-foreground shrink-0">Breakthrough</span>
-                {([95, 100] as const).map((l) => (
-                  <button
-                    key={l}
-                    onClick={() => setCharLevel(charLevel === l ? 90 : l)}
-                    className={`px-3 py-0.5 rounded text-xs border transition-colors ${
-                      charLevel === l
-                        ? "border-amber-400 text-amber-400 font-bold bg-amber-400/10"
-                        : "border-muted-foreground/30 text-muted-foreground hover:border-amber-400/60 hover:text-amber-400"
-                    }`}
-                  >
-                    Lv. {l}
-                  </button>
-                ))}
-              </div>
+              {/* Breakthrough levels — Genshin only */}
+              {!isHsr && (
+                <div className="flex items-center gap-2 pt-1 border-t">
+                  <span className="text-xs text-muted-foreground shrink-0">Breakthrough</span>
+                  {([95, 100] as const).map((l) => (
+                    <button
+                      key={l}
+                      onClick={() => setCharLevel(charLevel === l ? 90 : l)}
+                      className={`px-3 py-0.5 rounded text-xs border transition-colors ${
+                        charLevel === l
+                          ? "border-amber-400 text-amber-400 font-bold bg-amber-400/10"
+                          : "border-muted-foreground/30 text-muted-foreground hover:border-amber-400/60 hover:text-amber-400"
+                      }`}
+                    >
+                      Lv. {l}
+                    </button>
+                  ))}
+                </div>
+              )}
               {character.stats?.[charLevel] && (() => {
                 const s = character.stats![charLevel];
+                const rows = [
+                  { label: "HP",  statType: "FIGHT_PROP_HP",     value: Math.round(s.hp).toLocaleString() },
+                  { label: "ATK", statType: "FIGHT_PROP_ATTACK", value: Math.round(s.atk).toLocaleString() },
+                  { label: "DEF", statType: "FIGHT_PROP_DEFENSE",value: Math.round(s.def).toLocaleString() },
+                ];
+                if (isHsr && (s as Record<string, number>).spd != null) {
+                  rows.push({ label: "SPD", statType: "", value: Math.round((s as Record<string, number>).spd).toString() });
+                } else if (!isHsr && character.substatText) {
+                  rows.push({
+                    label: character.substatText,
+                    statType: character.substatType ?? "",
+                    value: formatSpecialized(s.specialized, character.substatType),
+                  });
+                }
                 return (
                   <div className="rounded-lg border">
                     <table className="w-full text-sm">
@@ -625,16 +839,7 @@ export function CharacterDetailPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {[
-                          { label: "HP",  statType: "FIGHT_PROP_HP",     value: Math.round(s.hp).toLocaleString() },
-                          { label: "ATK", statType: "FIGHT_PROP_ATTACK", value: Math.round(s.atk).toLocaleString() },
-                          { label: "DEF", statType: "FIGHT_PROP_DEFENSE",value: Math.round(s.def).toLocaleString() },
-                          ...(character.substatText ? [{
-                            label: character.substatText,
-                            statType: character.substatType,
-                            value: formatSpecialized(s.specialized, character.substatType),
-                          }] : []),
-                        ].map(({ label, statType, value }) => (
+                        {rows.map(({ label, statType, value }) => (
                           <tr key={label} className="border-b last:border-0">
                             <td className="px-3 py-1.5 text-muted-foreground">
                               <span className="flex items-center gap-1.5">
@@ -659,18 +864,20 @@ export function CharacterDetailPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Total Cost Calculator */}
-      <TotalCostCalculator
-        ascensionMaterials={mergeAllMaterials(ascensionMaterials, expMaterials, breakthroughMaterials)}
-        talent1Materials={talent1Materials}
-        talent2Materials={talent2Materials}
-        talent3Materials={talent3Materials}
-        totalMaterials={totalMaterials}
-        charLevel={charLevel}
-        talent1Level={talent1Level}
-        talent2Level={talent2Level}
-        talent3Level={talent3Level}
-      />
+      {/* Total Cost Calculator (Genshin only for now) */}
+      {!isHsr && (
+        <TotalCostCalculator
+          ascensionMaterials={mergeAllMaterials(ascensionMaterials, expMaterials, breakthroughMaterials)}
+          talent1Materials={talent1Materials}
+          talent2Materials={talent2Materials}
+          talent3Materials={talent3Materials}
+          totalMaterials={totalMaterials}
+          charLevel={charLevel}
+          talent1Level={talent1Level}
+          talent2Level={talent2Level}
+          talent3Level={talent3Level}
+        />
+      )}
     </div>
   );
 }

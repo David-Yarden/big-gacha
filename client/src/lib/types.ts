@@ -40,6 +40,7 @@ export interface Character {
   associationType?: string;
   birthday?: string;
   birthdaymmdd?: string;
+  path?: string;
   constellation?: string;
   substatType?: string;
   substatText?: string;
@@ -166,6 +167,94 @@ export interface Constellation extends ConstellationVariant {
   elementVariants?: Record<string, ConstellationVariant>;
 }
 
+export interface LightCone {
+  _id: string;
+  game: Game;
+  sourceId?: number;
+  name: string;
+  description?: string;
+  path?: string;
+  rarity: number;
+  effectName?: string;
+  effectTemplateRaw?: string;
+  version?: string;
+  superimpositions?: Array<Record<string, unknown>>;
+  stats?: Record<string, { hp: number; atk: number; def: number }>;
+  costs?: Record<string, MaterialCostEntry[]>;
+  images?: Record<string, string>;
+}
+
+export interface RelicPiece {
+  name: string;
+  relicType: string;
+  description?: string;
+}
+
+export interface Relic {
+  _id: string;
+  game: Game;
+  sourceId?: number;
+  name: string;
+  type?: "cavern" | "planar";
+  rarity?: number[];
+  twoPieceBonus?: string;
+  fourPieceBonus?: string;
+  version?: string;
+  pieces?: {
+    head?: RelicPiece;
+    hands?: RelicPiece;
+    body?: RelicPiece;
+    feet?: RelicPiece;
+    sphere?: RelicPiece;
+    rope?: RelicPiece;
+  };
+  images?: Record<string, string>;
+}
+
+export interface TraceSkill {
+  name: string;
+  maxLevel?: number;
+  desc?: string;
+  params?: number[][];
+  icon?: string;
+}
+
+export interface Trace {
+  _id: string;
+  game: Game;
+  name: string;
+  basicAtk?: TraceSkill;
+  skill?: TraceSkill;
+  ultimate?: TraceSkill;
+  talent?: TraceSkill;
+  technique?: TraceSkill;
+  statBonuses?: Array<{ stat: string; value: number; unlockPhase?: number }>;
+  costs?: Record<string, MaterialCostEntry[]>;
+  images?: Record<string, string>;
+  isTraveler?: boolean;
+  elementVariants?: Record<string, Partial<Trace>>;
+}
+
+export interface EidolonLevel {
+  name: string;
+  description: string;
+}
+
+export interface Eidolon {
+  _id: string;
+  game: Game;
+  name: string;
+  e1?: EidolonLevel;
+  e2?: EidolonLevel;
+  e3?: EidolonLevel;
+  e4?: EidolonLevel;
+  e5?: EidolonLevel;
+  e6?: EidolonLevel;
+  images?: Record<string, string>;
+  isTraveler?: boolean;
+  elementVariants?: Record<string, Partial<Eidolon>>;
+}
+
 export interface GameStats {
   characters: number;
   weapons: number;
@@ -173,4 +262,8 @@ export interface GameStats {
   materials: number;
   talents: number;
   constellations: number;
+  lightcones?: number;
+  relics?: number;
+  traces?: number;
+  eidolons?: number;
 }

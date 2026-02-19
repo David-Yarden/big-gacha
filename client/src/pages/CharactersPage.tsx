@@ -16,12 +16,15 @@ import {
   CHARACTER_RARITIES,
   ELEMENT_COLOR_MAP,
   RARITY_COLOR_MAP,
+  HSR_ELEMENTS,
+  HSR_PATHS,
+  HSR_ELEMENT_COLOR_MAP,
   resolveRegion,
 } from "@/lib/constants";
 import type { Game, Character } from "@/lib/types";
 import type { FilterGroup, SortOption } from "@/components/shared/FilterBar";
 
-const CHARACTER_FILTERS: FilterGroup[] = [
+const GENSHIN_FILTERS: FilterGroup[] = [
   {
     key: "element",
     label: "Element",
@@ -35,10 +38,7 @@ const CHARACTER_FILTERS: FilterGroup[] = [
   {
     key: "rarity",
     label: "Rarity",
-    options: CHARACTER_RARITIES.map((r) => ({
-      value: String(r),
-      label: "★".repeat(r),
-    })),
+    options: CHARACTER_RARITIES.map((r) => ({ value: String(r), label: "★".repeat(r) })),
   },
   {
     key: "region",
@@ -47,21 +47,37 @@ const CHARACTER_FILTERS: FilterGroup[] = [
   },
 ];
 
+const HSR_FILTERS: FilterGroup[] = [
+  {
+    key: "element",
+    label: "Element",
+    options: HSR_ELEMENTS.map((el) => ({ value: el, label: el })),
+  },
+  {
+    key: "path",
+    label: "Path",
+    options: HSR_PATHS.map((p) => ({ value: p, label: p })),
+  },
+  {
+    key: "rarity",
+    label: "Rarity",
+    options: CHARACTER_RARITIES.map((r) => ({ value: String(r), label: "★".repeat(r) })),
+  },
+];
+
 const SORT_OPTIONS: SortOption[] = [
   { value: "name", label: "Name" },
   { value: "version", label: "Release" },
 ];
 
-function CharacterCard({ character, game }: { character: Character; game: string }) {
+function GenshinCharacterCard({ character, game }: { character: Character; game: string }) {
   const elementClass = ELEMENT_COLOR_MAP[character.element ?? ""] ?? "bg-muted";
   const rarityClass = RARITY_COLOR_MAP[character.rarity] ?? "bg-muted";
 
   return (
     <Link to={`/${game}/characters/${character.name}`}>
       <Card className="group overflow-hidden transition-colors hover:border-primary/40">
-        <div
-          className={`relative flex h-32 items-center justify-center ${rarityClass}/20`}
-        >
+        <div className={`relative flex h-32 items-center justify-center ${rarityClass}/20`}>
           <ImageWithFallback
             src={characterIconUrl(character.images)}
             alt={character.name}
@@ -96,6 +112,37 @@ function CharacterCard({ character, game }: { character: Character; game: string
   );
 }
 
+function HsrCharacterCard({ character, game }: { character: Character; game: string }) {
+  const elementClass = HSR_ELEMENT_COLOR_MAP[character.element ?? ""] ?? "bg-muted";
+  const rarityClass = RARITY_COLOR_MAP[character.rarity] ?? "bg-muted";
+
+  return (
+    <Link to={`/${game}/characters/${character.name}`}>
+      <Card className="group overflow-hidden transition-colors hover:border-primary/40">
+        <div className={`relative flex h-32 items-center justify-center ${rarityClass}/20`}>
+          <ImageWithFallback
+            src={characterIconUrl(character.images)}
+            alt={character.name}
+            className="h-full w-full object-contain"
+          />
+          <Badge
+            className={`absolute top-2 right-2 ${elementClass} border-0 text-white text-xs`}
+          >
+            {character.element}
+          </Badge>
+        </div>
+        <CardContent className="p-3">
+          <p className="font-semibold text-sm truncate">{character.name}</p>
+          <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+            <span>{character.path}</span>
+            <RarityStars rarity={character.rarity} className="text-xs" />
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
 function buildSort(sortBy: string, sortDir: string): string {
   const desc = sortDir === "desc";
   if (sortBy === "version") return desc ? "-version,name" : "version,name";
@@ -107,9 +154,12 @@ export function CharactersPage() {
   const { game } = useParams<{ game: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const isHsr = game === "hsr";
+
   const search = searchParams.get("search") ?? undefined;
   const element = searchParams.get("element") ?? undefined;
   const weaponType = searchParams.get("weaponType") ?? undefined;
+  const path = searchParams.get("path") ?? undefined;
   const rarity = searchParams.get("rarity") ?? undefined;
   const region = searchParams.get("region") ?? undefined;
   const sortBy = searchParams.get("sortBy") ?? "version";
@@ -124,13 +174,16 @@ export function CharactersPage() {
         limit: 25,
         search,
         element,
-        weaponType,
+        weaponType: isHsr ? undefined : weaponType,
+        path: isHsr ? path : undefined,
         rarity: rarity ? Number(rarity) : undefined,
-        region,
+        region: isHsr ? undefined : region,
         sort,
       }),
-    [game, search, element, weaponType, rarity, region, sort]
+    [game, search, element, weaponType, path, rarity, region, sort]
   );
+
+  const filterGroups = isHsr ? HSR_FILTERS : GENSHIN_FILTERS;
 
   return (
     <div className="space-y-4">
@@ -145,7 +198,7 @@ export function CharactersPage() {
         searchParams={searchParams}
         setSearchParams={setSearchParams}
         searchPlaceholder="Search characters..."
-        filterGroups={CHARACTER_FILTERS}
+        filterGroups={filterGroups}
         sortOptions={SORT_OPTIONS}
         defaultSortBy="version"
         defaultSortDir="desc"
@@ -162,9 +215,13 @@ export function CharactersPage() {
         empty={items.length === 0 && !loading}
         emptyMessage="No characters found"
       >
-        {items.map((c) => (
-          <CharacterCard key={c._id} character={c} game={game!} />
-        ))}
+        {items.map((c) =>
+          isHsr ? (
+            <HsrCharacterCard key={c._id} character={c} game={game!} />
+          ) : (
+            <GenshinCharacterCard key={c._id} character={c} game={game!} />
+          )
+        )}
       </ResourceGrid>
 
       {loading && items.length > 0 && (

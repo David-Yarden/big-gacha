@@ -9,6 +9,10 @@ import type {
   Material,
   Talent,
   Constellation,
+  Trace,
+  Eidolon,
+  LightCone,
+  Relic,
   GameStats,
 } from "./types";
 
@@ -127,6 +131,62 @@ export async function getConstellation(
   name: string
 ): Promise<ApiResponse<Constellation>> {
   const { data } = await client.get(`/${game}/constellations/${encodeURIComponent(name)}`);
+  return data;
+}
+
+// HSR Traces
+export async function getTrace(
+  game: Game,
+  name: string
+): Promise<ApiResponse<Trace>> {
+  const { data } = await client.get(`/${game}/traces/${encodeURIComponent(name)}`);
+  return data;
+}
+
+// HSR Eidolons
+export async function getEidolon(
+  game: Game,
+  name: string
+): Promise<ApiResponse<Eidolon>> {
+  const { data } = await client.get(`/${game}/eidolons/${encodeURIComponent(name)}`);
+  return data;
+}
+
+// HSR Light Cones
+export async function getLightCones(
+  game: Game,
+  params?: QueryParams
+): Promise<PaginatedResponse<LightCone>> {
+  const { data } = await client.get(`/${game}/lightcones`, {
+    params: buildParams(params),
+  });
+  return data;
+}
+
+export async function getLightCone(
+  game: Game,
+  name: string
+): Promise<ApiResponse<LightCone>> {
+  const { data } = await client.get(`/${game}/lightcones/${encodeURIComponent(name)}`);
+  return data;
+}
+
+// HSR Relics
+export async function getRelics(
+  game: Game,
+  params?: QueryParams
+): Promise<PaginatedResponse<Relic>> {
+  const { data } = await client.get(`/${game}/relics`, {
+    params: buildParams(params),
+  });
+  return data;
+}
+
+export async function getRelic(
+  game: Game,
+  name: string
+): Promise<ApiResponse<Relic>> {
+  const { data } = await client.get(`/${game}/relics/${encodeURIComponent(name)}`);
   return data;
 }
 

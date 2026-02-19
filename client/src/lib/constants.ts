@@ -76,6 +76,50 @@ export const GENSHIN_WEAPON_TYPES = [
   "Bow",
 ] as const;
 
+export const HSR_ELEMENTS = [
+  "Physical",
+  "Fire",
+  "Ice",
+  "Lightning",
+  "Wind",
+  "Quantum",
+  "Imaginary",
+] as const;
+
+export const HSR_PATHS = [
+  "Destruction",
+  "The Hunt",
+  "Erudition",
+  "Harmony",
+  "Nihility",
+  "Preservation",
+  "Abundance",
+  "Remembrance",
+] as const;
+
+export const HSR_ELEMENT_COLOR_MAP: Record<string, string> = {
+  Physical:  "bg-hsr-physical",
+  Fire:      "bg-hsr-fire",
+  Ice:       "bg-hsr-ice",
+  Lightning: "bg-hsr-lightning",
+  Wind:      "bg-hsr-wind",
+  Quantum:   "bg-hsr-quantum",
+  Imaginary: "bg-hsr-imaginary",
+};
+
+export const HSR_PATH_COLOR_MAP: Record<string, string> = {
+  Destruction:  "bg-hsr-destruction",
+  "The Hunt":   "bg-hsr-hunt",
+  Erudition:    "bg-hsr-erudition",
+  Harmony:      "bg-hsr-harmony",
+  Nihility:     "bg-hsr-nihility",
+  Preservation: "bg-hsr-preservation",
+  Abundance:    "bg-hsr-abundance",
+  Remembrance:  "bg-hsr-remembrance",
+};
+
+export const HSR_LC_RARITIES = [5, 4, 3] as const;
+
 export const RARITIES = [5, 4, 3, 2, 1] as const;
 export const CHARACTER_RARITIES = [5, 4] as const;
 export const WEAPON_RARITIES = [5, 4, 3, 2, 1] as const;

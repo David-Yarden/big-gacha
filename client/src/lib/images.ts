@@ -13,7 +13,7 @@ function enkaUrl(filename: string): string {
  */
 export function characterIconUrl(images?: Record<string, string>): string | null {
   if (images?.filename_icon) return enkaUrl(images.filename_icon);
-  return images?.mihoyo_icon ?? null;
+  return images?.mihoyo_icon ?? images?.icon ?? null;
 }
 
 /**
@@ -22,7 +22,7 @@ export function characterIconUrl(images?: Record<string, string>): string | null
  */
 export function characterSplashUrl(images?: Record<string, string>): string | null {
   if (images?.filename_gachaSplash) return enkaUrl(images.filename_gachaSplash);
-  return images?.cover1 ?? images?.cover2 ?? null;
+  return images?.cover1 ?? images?.cover2 ?? images?.portrait ?? images?.preview ?? null;
 }
 
 /**
@@ -96,12 +96,12 @@ const YATTA_CDN = "https://gi.yatta.moe/assets/UI";
 
 export function materialIconUrl(images?: Record<string, string>): string | null {
   if (images?.filename_icon) return `${YATTA_CDN}/${images.filename_icon}.png`;
-  return null;
+  return images?.icon ?? null;
 }
 
 export function materialFallbackIconUrl(images?: Record<string, string>): string | null {
   if (images?.filename_icon) return enkaUrl(images.filename_icon);
-  return null;
+  return images?.icon ?? null;
 }
 
 /**
