@@ -18,8 +18,9 @@ const characterSchema = new mongoose.Schema(
     rarity: { type: Number, index: true }, // 4 or 5
     element: { type: String, index: true }, // "Pyro", "Anemo", etc.
     elementType: String, // raw enum "ELEMENT_PYRO"
-    weaponType: { type: String, index: true }, // "Polearm", "Sword", etc.
+    weaponType: { type: String, index: true }, // "Polearm", "Sword", etc. (Genshin)
     weaponTypeRaw: String, // raw enum "WEAPON_POLE"
+    path: { type: String, index: true }, // "The Hunt", "Destruction", etc. (HSR)
     bodyType: String, // "BODY_GIRL", "BODY_BOY", etc.
     gender: String, // "Female", "Male"
     region: String, // "Liyue", "Mondstadt", etc.
@@ -77,5 +78,6 @@ characterSchema.index({ game: 1, element: 1 });
 characterSchema.index({ game: 1, weaponType: 1 });
 characterSchema.index({ game: 1, rarity: 1 });
 characterSchema.index({ game: 1, region: 1 });
+characterSchema.index({ game: 1, path: 1 });
 
 module.exports = mongoose.model("Character", characterSchema);

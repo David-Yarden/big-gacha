@@ -61,7 +61,7 @@ export function HomePage() {
             {game.id === "hsr" && (
               <CardContent>
                 <img
-                  src="/HSR_title.webp"
+                  src="/HSR_title.png"
                   alt="Honkai: Star Rail"
                   className="w-full object-contain max-h-40"
                 />

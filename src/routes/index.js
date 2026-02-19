@@ -8,6 +8,10 @@ const {
   Material,
   Talent,
   Constellation,
+  LightCone,
+  Relic,
+  Trace,
+  Eidolon,
 } = require("../models");
 
 // Valid games
@@ -30,6 +34,7 @@ router.use("/:game", (req, res, next) => {
 
 // ─── Mount resource routes ───────────────────────────────
 
+// Genshin
 router.use("/:game/characters", createResourceRouter(Character, "Character"));
 router.use("/:game/weapons", createResourceRouter(Weapon, "Weapon"));
 router.use("/:game/artifacts", createResourceRouter(Artifact, "Artifact"));
@@ -37,26 +42,57 @@ router.use("/:game/materials", createResourceRouter(Material, "Material"));
 router.use("/:game/talents", createResourceRouter(Talent, "Talent"));
 router.use("/:game/constellations", createResourceRouter(Constellation, "Constellation"));
 
+// HSR
+router.use("/:game/lightcones", createResourceRouter(LightCone, "Light Cone"));
+router.use("/:game/relics", createResourceRouter(Relic, "Relic"));
+router.use("/:game/traces", createResourceRouter(Trace, "Trace"));
+router.use("/:game/eidolons", createResourceRouter(Eidolon, "Eidolon"));
+
 // ─── Stats endpoint ──────────────────────────────────────
 // Returns counts per collection for a given game
 
 router.get("/:game/stats", async (req, res, next) => {
   try {
     const game = req.gameParam;
-    const [characters, weapons, artifacts, materials, talents, constellations] =
-      await Promise.all([
-        Character.countDocuments({ game }),
-        Weapon.countDocuments({ game }),
-        Artifact.countDocuments({ game }),
-        Material.countDocuments({ game }),
-        Talent.countDocuments({ game }),
-        Constellation.countDocuments({ game }),
-      ]);
+    const [
+      characters,
+      weapons,
+      artifacts,
+      materials,
+      talents,
+      constellations,
+      lightCones,
+      relics,
+      traces,
+      eidolons,
+    ] = await Promise.all([
+      Character.countDocuments({ game }),
+      Weapon.countDocuments({ game }),
+      Artifact.countDocuments({ game }),
+      Material.countDocuments({ game }),
+      Talent.countDocuments({ game }),
+      Constellation.countDocuments({ game }),
+      LightCone.countDocuments({ game }),
+      Relic.countDocuments({ game }),
+      Trace.countDocuments({ game }),
+      Eidolon.countDocuments({ game }),
+    ]);
 
     res.json({
       success: true,
       game,
-      data: { characters, weapons, artifacts, materials, talents, constellations },
+      data: {
+        characters,
+        weapons,
+        artifacts,
+        materials,
+        talents,
+        constellations,
+        lightCones,
+        relics,
+        traces,
+        eidolons,
+      },
     });
   } catch (error) {
     next(error);
@@ -85,12 +121,18 @@ router.get("/", (req, res) => {
         `GET /api/${g}/talents/:name`,
         `GET /api/${g}/constellations`,
         `GET /api/${g}/constellations/:name`,
+        `GET /api/${g}/lightcones`,
+        `GET /api/${g}/lightcones/:name`,
+        `GET /api/${g}/relics`,
+        `GET /api/${g}/relics/:name`,
+        `GET /api/${g}/traces/:name`,
+        `GET /api/${g}/eidolons/:name`,
         `GET /api/${g}/stats`,
       ],
     })),
     queryParams: {
-      filtering: "?element=Pyro&rarity=5&region=Liyue",
-      search: "?search=hu (case-insensitive name search)",
+      filtering: "?element=Fire&rarity=5&path=Destruction",
+      search: "?search=march (case-insensitive name search)",
       sort: "?sort=name,-rarity (prefix - for descending)",
       fields: "?fields=name,element,rarity (select specific fields)",
       pagination: "?page=1&limit=20 (default: 25, max: 100)",
