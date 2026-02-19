@@ -30,7 +30,7 @@ export function HomePage() {
         {GAMES.map((game) => (
           <Card
             key={game.id}
-            className={`relative overflow-hidden transition-colors ${
+            className={`relative flex flex-col overflow-hidden transition-colors ${
               game.available
                 ? "hover:border-primary/50"
                 : "opacity-50"
@@ -51,9 +51,9 @@ export function HomePage() {
             {game.id === "genshin" && (
               <CardContent>
                 <img
-                  src="/Genshin_title.png"
+                  src="/Genshin_title.svg"
                   alt="Genshin Impact"
-                  className="w-full object-contain max-h-40"
+                  className="w-full h-40 object-contain"
                 />
               </CardContent>
             )}
@@ -63,12 +63,42 @@ export function HomePage() {
                 <img
                   src="/HSR_title.png"
                   alt="Honkai: Star Rail"
-                  className="w-full object-contain max-h-40"
+                  className="w-full h-40 object-contain"
                 />
               </CardContent>
             )}
 
-            <CardFooter>
+            {game.id === "zzz" && (
+              <CardContent>
+                <img
+                  src="/ZZZ_title.png"
+                  alt="Zenless Zone Zero"
+                  className="w-full h-40 object-contain"
+                />
+              </CardContent>
+            )}
+
+            {game.id === "wuwa" && (
+              <CardContent>
+                <img
+                  src="/WuWa_title.png"
+                  alt="Wuthering Waves"
+                  className="w-full h-40 object-contain"
+                />
+              </CardContent>
+            )}
+
+            {game.id === "endfield" && (
+              <CardContent>
+                <img
+                  src="/Endfield_title.png"
+                  alt="Arknights: Endfield"
+                  className="w-full h-40 object-contain"
+                />
+              </CardContent>
+            )}
+
+            <CardFooter className="mt-auto">
               {game.available ? (
                 <Link to={`/${game.id}/characters`} className="w-full">
                   <Button className="w-full gap-2" variant="outline">
