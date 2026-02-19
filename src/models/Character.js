@@ -42,6 +42,11 @@ const characterSchema = new mongoose.Schema(
       korean: String,
     },
 
+    // === Base Stats (per level 1–90) ===
+    stats: {
+      type: mongoose.Schema.Types.Mixed, // { "1": {hp,atk,def,specialized}, ..., "90": {...} }
+    },
+
     // === Ascension Costs ===
     costs: {
       type: mongoose.Schema.Types.Mixed, // keeps original structure
@@ -56,6 +61,9 @@ const characterSchema = new mongoose.Schema(
     url: {
       type: mongoose.Schema.Types.Mixed,
     },
+
+    // === Traveler-specific ===
+    availableElements: [String], // ["Anemo","Geo","Electro","Dendro","Hydro","Pyro"] for Travelers
   },
   {
     timestamps: true,

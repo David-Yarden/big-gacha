@@ -34,7 +34,7 @@ function ArtifactCard({ artifact, game }: { artifact: Artifact; game: string }) 
   return (
     <Link to={`/${game}/artifacts/${artifact.name}`}>
       <Card className="group overflow-hidden transition-colors hover:border-primary/40">
-        <div className="relative flex h-32 items-center justify-center bg-rarity-5/10">
+        <div className="relative flex h-32 items-center justify-center">
           <ImageWithFallback
             src={artifactIconUrl(artifact.images, "flower")}
             alt={artifact.name}

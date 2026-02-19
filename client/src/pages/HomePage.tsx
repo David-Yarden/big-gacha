@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Gamepad2, Database, ArrowRight } from "lucide-react";
+import { Database, ArrowRight } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -9,23 +9,15 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { GAMES } from "@/lib/constants";
-import { getStats } from "@/lib/api";
-import { useApiQuery } from "@/hooks/useApiQuery";
 
 export function HomePage() {
-  const { data: stats, loading } = useApiQuery(
-    () => getStats("genshin"),
-    []
-  );
-
   return (
     <div className="space-y-10">
       {/* Hero */}
       <section className="flex flex-col items-center gap-4 pt-10 pb-4 text-center">
-        <Gamepad2 className="h-12 w-12 text-primary" />
+        <img src="/BIG_GACHA_LOGO.png" alt="Big Gacha" className="h-32 w-32 object-contain" />
         <h1 className="text-4xl font-bold tracking-tight">Big Gacha</h1>
         <p className="max-w-md text-muted-foreground">
           A multi-game gacha database. Browse characters, weapons, artifacts,
@@ -58,27 +50,11 @@ export function HomePage() {
 
             {game.id === "genshin" && (
               <CardContent>
-                {loading ? (
-                  <div className="grid grid-cols-3 gap-2">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <Skeleton key={i} className="h-12 rounded-md" />
-                    ))}
-                  </div>
-                ) : stats?.data ? (
-                  <div className="grid grid-cols-3 gap-2">
-                    {Object.entries(stats.data).map(([key, count]) => (
-                      <div
-                        key={key}
-                        className="flex flex-col items-center rounded-md bg-secondary/50 p-2"
-                      >
-                        <span className="text-lg font-semibold">{count}</span>
-                        <span className="text-xs capitalize text-muted-foreground">
-                          {key}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
+                <img
+                  src="/Genshin_title.png"
+                  alt="Genshin Impact"
+                  className="w-full object-contain max-h-40"
+                />
               </CardContent>
             )}
 

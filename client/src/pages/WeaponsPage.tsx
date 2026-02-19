@@ -8,6 +8,7 @@ import { RarityStars } from "@/components/shared/RarityStars";
 import { getWeapons } from "@/lib/api";
 import { useInfiniteList } from "@/hooks/useInfiniteList";
 import { weaponIconUrl } from "@/lib/images";
+import { formatBaseAtk } from "@/lib/formatters";
 import {
   GENSHIN_WEAPON_TYPES,
   WEAPON_RARITIES,
@@ -60,7 +61,7 @@ function WeaponCard({ weapon, game }: { weapon: Weapon; game: string }) {
           </div>
           {weapon.baseAtkValue && (
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Base ATK: {weapon.baseAtkValue}
+              Base ATK: {formatBaseAtk(weapon.baseAtkValue)}
             </p>
           )}
         </CardContent>

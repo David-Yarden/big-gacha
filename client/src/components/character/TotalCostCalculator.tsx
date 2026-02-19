@@ -1,4 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
+import { materialIconUrlById, materialFallbackIconUrlById } from "@/lib/images";
 import type { MaterialCostEntry } from "@/lib/materials";
 
 interface TotalCostCalculatorProps {
@@ -32,7 +34,17 @@ function CostTable({
           <tbody>
             {materials.map((mat) => (
               <tr key={mat.name} className="border-b last:border-0">
-                <td className="px-3 py-1.5">{mat.name}</td>
+                <td className="px-3 py-1.5">
+                  <span className="flex items-center gap-2">
+                    <ImageWithFallback
+                      src={materialIconUrlById(mat.id)}
+                      fallbackSrc={materialFallbackIconUrlById(mat.id)}
+                      alt={mat.name}
+                      className="h-6 w-6 shrink-0 object-contain"
+                    />
+                    {mat.name}
+                  </span>
+                </td>
                 <td className="px-3 py-1.5 text-right font-mono">
                   {mat.count.toLocaleString()}
                 </td>
@@ -109,7 +121,17 @@ export function TotalCostCalculator({
                 <tbody>
                   {totalMaterials.map((mat) => (
                     <tr key={mat.name} className="border-b last:border-0">
-                      <td className="px-3 py-1.5">{mat.name}</td>
+                      <td className="px-3 py-1.5">
+                        <span className="flex items-center gap-2">
+                          <ImageWithFallback
+                            src={materialIconUrlById(mat.id)}
+                            fallbackSrc={materialFallbackIconUrlById(mat.id)}
+                            alt={mat.name}
+                            className="h-6 w-6 shrink-0 object-contain"
+                          />
+                          {mat.name}
+                        </span>
+                      </td>
                       <td className="px-3 py-1.5 text-right font-mono font-semibold">
                         {mat.count.toLocaleString()}
                       </td>

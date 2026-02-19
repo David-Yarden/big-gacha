@@ -12,9 +12,11 @@ import { characterIconUrl, elementIconUrl, weaponTypeIconUrl } from "@/lib/image
 import {
   GENSHIN_ELEMENTS,
   GENSHIN_WEAPON_TYPES,
+  GENSHIN_REGIONS,
   CHARACTER_RARITIES,
   ELEMENT_COLOR_MAP,
   RARITY_COLOR_MAP,
+  resolveRegion,
 } from "@/lib/constants";
 import type { Game, Character } from "@/lib/types";
 import type { FilterGroup, SortOption } from "@/components/shared/FilterBar";
@@ -37,6 +39,11 @@ const CHARACTER_FILTERS: FilterGroup[] = [
       value: String(r),
       label: "★".repeat(r),
     })),
+  },
+  {
+    key: "region",
+    label: "Region",
+    options: GENSHIN_REGIONS.map((r) => ({ value: r, label: r })),
   },
 ];
 
@@ -81,7 +88,7 @@ function CharacterCard({ character, game }: { character: Character; game: string
             <RarityStars rarity={character.rarity} className="text-xs" />
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground truncate">
-            {character.region ?? "—"}
+            {resolveRegion(character.region, character.name)}
           </p>
         </CardContent>
       </Card>
@@ -104,6 +111,7 @@ export function CharactersPage() {
   const element = searchParams.get("element") ?? undefined;
   const weaponType = searchParams.get("weaponType") ?? undefined;
   const rarity = searchParams.get("rarity") ?? undefined;
+  const region = searchParams.get("region") ?? undefined;
   const sortBy = searchParams.get("sortBy") ?? "version";
   const sortDir = searchParams.get("sortDir") ?? "desc";
 
@@ -118,9 +126,10 @@ export function CharactersPage() {
         element,
         weaponType,
         rarity: rarity ? Number(rarity) : undefined,
+        region,
         sort,
       }),
-    [game, search, element, weaponType, rarity, sort]
+    [game, search, element, weaponType, rarity, region, sort]
   );
 
   return (

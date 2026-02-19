@@ -8,8 +8,9 @@ import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { RarityStars } from "@/components/shared/RarityStars";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { getMaterial } from "@/lib/api";
-import { materialIconUrl } from "@/lib/images";
+import { materialIconUrl, materialFallbackIconUrl } from "@/lib/images";
 import { RARITY_COLOR_MAP } from "@/lib/constants";
+import { formatMaterialCategory } from "@/lib/formatters";
 import type { Game } from "@/lib/types";
 
 export function MaterialDetailPage() {
@@ -61,6 +62,7 @@ export function MaterialDetailPage() {
           <Card className={`overflow-hidden ${rarityClass}/10`}>
             <ImageWithFallback
               src={materialIconUrl(material.images)}
+              fallbackSrc={materialFallbackIconUrl(material.images)}
               alt={material.name}
               className="w-full h-48 object-contain p-4"
             />
@@ -74,8 +76,8 @@ export function MaterialDetailPage() {
               {material.rarity && (
                 <RarityStars rarity={material.rarity} className="text-lg" />
               )}
-              {material.category && (
-                <Badge variant="secondary">{material.category}</Badge>
+              {material.category && formatMaterialCategory(material.category) && (
+                <Badge variant="secondary">{formatMaterialCategory(material.category)}</Badge>
               )}
               {material.materialType && (
                 <Badge variant="outline">{material.materialType}</Badge>

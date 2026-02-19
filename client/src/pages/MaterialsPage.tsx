@@ -8,8 +8,9 @@ import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { RarityStars } from "@/components/shared/RarityStars";
 import { getMaterials } from "@/lib/api";
 import { useInfiniteList } from "@/hooks/useInfiniteList";
-import { materialIconUrl } from "@/lib/images";
+import { materialIconUrl, materialFallbackIconUrl } from "@/lib/images";
 import { RARITIES, RARITY_COLOR_MAP } from "@/lib/constants";
+import { formatMaterialCategory } from "@/lib/formatters";
 import type { Game, Material } from "@/lib/types";
 import type { FilterGroup, SortOption } from "@/components/shared/FilterBar";
 
@@ -40,20 +41,23 @@ function MaterialCard({ material, game }: { material: Material; game: string }) 
         >
           <ImageWithFallback
             src={materialIconUrl(material.images)}
+            fallbackSrc={materialFallbackIconUrl(material.images)}
             alt={material.name}
             className="h-full w-full object-contain p-2"
           />
         </div>
         <CardContent className="p-3">
           <p className="font-semibold text-sm truncate">{material.name}</p>
-          <div className="mt-1 flex items-center justify-between text-xs">
-            {material.rarity && (
+          <div className="mt-1 flex items-center justify-between text-xs min-h-[1.25rem]">
+            {material.rarity ? (
               <RarityStars rarity={material.rarity} className="text-xs" />
+            ) : (
+              <span />
             )}
           </div>
-          {material.category && (
+          {material.category && formatMaterialCategory(material.category) && (
             <Badge variant="secondary" className="mt-1 text-[10px]">
-              {material.category}
+              {formatMaterialCategory(material.category)}
             </Badge>
           )}
         </CardContent>

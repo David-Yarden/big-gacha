@@ -90,9 +90,32 @@ export function artifactIconUrl(
 
 // ── Materials ────────────────────────────────────────────
 
+// gi.yatta.moe is the primary CDN for material icons (full version coverage).
+// Enka CDN is used as a secondary fallback for items yatta doesn't carry.
+const YATTA_CDN = "https://gi.yatta.moe/assets/UI";
+
 export function materialIconUrl(images?: Record<string, string>): string | null {
+  if (images?.filename_icon) return `${YATTA_CDN}/${images.filename_icon}.png`;
+  return null;
+}
+
+export function materialFallbackIconUrl(images?: Record<string, string>): string | null {
   if (images?.filename_icon) return enkaUrl(images.filename_icon);
   return null;
+}
+
+/**
+ * Derive material icon URL directly from the numeric item ID.
+ * Genshin material IDs map 1:1 to UI_ItemIcon_{id} on the CDNs.
+ */
+export function materialIconUrlById(id?: number): string | null {
+  if (!id) return null;
+  return `${YATTA_CDN}/UI_ItemIcon_${id}.png`;
+}
+
+export function materialFallbackIconUrlById(id?: number): string | null {
+  if (!id) return null;
+  return enkaUrl(`UI_ItemIcon_${id}`);
 }
 
 // ── Elements ─────────────────────────────────────────────
@@ -112,6 +135,43 @@ export function elementIconUrl(element?: string): string | null {
   if (!element) return null;
   const slug = ELEMENT_SLUG[element];
   return slug ? `https://genshin.jmp.blue/elements/${slug}/icon` : null;
+}
+
+// ── Stat Icons ───────────────────────────────────────────
+
+// Local /stats/*.webp for base stats; element icons reused for elemental DMG bonuses.
+// Elemental Mastery and Physical DMG have no dedicated icon (component falls back to Lucide).
+const STAT_LOCAL: Record<string, string> = {
+  FIGHT_PROP_HP:                "/stats/Icon_Attribute_Health.webp",
+  FIGHT_PROP_HP_PERCENT:        "/stats/Icon_Attribute_Health.webp",
+  FIGHT_PROP_ATTACK:            "/stats/Icon_Attribute_Attack.webp",
+  FIGHT_PROP_ATTACK_PERCENT:    "/stats/Icon_Attribute_Attack.webp",
+  FIGHT_PROP_DEFENSE:           "/stats/Icon_Attribute_Defense.webp",
+  FIGHT_PROP_DEFENSE_PERCENT:   "/stats/Icon_Attribute_Defense.webp",
+  FIGHT_PROP_CRITICAL:          "/stats/Icon_Attribute_Critical_Hit.webp",
+  FIGHT_PROP_CRITICAL_HURT:     "/stats/Icon_Attribute_Critical_Hit.webp",
+  FIGHT_PROP_CHARGE_EFFICIENCY: "/stats/Icon_Attribute_Energy_Recharge.webp",
+  FIGHT_PROP_ELEMENT_MASTERY:   "/stats/Icon_Attribute_Elemental_Mastery.webp",
+  FIGHT_PROP_HEAL_ADD:          "/stats/Icon_Attribute_Healing.webp",
+  FIGHT_PROP_PHYSICAL_ADD_HURT: "/stats/Icon_Attribute_Physical.webp",
+};
+
+const PROP_TO_ELEMENT: Record<string, string> = {
+  FIGHT_PROP_FIRE_ADD_HURT:  "Pyro",
+  FIGHT_PROP_WATER_ADD_HURT: "Hydro",
+  FIGHT_PROP_WIND_ADD_HURT:  "Anemo",
+  FIGHT_PROP_ELEC_ADD_HURT:  "Electro",
+  FIGHT_PROP_ICE_ADD_HURT:   "Cryo",
+  FIGHT_PROP_ROCK_ADD_HURT:  "Geo",
+  FIGHT_PROP_GRASS_ADD_HURT: "Dendro",
+};
+
+export function statIconUrl(substatType?: string): string | null {
+  if (!substatType) return null;
+  if (STAT_LOCAL[substatType]) return STAT_LOCAL[substatType];
+  const element = PROP_TO_ELEMENT[substatType];
+  if (element) return elementIconUrl(element);
+  return null; // EM and Physical DMG: caller uses Lucide fallback
 }
 
 // ── Weapon Types ──────────────────────────────────────────

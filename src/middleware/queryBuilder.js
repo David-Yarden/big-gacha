@@ -28,6 +28,9 @@ function queryBuilder(Model) {
 
         if (NUMERIC_FIELDS.includes(key)) {
           filter[key] = Number(value);
+        } else if (key === "region" && value === "Others") {
+          // "Others" means characters with no assigned region
+          filter.$or = [{ region: null }, { region: "" }];
         } else {
           filter[key] = value;
         }

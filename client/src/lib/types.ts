@@ -51,8 +51,10 @@ export interface Character {
     korean?: string;
   };
   costs?: Record<string, MaterialCostEntry[]>;
+  stats?: Record<string, { hp: number; atk: number; def: number; specialized: number }>;
   images?: Record<string, string>;
   url?: Record<string, string>;
+  availableElements?: string[];
 }
 
 export interface Weapon {
@@ -71,6 +73,7 @@ export interface Weapon {
   effectTemplateRaw?: string;
   version?: string;
   refinements?: Array<{ description: string; values?: string[] }>;
+  stats?: Record<string, { atk: number; specialized: number }>;
   costs?: Record<string, MaterialCostEntry[]>;
   images?: Record<string, string>;
   url?: Record<string, string>;
@@ -119,10 +122,7 @@ export interface TalentCombat {
   };
 }
 
-export interface Talent {
-  _id: string;
-  game: Game;
-  name: string;
+export interface TalentVariant {
   combat1?: TalentCombat;
   combat2?: TalentCombat;
   combat3?: TalentCombat;
@@ -135,15 +135,20 @@ export interface Talent {
   images?: Record<string, string>;
 }
 
+export interface Talent extends TalentVariant {
+  _id: string;
+  game: Game;
+  name: string;
+  isTraveler?: boolean;
+  elementVariants?: Record<string, TalentVariant>;
+}
+
 export interface ConstellationLevel {
   name: string;
   description: string;
 }
 
-export interface Constellation {
-  _id: string;
-  game: Game;
-  name: string;
+export interface ConstellationVariant {
   c1?: ConstellationLevel;
   c2?: ConstellationLevel;
   c3?: ConstellationLevel;
@@ -151,6 +156,14 @@ export interface Constellation {
   c5?: ConstellationLevel;
   c6?: ConstellationLevel;
   images?: Record<string, string>;
+}
+
+export interface Constellation extends ConstellationVariant {
+  _id: string;
+  game: Game;
+  name: string;
+  isTraveler?: boolean;
+  elementVariants?: Record<string, ConstellationVariant>;
 }
 
 export interface GameStats {

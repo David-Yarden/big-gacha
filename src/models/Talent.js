@@ -21,6 +21,9 @@ const talentSchema = new mongoose.Schema(
 
     costs: mongoose.Schema.Types.Mixed,
     images: mongoose.Schema.Types.Mixed,
+
+    isTraveler: { type: Boolean, default: false },
+    elementVariants: mongoose.Schema.Types.Mixed, // { Anemo: { combat1, combat2, …, images }, … }
   },
   { timestamps: true, collection: "talents" }
 );

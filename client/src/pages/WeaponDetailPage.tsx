@@ -10,13 +10,14 @@ import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { RarityStars } from "@/components/shared/RarityStars";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { getWeapon } from "@/lib/api";
-import { weaponIconUrl } from "@/lib/images";
+import { weaponIconUrl, statIconUrl, materialIconUrlById, materialFallbackIconUrlById } from "@/lib/images";
 import {
   ASCENSION_LEVELS,
   levelToAscensionPhase,
   calculateAscensionMaterials,
 } from "@/lib/materials";
 import { RARITY_COLOR_MAP } from "@/lib/constants";
+import { formatBaseAtk, formatSpecialized } from "@/lib/formatters";
 import type { Game } from "@/lib/types";
 import type { MaterialCostEntry } from "@/lib/materials";
 
@@ -39,7 +40,17 @@ function MaterialCostTable({ materials }: { materials: MaterialCostEntry[] }) {
         <tbody>
           {materials.map((mat) => (
             <tr key={mat.name} className="border-b last:border-0">
-              <td className="px-3 py-1.5">{mat.name}</td>
+              <td className="px-3 py-1.5">
+                <span className="flex items-center gap-2">
+                  <ImageWithFallback
+                    src={materialIconUrlById(mat.id)}
+                    fallbackSrc={materialFallbackIconUrlById(mat.id)}
+                    alt={mat.name}
+                    className="h-6 w-6 shrink-0 object-contain"
+                  />
+                  {mat.name}
+                </span>
+              </td>
               <td className="px-3 py-1.5 text-right font-mono">
                 {mat.count.toLocaleString()}
               </td>
@@ -70,9 +81,6 @@ export function WeaponDetailPage() {
     [weapon?.costs, ascensionPhase]
   );
 
-  const closestAscLevel =
-    ASCENSION_LEVELS.find((l) => l >= weaponLevel) ?? 90;
-
   if (loading) {
     return (
       <div className="space-y-4">
@@ -99,6 +107,19 @@ export function WeaponDetailPage() {
 
   const refinements = weapon.refinements ?? [];
   const currentRefinement = refinements[refinement];
+
+  function renderEffect(template: string, values: string[]) {
+    // Strip color tags, then split on {0}, {1}, ... placeholders
+    const clean = template.replace(/<color=[^>]*>/g, "").replace(/<\/color>/g, "");
+    const parts = clean.split(/\{(\d+)\}/);
+    return parts.map((part, i) => {
+      if (i % 2 === 1) {
+        const val = values[parseInt(part)];
+        return <span key={i} className="font-bold text-amber-400">{val ?? `{${part}}`}</span>;
+      }
+      return part;
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -132,18 +153,34 @@ export function WeaponDetailPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-sm">
-            {weapon.baseAtkValue && (
+            {weapon.stats?.[weaponLevel] ? (
               <div>
                 <span className="text-muted-foreground">Base ATK: </span>
-                {weapon.baseAtkValue}
+                <span className="font-medium">{Math.round(weapon.stats[weaponLevel].atk).toLocaleString()}</span>
               </div>
-            )}
-            {weapon.mainStatText && (
+            ) : weapon.baseAtkValue ? (
+              <div>
+                <span className="text-muted-foreground">Base ATK: </span>
+                {formatBaseAtk(weapon.baseAtkValue)}
+              </div>
+            ) : null}
+            {weapon.mainStatText && weapon.stats?.[weaponLevel]?.specialized != null ? (
+              <div className="flex items-center gap-1 flex-wrap">
+                <span className="text-muted-foreground">Substat: </span>
+                {statIconUrl(weapon.mainStatType) && (
+                  <img src={statIconUrl(weapon.mainStatType)!} className="h-3.5 w-3.5 opacity-70 shrink-0" alt="" />
+                )}
+                <span>{weapon.mainStatText}</span>
+                <span className="font-medium text-amber-400">
+                  {formatSpecialized(weapon.stats[weaponLevel].specialized, weapon.mainStatType)}
+                </span>
+              </div>
+            ) : weapon.mainStatText ? (
               <div>
                 <span className="text-muted-foreground">Substat: </span>
                 {weapon.mainStatText} ({weapon.baseStatText})
               </div>
-            )}
+            ) : null}
             {weapon.version && (
               <div>
                 <span className="text-muted-foreground">Version: </span>
@@ -186,29 +223,15 @@ export function WeaponDetailPage() {
                 </span>
               ))}
             </div>
-            {currentRefinement?.description && (
+            {weapon.effectTemplateRaw && currentRefinement?.values ? (
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {renderEffect(weapon.effectTemplateRaw, currentRefinement.values)}
+              </p>
+            ) : currentRefinement?.description ? (
               <p className="text-sm text-muted-foreground">
                 {currentRefinement.description}
               </p>
-            )}
-            {currentRefinement?.values && currentRefinement.values.length > 0 && (
-              <div className="rounded-lg border">
-                <table className="w-full text-sm">
-                  <tbody>
-                    {currentRefinement.values.map((val, i) => (
-                      <tr key={i} className="border-b last:border-0">
-                        <td className="px-3 py-1.5 text-muted-foreground">
-                          Value {i + 1}
-                        </td>
-                        <td className="px-3 py-1.5 text-right font-mono font-semibold text-amber-400">
-                          {val}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            ) : null}
           </CardContent>
         </Card>
       )}
@@ -219,7 +242,7 @@ export function WeaponDetailPage() {
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">Ascension Materials</h3>
             <span className="text-sm text-muted-foreground">
-              Lv. {closestAscLevel} (Phase {ascensionPhase})
+              Lv. {weaponLevel} (Phase {ascensionPhase})
             </span>
           </div>
           <Slider

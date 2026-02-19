@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 interface ImageWithFallbackProps {
   src: string | null;
   alt: string;
+  fallbackSrc?: string | null;
   fallbackText?: string;
   className?: string;
   imgClassName?: string;
@@ -12,13 +13,23 @@ interface ImageWithFallbackProps {
 export function ImageWithFallback({
   src,
   alt,
+  fallbackSrc,
   fallbackText,
   className,
   imgClassName,
 }: ImageWithFallbackProps) {
+  const [currentSrc, setCurrentSrc] = useState(src);
   const [errored, setErrored] = useState(false);
 
-  if (!src || errored) {
+  function handleError() {
+    if (fallbackSrc && currentSrc !== fallbackSrc) {
+      setCurrentSrc(fallbackSrc);
+    } else {
+      setErrored(true);
+    }
+  }
+
+  if (!currentSrc || errored) {
     return (
       <div
         className={cn(
@@ -35,10 +46,10 @@ export function ImageWithFallback({
 
   return (
     <img
-      src={src}
+      src={currentSrc}
       alt={alt}
       className={cn(imgClassName, className)}
-      onError={() => setErrored(true)}
+      onError={handleError}
       loading="lazy"
     />
   );

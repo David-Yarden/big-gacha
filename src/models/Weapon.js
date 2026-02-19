@@ -22,6 +22,7 @@ const weaponSchema = new mongoose.Schema(
     effectTemplateRaw: String,
     version: String,
 
+    stats: mongoose.Schema.Types.Mixed, // { "1": {atk, specialized}, ..., "90": {...} }
     refinements: [mongoose.Schema.Types.Mixed],
     costs: mongoose.Schema.Types.Mixed,
     images: mongoose.Schema.Types.Mixed,

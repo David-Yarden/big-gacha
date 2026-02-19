@@ -22,6 +22,15 @@ const {
 const GAME = "genshin";
 const forceOverwrite = process.argv.includes("--force");
 
+const TRAVELER_NAMES    = ["Aether", "Lumine"];  // element-variant Travelers
+const MANEKIN_NAMES     = ["Manekin", "Manekina"]; // Natlan Travelers with their own flat kit
+const TRAVELER_ELEMENTS = ["Anemo", "Geo", "Electro", "Dendro", "Hydro", "Pyro"];
+
+// Characters whose region is missing or wrong in genshin-db
+const CHARACTER_REGION_OVERRIDES = {
+  Zibai: "Liyue",
+};
+
 // ─── Helpers ─────────────────────────────────────────────
 
 function getAllNames(folder) {
@@ -51,6 +60,18 @@ async function seedCharacters() {
     const data = getData("characters", name);
     if (!data) continue;
 
+    // Pre-compute stats for every level so the frontend can display them without genshin-db
+    const statsPerLevel = {};
+    for (let lv = 1; lv <= 90; lv++) {
+      const s = data.stats(lv);
+      statsPerLevel[lv] = { hp: s.hp, atk: s.attack, def: s.defense, specialized: s.specialized };
+    }
+
+    // availableElements: only the element-variant Travelers (Aether/Lumine) get this
+    const availableElements = TRAVELER_NAMES.includes(data.name)
+      ? TRAVELER_ELEMENTS.filter((el) => !!getData("talents", `Traveler (${el})`))
+      : [];
+
     await upsert(Character, { game: GAME, name: data.name }, {
       game: GAME,
       sourceId: data.id,
@@ -64,7 +85,8 @@ async function seedCharacters() {
       weaponTypeRaw: data.weaponType,
       bodyType: data.bodyType,
       gender: data.gender,
-      region: data.region,
+      region: CHARACTER_REGION_OVERRIDES[data.name] ?? data.region,
+      stats: statsPerLevel,
       affiliation: data.affiliation,
       associationType: data.associationType,
       birthday: data.birthday,
@@ -77,6 +99,7 @@ async function seedCharacters() {
       costs: data.costs,
       images: data.images,
       url: data.url,
+      availableElements,
     });
     count++;
   }
@@ -94,6 +117,14 @@ async function seedWeapons() {
     const data = getData("weapons", name);
     if (!data) continue;
 
+    const statsPerLevel = {};
+    if (typeof data.stats === "function") {
+      for (let lv = 1; lv <= 90; lv++) {
+        const s = data.stats(lv);
+        if (s) statsPerLevel[lv] = { atk: s.attack, specialized: s.specialized };
+      }
+    }
+
     await upsert(Weapon, { game: GAME, name: data.name }, {
       game: GAME,
       sourceId: data.id,
@@ -108,6 +139,7 @@ async function seedWeapons() {
       effectName: data.effectName,
       effectTemplateRaw: data.effectTemplateRaw,
       version: data.version,
+      stats: statsPerLevel,
       refinements: [data.r1, data.r2, data.r3, data.r4, data.r5].filter(Boolean),
       costs: data.costs,
       images: data.images,
@@ -170,7 +202,7 @@ async function seedMaterials() {
       category: data.category,
       materialType: data.materialType,
       rarity: data.rarity,
-      source: data.source,
+      source: data.sources,
       version: data.version,
       images: data.images,
     });
@@ -187,6 +219,10 @@ async function seedTalents() {
 
   let count = 0;
   for (const name of names) {
+    // Skip "Traveler (Anemo)" etc. and Manekin/Manekina — handled separately below
+    if (/^Traveler \(/.test(name)) continue;
+    if (MANEKIN_NAMES.includes(name)) continue;
+
     const data = getData("talents", name);
     if (!data) continue;
 
@@ -206,7 +242,61 @@ async function seedTalents() {
     });
     count++;
   }
-  console.log(`  ✓ Seeded ${count} talent sets`);
+
+  // Build Traveler elementVariants and upsert one doc per Traveler name
+  const elementVariants = {};
+  for (const el of TRAVELER_ELEMENTS) {
+    const data = getData("talents", `Traveler (${el})`);
+    if (!data) continue;
+    elementVariants[el] = {
+      combat1:  data.combat1,
+      combat2:  data.combat2,
+      combat3:  data.combat3,
+      combatsp: data.combatsp,
+      passive1: data.passive1,
+      passive2: data.passive2,
+      passive3: data.passive3,
+      passive4: data.passive4,
+      costs:    data.costs,
+      images:   data.images,
+    };
+  }
+
+  for (const travelerName of TRAVELER_NAMES) {
+    await upsert(Talent, { game: GAME, name: travelerName }, {
+      game: GAME,
+      name: travelerName,
+      isTraveler: true,
+      elementVariants,
+    });
+    count++;
+  }
+
+  // Seed Manekin/Manekina with their own flat kit; explicitly clear any stale traveler fields
+  for (const manekinName of MANEKIN_NAMES) {
+    const data = getData("talents", manekinName);
+    if (!data) continue;
+    await Talent.findOneAndUpdate(
+      { game: GAME, name: manekinName },
+      {
+        $set: {
+          game: GAME,
+          name: data.name,
+          combat1: data.combat1,
+          passive1: data.passive1,
+          passive2: data.passive2,
+          passive3: data.passive3,
+          costs: data.costs,
+          images: data.images,
+        },
+        $unset: { isTraveler: "", elementVariants: "", combat2: "", combat3: "", combatsp: "", passive4: "" },
+      },
+      { upsert: true, new: true }
+    );
+    count++;
+  }
+
+  console.log(`  ✓ Seeded ${count} talent sets (incl. ${TRAVELER_NAMES.length} Travelers + ${MANEKIN_NAMES.length} Manekins)`);
 }
 
 // ─── Seed Constellations ─────────────────────────────────
@@ -217,6 +307,9 @@ async function seedConstellations() {
 
   let count = 0;
   for (const name of names) {
+    // Skip "Traveler (Anemo)" etc. — handled separately below
+    if (/^Traveler \(/.test(name)) continue;
+
     const data = getData("constellations", name);
     if (!data) continue;
 
@@ -233,7 +326,38 @@ async function seedConstellations() {
     });
     count++;
   }
-  console.log(`  ✓ Seeded ${count} constellation sets`);
+
+  // Build Traveler elementVariants and upsert one doc per Traveler name
+  const elementVariants = {};
+  for (const el of TRAVELER_ELEMENTS) {
+    const data = getData("constellations", `Traveler (${el})`);
+    if (!data) continue;
+    elementVariants[el] = {
+      c1: data.c1,
+      c2: data.c2,
+      c3: data.c3,
+      c4: data.c4,
+      c5: data.c5,
+      c6: data.c6,
+      images: data.images,
+    };
+  }
+
+  for (const travelerName of TRAVELER_NAMES) {
+    await upsert(Constellation, { game: GAME, name: travelerName }, {
+      game: GAME,
+      name: travelerName,
+      isTraveler: true,
+      elementVariants,
+    });
+    count++;
+  }
+
+  // Manekin/Manekina have no constellation data — remove any stale documents from previous seeds
+  const deleted = await Constellation.deleteMany({ game: GAME, name: { $in: MANEKIN_NAMES } });
+  if (deleted.deletedCount) console.log(`  Removed ${deleted.deletedCount} stale Manekin constellation doc(s)`);
+
+  console.log(`  ✓ Seeded ${count} constellation sets (incl. ${TRAVELER_NAMES.length} Travelers)`);
 }
 
 // ─── Main ────────────────────────────────────────────────

@@ -18,6 +18,9 @@ const constellationSchema = new mongoose.Schema(
     c6: { name: String, description: String },
 
     images: mongoose.Schema.Types.Mixed,
+
+    isTraveler: { type: Boolean, default: false },
+    elementVariants: mongoose.Schema.Types.Mixed, // { Anemo: { c1…c6, images }, … }
   },
   { timestamps: true, collection: "constellations" }
 );

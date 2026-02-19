@@ -56,6 +56,18 @@ export const GENSHIN_ELEMENTS = [
   "Geo",
 ] as const;
 
+export const GENSHIN_REGIONS = [
+  "Mondstadt",
+  "Liyue",
+  "Inazuma",
+  "Sumeru",
+  "Fontaine",
+  "Natlan",
+  "Snezhnaya",
+  "Nod-Krai",
+  "Others",
+] as const;
+
 export const GENSHIN_WEAPON_TYPES = [
   "Sword",
   "Claymore",
@@ -78,6 +90,21 @@ export const ELEMENT_COLOR_MAP: Record<string, string> = {
   Cryo: "bg-cryo",
   Geo: "bg-geo",
 };
+
+// Characters whose region is missing/wrong in genshin-db — keyed by exact name
+// (mirrors CHARACTER_REGION_OVERRIDES in seedGenshin.js — keep in sync)
+const CHARACTER_REGION_OVERRIDES: Record<string, string> = {
+  Zibai: "Liyue",
+};
+
+// Region value corrections (wrong string → correct string)
+const REGION_CORRECTIONS: Record<string, string> = {};
+
+export function resolveRegion(region?: string | null, name?: string): string {
+  if (name && CHARACTER_REGION_OVERRIDES[name]) return CHARACTER_REGION_OVERRIDES[name];
+  if (!region) return "Others";
+  return REGION_CORRECTIONS[region] ?? region;
+}
 
 export const RARITY_COLOR_MAP: Record<number, string> = {
   5: "bg-rarity-5",

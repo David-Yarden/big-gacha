@@ -1,5 +1,5 @@
 import { Link, useParams, useLocation, useNavigate } from "react-router-dom";
-import { Gamepad2, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -37,7 +37,7 @@ export function Navbar() {
     <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-2 font-bold text-lg">
-          <Gamepad2 className="h-5 w-5 text-primary" />
+          <img src="/BIG_GACHA_LOGO.png" alt="Big Gacha" className="h-10 w-10 object-contain" />
           <span>Big Gacha</span>
         </Link>
 
