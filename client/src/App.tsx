@@ -25,6 +25,11 @@ export default function App() {
           <Route path="/:game/artifacts/:name" element={<ArtifactDetailPage />} />
           <Route path="/:game/materials" element={<MaterialsPage />} />
           <Route path="/:game/materials/:name" element={<MaterialDetailPage />} />
+          {/* HSR-specific routes — pages built in Phase 8-9 */}
+          <Route path="/:game/lightcones" element={<NotFoundPage />} />
+          <Route path="/:game/lightcones/:name" element={<NotFoundPage />} />
+          <Route path="/:game/relics" element={<NotFoundPage />} />
+          <Route path="/:game/relics/:name" element={<NotFoundPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

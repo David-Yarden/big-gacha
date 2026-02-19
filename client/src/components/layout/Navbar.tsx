@@ -10,12 +10,34 @@ import {
 import { GAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-const NAV_LINKS = [
+// Per-game nav links
+const GAME_NAV_LINKS: Record<string, Array<{ label: string; path: string }>> = {
+  genshin: [
+    { label: "Characters", path: "characters" },
+    { label: "Weapons",    path: "weapons" },
+    { label: "Artifacts",  path: "artifacts" },
+    { label: "Materials",  path: "materials" },
+  ],
+  hsr: [
+    { label: "Characters", path: "characters" },
+    { label: "Light Cones",path: "lightcones" },
+    { label: "Relics",     path: "relics" },
+    { label: "Materials",  path: "materials" },
+  ],
+};
+
+const DEFAULT_NAV_LINKS = [
   { label: "Characters", path: "characters" },
-  { label: "Weapons", path: "weapons" },
-  { label: "Artifacts", path: "artifacts" },
-  { label: "Materials", path: "materials" },
+  { label: "Materials",  path: "materials" },
 ];
+
+// When switching games, map resource types that have different names
+const RESOURCE_EQUIVALENTS: Record<string, Record<string, string>> = {
+  // coming from genshin → switching to hsr
+  genshin: { weapons: "lightcones", artifacts: "relics" },
+  // coming from hsr → switching to genshin
+  hsr:     { lightcones: "weapons", relics: "artifacts" },
+};
 
 export function Navbar() {
   const { game } = useParams<{ game: string }>();
@@ -23,13 +45,16 @@ export function Navbar() {
   const navigate = useNavigate();
 
   const currentGame = GAMES.find((g) => g.id === game);
+  const navLinks = (game && GAME_NAV_LINKS[game]) ?? DEFAULT_NAV_LINKS;
 
   // Determine which resource type is active from the current path
   const currentResource = location.pathname.split("/")[2] ?? "";
 
   function switchGame(gameId: string) {
-    // Preserve current resource type when switching games
-    const resource = currentResource || "characters";
+    // Preserve current resource type when switching games,
+    // mapping equivalent resources when they have different names
+    const equivalents = game ? (RESOURCE_EQUIVALENTS[game] ?? {}) : {};
+    const resource = equivalents[currentResource] ?? currentResource || "characters";
     navigate(`/${gameId}/${resource}`);
   }
 
@@ -69,7 +94,7 @@ export function Navbar() {
 
           {game && (
             <div className="hidden sm:flex items-center gap-1">
-              {NAV_LINKS.map((link) => (
+              {navLinks.map((link) => (
                 <Link key={link.path} to={`/${game}/${link.path}`}>
                   <Button
                     variant="ghost"

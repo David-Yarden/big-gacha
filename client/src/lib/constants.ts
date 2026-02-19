@@ -21,7 +21,7 @@ export const GAMES: GameInfo[] = [
     name: "Honkai: Star Rail",
     shortName: "HSR",
     description: "Space fantasy RPG by HoYoverse",
-    available: false,
+    available: true,
   },
   {
     id: "zzz",
