@@ -66,9 +66,12 @@ function MaterialCard({ material, game }: { material: Material; game: string }) 
   );
 }
 
-function buildSort(sortBy: string, sortDir: string): string {
+function buildSort(sortBy: string, sortDir: string, isHsr: boolean): string {
   const desc = sortDir === "desc";
-  if (sortBy === "version") return desc ? "-version,name" : "version,name";
+  if (sortBy === "version") {
+    const releaseKey = isHsr ? "sourceId" : "version";
+    return desc ? `-${releaseKey},name` : `${releaseKey},name`;
+  }
   if (sortBy === "name") return desc ? "-name" : "name";
   return "-rarity,name";
 }
@@ -77,12 +80,14 @@ export function MaterialsPage() {
   const { game } = useParams<{ game: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const isHsr = game === "hsr";
+
   const search = searchParams.get("search") ?? undefined;
   const rarity = searchParams.get("rarity") ?? undefined;
   const sortBy = searchParams.get("sortBy") ?? "version";
   const sortDir = searchParams.get("sortDir") ?? "desc";
 
-  const sort = buildSort(sortBy, sortDir);
+  const sort = buildSort(sortBy, sortDir, isHsr);
 
   const { items, total, loading, error, hasMore, sentinelRef } = useInfiniteList(
     (page) =>
