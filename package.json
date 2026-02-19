@@ -8,6 +8,8 @@
     "dev": "nodemon src/server.js",
     "seed:genshin": "node src/scripts/seedGenshin.js",
     "seed:genshin:force": "node src/scripts/seedGenshin.js --force",
+    "seed:hsr": "node src/scripts/seedHsr.js",
+    "seed:hsr:force": "node src/scripts/seedHsr.js --force",
     "client:dev": "npm run dev --prefix client",
     "dev:all": "concurrently \"npm run dev\" \"npm run client:dev\""
   },
