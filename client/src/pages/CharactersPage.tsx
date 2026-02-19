@@ -143,14 +143,9 @@ function HsrCharacterCard({ character, game }: { character: Character; game: str
   );
 }
 
-function buildSort(sortBy: string, sortDir: string, isHsr: boolean): string {
+function buildSort(sortBy: string, sortDir: string): string {
   const desc = sortDir === "desc";
-  if (sortBy === "version") {
-    // HSR has no version field in the source data; sourceId is assigned
-    // roughly in release order and serves as the best available proxy.
-    const releaseKey = isHsr ? "sourceId" : "version";
-    return desc ? `-${releaseKey},name` : `${releaseKey},name`;
-  }
+  if (sortBy === "version") return desc ? "-version,name" : "version,name";
   if (sortBy === "name") return desc ? "-name" : "name";
   return "-rarity,name";
 }
@@ -170,7 +165,7 @@ export function CharactersPage() {
   const sortBy = searchParams.get("sortBy") ?? "version";
   const sortDir = searchParams.get("sortDir") ?? "desc";
 
-  const sort = buildSort(sortBy, sortDir, isHsr);
+  const sort = buildSort(sortBy, sortDir);
 
   const { items, total, loading, error, hasMore, sentinelRef } = useInfiniteList(
     (page) =>

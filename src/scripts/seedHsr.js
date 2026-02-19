@@ -36,6 +36,139 @@ const {
 const GAME = "hsr";
 const forceOverwrite = process.argv.includes("--force");
 
+// ─── Character release version lookup ─────────────────────────────────────────
+// Source: official HSR patch notes + Fandom wiki / Game8 character history.
+// Characters without an entry get version = null (sorts last).
+const HSR_VERSION_MAP = {
+  // 1.0 — Global Launch (April 26, 2023)
+  "March 7th":   "1.0", // 1001 Preservation; 1224 Hunt (2.4) shares the same name
+  "Dan Heng":    "1.0",
+  "Himeko":      "1.0",
+  "Welt":        "1.0",
+  "Arlan":       "1.0",
+  "Asta":        "1.0",
+  "Herta":       "1.0",
+  "Bronya":      "1.0",
+  "Seele":       "1.0",
+  "Serval":      "1.0",
+  "Gepard":      "1.0",
+  "Natasha":     "1.0",
+  "Pela":        "1.0",
+  "Clara":       "1.0",
+  "Sampo":       "1.0",
+  "Hook":        "1.0",
+  "Qingque":     "1.0",
+  "Tingyun":     "1.0",
+  "Sushang":     "1.0",
+  "Yanqing":     "1.0",
+  "Bailu":       "1.0",
+  "Jing Yuan":   "1.0", // 1.0 Phase 2 (May 17, 2023)
+  "Trailblazer": "1.0",
+
+  // 1.1 (June 7, 2023)
+  "Silver Wolf": "1.1",
+  "Luocha":      "1.1",
+  "Yukong":      "1.1",
+
+  // 1.2 (July 19, 2023)
+  "Blade":       "1.2",
+  "Kafka":       "1.2",
+  "Luka":        "1.2",
+
+  // 1.3 (August 30, 2023)
+  "Dan Heng \u2022 Imbibitor Lunae": "1.3",
+  "Fu Xuan":     "1.3",
+  "Lynx":        "1.3",
+  "Guinaifen":   "1.3",
+
+  // 1.4 (October 11, 2023)
+  "Jingliu":        "1.4",
+  "Topaz & Numby":  "1.4",
+  "Xueyi":          "1.4",
+  "Hanya":          "1.4",
+
+  // 1.5 (November 15, 2023)
+  "Argenti":     "1.5",
+  "Huohuo":      "1.5",
+
+  // 1.6 (December 27, 2023)
+  "Dr. Ratio":   "1.6",
+  "Ruan Mei":    "1.6",
+  "Misha":       "1.6",
+
+  // 2.0 (February 6, 2024)
+  "Black Swan":  "2.0",
+  "Sparkle":     "2.0",
+  "Gallagher":   "2.0",
+
+  // 2.1 (March 20, 2024)
+  "Acheron":     "2.1",
+  "Aventurine":  "2.1",
+
+  // 2.2 (May 1, 2024)
+  "Robin":       "2.2",
+  "Boothill":    "2.2",
+
+  // 2.3 (June 19, 2024)
+  "Firefly":     "2.3",
+  "Jade":        "2.3",
+
+  // 2.4 (July 31, 2024)
+  "Yunli":       "2.4",
+  "Moze":        "2.4",
+
+  // 2.5 (September 11, 2024)
+  "Feixiao":     "2.5",
+  "Lingsha":     "2.5",
+  "Jiaoqiu":     "2.5",
+
+  // 2.6 (October 16, 2024)
+  "Rappa":       "2.6",
+
+  // 2.7 (November 27, 2024)
+  "Sunday":      "2.7",
+  "Fugue":       "2.7",
+
+  // 3.0 (January 15, 2025)
+  "The Herta":   "3.0",
+  "Aglaea":      "3.0",
+  "Tribbie":     "3.0",
+
+  // 3.1 (February 2025)
+  "Mydei":       "3.1",
+  "Castorice":   "3.1",
+  "Cipher":      "3.1",
+
+  // 3.2 (March 2025)
+  "Anaxa":       "3.2",
+  "Hyacine":     "3.2",
+
+  // 3.3 (April 2025)
+  "Phainon":     "3.3",
+
+  // 3.4 (July 11, 2025) — Fate/stay night collab
+  "Saber":       "3.4",
+  "Archer":      "3.4",
+
+  // 3.5 (August 13, 2025)
+  "Hysilens":    "3.5",
+  "Cerydra":     "3.5",
+
+  // 3.6 (September 2025)
+  "Evernight":            "3.6",
+  "Dan Heng \u2022 Permansor Terrae": "3.6",
+
+  // 3.7
+  "Cyrene":      "3.7",
+
+  // 3.8
+  "The Dahlia":  "3.8",
+
+  // 4.0 (February 12, 2026)
+  "Sparxie":     "4.0",
+  "Yao Guang":   "4.0",
+};
+
 // Trailblazer character IDs — paired boy/girl per path.
 // We merge each pair into a single document (use the girl variant as canonical,
 // boy as a display-name alias; both share the same skills and promotions).
@@ -166,6 +299,7 @@ async function seedCharacters(characters, promotions) {
       rarity: char.rarity,
       element: resolveElement(char.element),
       path: resolvePath(char.path),
+      version: HSR_VERSION_MAP[char.name] ?? null,
       stats,
       images: {
         icon:      cdnUrl(char.icon),
@@ -209,6 +343,7 @@ async function seedCharacters(characters, promotions) {
       rarity: baseChar.rarity,
       element: resolveElement(baseChar.element),
       path: resolvePath(baseChar.path),
+      version: "1.0",
       stats: baseStats,
       images: {
         icon:    cdnUrl(baseChar.icon),
