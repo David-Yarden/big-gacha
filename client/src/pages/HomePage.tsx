@@ -58,6 +58,16 @@ export function HomePage() {
               </CardContent>
             )}
 
+            {game.id === "hsr" && (
+              <CardContent>
+                <img
+                  src="/HSR_title.webp"
+                  alt="Honkai: Star Rail"
+                  className="w-full object-contain max-h-40"
+                />
+              </CardContent>
+            )}
+
             <CardFooter>
               {game.available ? (
                 <Link to={`/${game.id}/characters`} className="w-full">
