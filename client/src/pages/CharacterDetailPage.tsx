@@ -60,6 +60,41 @@ function hsrLevelToAscensionPhase(level: number): number {
   return 6;
 }
 
+// ── Text rendering helpers ────────────────────────────────────────────────────
+
+/** Converts **bold** markdown to <strong> elements for Genshin descriptions. */
+function renderMarkdownText(text: string) {
+  const parts = text.split(/\*\*([^*]+)\*\*/);
+  return parts.map((part, i) =>
+    i % 2 === 1
+      ? <strong key={i} className="text-foreground font-semibold">{part}</strong>
+      : part
+  );
+}
+
+function formatHsrParam(value: number, fmt: string): string {
+  switch (fmt.toLowerCase()) {
+    case "i": return String(Math.round(value));
+    case "f1": return value.toFixed(1);
+    case "f2": return value.toFixed(2);
+    default: return String(Math.round(value));
+  }
+}
+
+/**
+ * Replaces #N[format] placeholders in HSR skill descriptions with actual values
+ * from params[levelIndex][paramIndex] at the given level.
+ */
+function parseHsrDesc(desc: string, params: number[][] | undefined, level: number): string {
+  const levelParams = params ? (params[Math.min(level - 1, params.length - 1)] ?? []) : [];
+  return desc
+    .replace(/<[^>]+>/g, "")
+    .replace(/#(\d+)\[([^\]]+)\]/g, (_, indexStr, fmt) => {
+      const value = levelParams[parseInt(indexStr) - 1];
+      return value !== undefined ? formatHsrParam(value, fmt) : `#${indexStr}[${fmt}]`;
+    });
+}
+
 // ── Stat icon ────────────────────────────────────────────────────────────────
 
 function StatIcon({ substatType, className = "h-4 w-4 shrink-0" }: { substatType?: string; className?: string }) {
@@ -108,7 +143,7 @@ function TalentSection({
         onValueChange={([v]) => onLevelChange(v)}
       />
       {talent.description && (
-        <p className="text-sm text-muted-foreground whitespace-pre-line">{talent.description}</p>
+        <p className="text-sm text-muted-foreground whitespace-pre-line">{renderMarkdownText(talent.description)}</p>
       )}
       {labels.length > 0 && (
         <div className="rounded-lg border">
@@ -154,7 +189,7 @@ function PassiveSection({
       )}
       <div>
         <h4 className="font-semibold">{passive.name}</h4>
-        <p className="mt-1 text-sm text-muted-foreground">{passive.description}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{renderMarkdownText(passive.description)}</p>
       </div>
     </div>
   );
@@ -165,10 +200,19 @@ function PassiveSection({
 function HsrSkillSection({
   skill,
   label,
+  level,
+  onLevelChange,
+  defaultMax,
 }: {
-  skill: { name: string; maxLevel?: number; desc?: string; icon?: string };
+  skill: { name: string; maxLevel?: number; desc?: string; params?: number[][]; icon?: string };
   label?: string;
+  level: number;
+  onLevelChange: (v: number) => void;
+  defaultMax: number;
 }) {
+  const effectiveMax = skill.maxLevel ?? defaultMax;
+  const clampedLevel = Math.min(level, effectiveMax);
+
   return (
     <div className="flex gap-3">
       {skill.icon && (
@@ -179,15 +223,30 @@ function HsrSkillSection({
         />
       )}
       <div className="flex-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          {label && <Badge variant="outline" className="text-xs">{label}</Badge>}
-          <h4 className="font-semibold">{skill.name}</h4>
-          {skill.maxLevel != null && skill.maxLevel > 1 && (
-            <span className="text-xs text-muted-foreground">Max Lv. {skill.maxLevel}</span>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {label && <Badge variant="outline" className="text-xs">{label}</Badge>}
+            <h4 className="font-semibold">{skill.name}</h4>
+          </div>
+          {effectiveMax > 1 && (
+            <span className="text-sm text-muted-foreground">Lv. {clampedLevel}</span>
           )}
         </div>
+        {effectiveMax > 1 && (
+          <div className="mt-2">
+            <Slider
+              min={1}
+              max={effectiveMax}
+              step={1}
+              value={[clampedLevel]}
+              onValueChange={([v]) => onLevelChange(v)}
+            />
+          </div>
+        )}
         {skill.desc && (
-          <p className="mt-1 text-sm text-muted-foreground whitespace-pre-line">{skill.desc}</p>
+          <p className="mt-2 text-sm text-muted-foreground whitespace-pre-line">
+            {parseHsrDesc(skill.desc, skill.params, clampedLevel)}
+          </p>
         )}
       </div>
     </div>
@@ -249,6 +308,11 @@ export function CharacterDetailPage() {
   const [talent2Level, setTalent2Level] = useState(10);
   const [talent3Level, setTalent3Level] = useState(10);
   const [activeElement, setActiveElement] = useState<string | null>(null);
+  const [hsrBasicLevel, setHsrBasicLevel] = useState(6);
+  const [hsrSkillLevel, setHsrSkillLevel] = useState(10);
+  const [hsrUltLevel, setHsrUltLevel] = useState(10);
+  const [hsrTalentLevel, setHsrTalentLevel] = useState(10);
+  const [hsrTechLevel, setHsrTechLevel] = useState(10);
 
   const { data: charData, loading: charLoading, error: charError } = useApiQuery(
     () => getCharacter(game as Game, name!),
@@ -629,18 +693,18 @@ export function CharacterDetailPage() {
               {activeTrace && (
                 (
                   [
-                    { skill: activeTrace.basicAtk,  label: "Basic ATK" },
-                    { skill: activeTrace.skill,     label: "Skill"     },
-                    { skill: activeTrace.ultimate,  label: "Ultimate"  },
-                    { skill: activeTrace.talent,    label: "Talent"    },
-                    { skill: activeTrace.technique, label: "Technique" },
-                  ] as Array<{ skill: { name: string; maxLevel?: number; desc?: string; icon?: string } | null | undefined; label: string }>
+                    { skill: activeTrace.basicAtk,  label: "Basic ATK", level: hsrBasicLevel, onLevelChange: setHsrBasicLevel, defaultMax: 10 },
+                    { skill: activeTrace.skill,     label: "Skill",     level: hsrSkillLevel, onLevelChange: setHsrSkillLevel, defaultMax: 15 },
+                    { skill: activeTrace.ultimate,  label: "Ultimate",  level: hsrUltLevel,   onLevelChange: setHsrUltLevel,   defaultMax: 15 },
+                    { skill: activeTrace.talent,    label: "Talent",    level: hsrTalentLevel,onLevelChange: setHsrTalentLevel,defaultMax: 15 },
+                    { skill: activeTrace.technique, label: "Technique", level: hsrTechLevel,  onLevelChange: setHsrTechLevel,  defaultMax: 15 },
+                  ] as Array<{ skill: { name: string; maxLevel?: number; desc?: string; params?: number[][]; icon?: string } | null | undefined; label: string; level: number; onLevelChange: (v: number) => void; defaultMax: number }>
                 )
                   .filter((e) => e.skill != null)
                   .map((e) => (
                     <Card key={e.label}>
                       <CardContent className="p-4">
-                        <HsrSkillSection skill={e.skill!} label={e.label} />
+                        <HsrSkillSection skill={e.skill!} label={e.label} level={e.level} onLevelChange={e.onLevelChange} defaultMax={e.defaultMax} />
                       </CardContent>
                     </Card>
                   ))
@@ -707,7 +771,7 @@ export function CharacterDetailPage() {
                               <h4 className="font-semibold">{c.name}</h4>
                             </div>
                             <p className="mt-2 text-sm text-muted-foreground">
-                              {c.description}
+                              {renderMarkdownText(c.description)}
                             </p>
                           </div>
                         </div>
@@ -751,7 +815,7 @@ export function CharacterDetailPage() {
                               <h4 className="font-semibold">{e.name}</h4>
                             </div>
                             <p className="mt-2 text-sm text-muted-foreground">
-                              {e.description}
+                              {renderMarkdownText(e.description)}
                             </p>
                           </div>
                         </div>

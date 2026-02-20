@@ -9,6 +9,10 @@ import { ArtifactsPage } from "@/pages/ArtifactsPage";
 import { ArtifactDetailPage } from "@/pages/ArtifactDetailPage";
 import { MaterialsPage } from "@/pages/MaterialsPage";
 import { MaterialDetailPage } from "@/pages/MaterialDetailPage";
+import { LightConesPage } from "@/pages/LightConesPage";
+import { LightConeDetailPage } from "@/pages/LightConeDetailPage";
+import { RelicsPage } from "@/pages/RelicsPage";
+import { RelicDetailPage } from "@/pages/RelicDetailPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
 export default function App() {
@@ -25,11 +29,10 @@ export default function App() {
           <Route path="/:game/artifacts/:name" element={<ArtifactDetailPage />} />
           <Route path="/:game/materials" element={<MaterialsPage />} />
           <Route path="/:game/materials/:name" element={<MaterialDetailPage />} />
-          {/* HSR-specific routes — pages built in Phase 8-9 */}
-          <Route path="/:game/lightcones" element={<NotFoundPage />} />
-          <Route path="/:game/lightcones/:name" element={<NotFoundPage />} />
-          <Route path="/:game/relics" element={<NotFoundPage />} />
-          <Route path="/:game/relics/:name" element={<NotFoundPage />} />
+          <Route path="/:game/lightcones" element={<LightConesPage />} />
+          <Route path="/:game/lightcones/:name" element={<LightConeDetailPage />} />
+          <Route path="/:game/relics" element={<RelicsPage />} />
+          <Route path="/:game/relics/:name" element={<RelicDetailPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

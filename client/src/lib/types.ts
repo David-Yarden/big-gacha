@@ -178,7 +178,7 @@ export interface LightCone {
   effectName?: string;
   effectTemplateRaw?: string;
   version?: string;
-  superimpositions?: Array<Record<string, unknown>>;
+  superimpositions?: Array<{ description: string; values: number[] }>;
   stats?: Record<string, { hp: number; atk: number; def: number }>;
   costs?: Record<string, MaterialCostEntry[]>;
   images?: Record<string, string>;
@@ -186,8 +186,9 @@ export interface LightCone {
 
 export interface RelicPiece {
   name: string;
-  relicType: string;
+  relicType?: string;
   description?: string;
+  icon?: string;
 }
 
 export interface Relic {

@@ -1,35 +1,24 @@
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { ResourceGrid } from "@/components/shared/ResourceGrid";
 import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
-import { RarityStars } from "@/components/shared/RarityStars";
-import { getWeapons } from "@/lib/api";
+import { getRelics } from "@/lib/api";
 import { useInfiniteList } from "@/hooks/useInfiniteList";
-import { weaponIconUrl } from "@/lib/images";
-import { formatBaseAtk } from "@/lib/formatters";
-import {
-  GENSHIN_WEAPON_TYPES,
-  WEAPON_RARITIES,
-  RARITY_COLOR_MAP,
-} from "@/lib/constants";
-import type { Game, Weapon } from "@/lib/types";
+import { relicIconUrl } from "@/lib/images";
+import type { Game, Relic } from "@/lib/types";
 import type { FilterGroup, SortOption } from "@/components/shared/FilterBar";
 
-const WEAPON_FILTERS: FilterGroup[] = [
+const RELIC_FILTERS: FilterGroup[] = [
   {
-    key: "weaponType",
+    key: "type",
     label: "Type",
-    options: GENSHIN_WEAPON_TYPES.map((wt) => ({ value: wt, label: wt })),
-  },
-  {
-    key: "rarity",
-    label: "Rarity",
-    options: WEAPON_RARITIES.map((r) => ({
-      value: String(r),
-      label: "★".repeat(r),
-    })),
+    options: [
+      { value: "cavern", label: "Cavern Relics" },
+      { value: "planar", label: "Planar Ornaments" },
+    ],
   },
 ];
 
@@ -38,30 +27,30 @@ const SORT_OPTIONS: SortOption[] = [
   { value: "version", label: "Release" },
 ];
 
-function WeaponCard({ weapon, game }: { weapon: Weapon; game: string }) {
-  const rarityClass = RARITY_COLOR_MAP[weapon.rarity] ?? "bg-muted";
-
+function RelicCard({ relic, game }: { relic: Relic; game: string }) {
   return (
-    <Link to={`/${game}/weapons/${weapon.name}`}>
+    <Link to={`/${game}/relics/${encodeURIComponent(relic.name)}`}>
       <Card className="group overflow-hidden transition-colors hover:border-primary/40">
-        <div
-          className={`relative flex h-40 items-center justify-center ${rarityClass}/20`}
-        >
+        <div className="relative flex h-32 items-center justify-center bg-muted/10">
           <ImageWithFallback
-            src={weaponIconUrl(weapon.images)}
-            alt={weapon.name}
-            className="h-full w-full object-contain p-3"
+            src={relicIconUrl(relic.images)}
+            alt={relic.name}
+            className="h-full w-full object-contain p-2"
           />
+          {relic.type && (
+            <Badge
+              variant="secondary"
+              className="absolute top-2 right-2 text-xs"
+            >
+              {relic.type === "planar" ? "Planar" : "Cavern"}
+            </Badge>
+          )}
         </div>
         <CardContent className="p-3">
-          <p className="font-semibold text-sm truncate">{weapon.name}</p>
-          <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-            <span>{weapon.weaponType}</span>
-            <RarityStars rarity={weapon.rarity} className="text-xs" />
-          </div>
-          {weapon.baseAtkValue && (
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Base ATK: {formatBaseAtk(weapon.baseAtkValue)}
+          <p className="font-semibold text-sm truncate">{relic.name}</p>
+          {relic.twoPieceBonus && (
+            <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+              {relic.twoPieceBonus}
             </p>
           )}
         </CardContent>
@@ -74,16 +63,15 @@ function buildSort(sortBy: string, sortDir: string): string {
   const desc = sortDir === "desc";
   if (sortBy === "version") return desc ? "-version,name" : "version,name";
   if (sortBy === "name") return desc ? "-name" : "name";
-  return "-rarity,name";
+  return "name";
 }
 
-export function WeaponsPage() {
+export function RelicsPage() {
   const { game } = useParams<{ game: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const search = searchParams.get("search") ?? undefined;
-  const weaponType = searchParams.get("weaponType") ?? undefined;
-  const rarity = searchParams.get("rarity") ?? undefined;
+  const type = searchParams.get("type") ?? undefined;
   const sortBy = searchParams.get("sortBy") ?? "version";
   const sortDir = searchParams.get("sortDir") ?? "desc";
 
@@ -91,21 +79,20 @@ export function WeaponsPage() {
 
   const { items, total, loading, error, hasMore, sentinelRef } = useInfiniteList(
     (page) =>
-      getWeapons(game as Game, {
+      getRelics(game as Game, {
         page,
         limit: 25,
         search,
-        weaponType,
-        rarity: rarity ? Number(rarity) : undefined,
+        type,
         sort,
       }),
-    [game, search, weaponType, rarity, sort]
+    [game, search, type, sort]
   );
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Weapons</h1>
+        <h1 className="text-2xl font-bold">Relics</h1>
         {total > 0 && (
           <span className="text-sm text-muted-foreground">{total} total</span>
         )}
@@ -114,8 +101,8 @@ export function WeaponsPage() {
       <FilterBar
         searchParams={searchParams}
         setSearchParams={setSearchParams}
-        searchPlaceholder="Search weapons..."
-        filterGroups={WEAPON_FILTERS}
+        searchPlaceholder="Search relic sets..."
+        filterGroups={RELIC_FILTERS}
         sortOptions={SORT_OPTIONS}
         defaultSortBy="version"
         defaultSortDir="desc"
@@ -130,10 +117,10 @@ export function WeaponsPage() {
       <ResourceGrid
         loading={loading && items.length === 0}
         empty={items.length === 0 && !loading}
-        emptyMessage="No weapons found"
+        emptyMessage="No relic sets found"
       >
-        {items.map((w) => (
-          <WeaponCard key={w._id} weapon={w} game={game!} />
+        {items.map((r) => (
+          <RelicCard key={r._id} relic={r} game={game!} />
         ))}
       </ResourceGrid>
 
@@ -147,7 +134,7 @@ export function WeaponsPage() {
 
       {!hasMore && items.length > 0 && (
         <p className="text-center text-xs text-muted-foreground py-2">
-          All {total} weapons loaded
+          All {total} relic sets loaded
         </p>
       )}
     </div>

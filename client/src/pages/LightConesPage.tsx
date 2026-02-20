@@ -1,32 +1,33 @@
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { ResourceGrid } from "@/components/shared/ResourceGrid";
 import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { RarityStars } from "@/components/shared/RarityStars";
-import { getWeapons } from "@/lib/api";
+import { getLightCones } from "@/lib/api";
 import { useInfiniteList } from "@/hooks/useInfiniteList";
-import { weaponIconUrl } from "@/lib/images";
-import { formatBaseAtk } from "@/lib/formatters";
+import { lightConeSplashUrl } from "@/lib/images";
 import {
-  GENSHIN_WEAPON_TYPES,
-  WEAPON_RARITIES,
+  HSR_PATHS,
+  HSR_LC_RARITIES,
+  HSR_PATH_COLOR_MAP,
   RARITY_COLOR_MAP,
 } from "@/lib/constants";
-import type { Game, Weapon } from "@/lib/types";
+import type { Game, LightCone } from "@/lib/types";
 import type { FilterGroup, SortOption } from "@/components/shared/FilterBar";
 
-const WEAPON_FILTERS: FilterGroup[] = [
+const LC_FILTERS: FilterGroup[] = [
   {
-    key: "weaponType",
-    label: "Type",
-    options: GENSHIN_WEAPON_TYPES.map((wt) => ({ value: wt, label: wt })),
+    key: "path",
+    label: "Path",
+    options: HSR_PATHS.map((p) => ({ value: p, label: p })),
   },
   {
     key: "rarity",
     label: "Rarity",
-    options: WEAPON_RARITIES.map((r) => ({
+    options: HSR_LC_RARITIES.map((r) => ({
       value: String(r),
       label: "★".repeat(r),
     })),
@@ -38,32 +39,32 @@ const SORT_OPTIONS: SortOption[] = [
   { value: "version", label: "Release" },
 ];
 
-function WeaponCard({ weapon, game }: { weapon: Weapon; game: string }) {
-  const rarityClass = RARITY_COLOR_MAP[weapon.rarity] ?? "bg-muted";
+function LightConeCard({ lc, game }: { lc: LightCone; game: string }) {
+  const rarityClass = RARITY_COLOR_MAP[lc.rarity] ?? "bg-muted";
+  const pathClass = lc.path ? (HSR_PATH_COLOR_MAP[lc.path] ?? "bg-muted") : "bg-muted";
 
   return (
-    <Link to={`/${game}/weapons/${weapon.name}`}>
+    <Link to={`/${game}/lightcones/${encodeURIComponent(lc.name)}`}>
       <Card className="group overflow-hidden transition-colors hover:border-primary/40">
-        <div
-          className={`relative flex h-40 items-center justify-center ${rarityClass}/20`}
-        >
+        <div className={`relative h-44 overflow-hidden ${rarityClass}/20`}>
           <ImageWithFallback
-            src={weaponIconUrl(weapon.images)}
-            alt={weapon.name}
-            className="h-full w-full object-contain p-3"
+            src={lightConeSplashUrl(lc.images)}
+            alt={lc.name}
+            className="h-full w-full object-cover object-top"
           />
+          {lc.path && (
+            <Badge
+              className={`absolute top-2 right-2 ${pathClass} border-0 text-white text-xs`}
+            >
+              {lc.path}
+            </Badge>
+          )}
         </div>
         <CardContent className="p-3">
-          <p className="font-semibold text-sm truncate">{weapon.name}</p>
-          <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-            <span>{weapon.weaponType}</span>
-            <RarityStars rarity={weapon.rarity} className="text-xs" />
+          <p className="font-semibold text-sm truncate">{lc.name}</p>
+          <div className="mt-1">
+            <RarityStars rarity={lc.rarity} className="text-xs" />
           </div>
-          {weapon.baseAtkValue && (
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Base ATK: {formatBaseAtk(weapon.baseAtkValue)}
-            </p>
-          )}
         </CardContent>
       </Card>
     </Link>
@@ -77,12 +78,12 @@ function buildSort(sortBy: string, sortDir: string): string {
   return "-rarity,name";
 }
 
-export function WeaponsPage() {
+export function LightConesPage() {
   const { game } = useParams<{ game: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const search = searchParams.get("search") ?? undefined;
-  const weaponType = searchParams.get("weaponType") ?? undefined;
+  const path = searchParams.get("path") ?? undefined;
   const rarity = searchParams.get("rarity") ?? undefined;
   const sortBy = searchParams.get("sortBy") ?? "version";
   const sortDir = searchParams.get("sortDir") ?? "desc";
@@ -91,21 +92,21 @@ export function WeaponsPage() {
 
   const { items, total, loading, error, hasMore, sentinelRef } = useInfiniteList(
     (page) =>
-      getWeapons(game as Game, {
+      getLightCones(game as Game, {
         page,
         limit: 25,
         search,
-        weaponType,
+        path,
         rarity: rarity ? Number(rarity) : undefined,
         sort,
       }),
-    [game, search, weaponType, rarity, sort]
+    [game, search, path, rarity, sort]
   );
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Weapons</h1>
+        <h1 className="text-2xl font-bold">Light Cones</h1>
         {total > 0 && (
           <span className="text-sm text-muted-foreground">{total} total</span>
         )}
@@ -114,8 +115,8 @@ export function WeaponsPage() {
       <FilterBar
         searchParams={searchParams}
         setSearchParams={setSearchParams}
-        searchPlaceholder="Search weapons..."
-        filterGroups={WEAPON_FILTERS}
+        searchPlaceholder="Search light cones..."
+        filterGroups={LC_FILTERS}
         sortOptions={SORT_OPTIONS}
         defaultSortBy="version"
         defaultSortDir="desc"
@@ -130,10 +131,10 @@ export function WeaponsPage() {
       <ResourceGrid
         loading={loading && items.length === 0}
         empty={items.length === 0 && !loading}
-        emptyMessage="No weapons found"
+        emptyMessage="No light cones found"
       >
-        {items.map((w) => (
-          <WeaponCard key={w._id} weapon={w} game={game!} />
+        {items.map((lc) => (
+          <LightConeCard key={lc._id} lc={lc} game={game!} />
         ))}
       </ResourceGrid>
 
@@ -147,7 +148,7 @@ export function WeaponsPage() {
 
       {!hasMore && items.length > 0 && (
         <p className="text-center text-xs text-muted-foreground py-2">
-          All {total} weapons loaded
+          All {total} light cones loaded
         </p>
       )}
     </div>

@@ -23,12 +23,12 @@ const relicSchema = new mongoose.Schema(
     // Cavern Relics use: head, hands, body, feet
     // Planar Ornaments use: sphere, rope
     pieces: {
-      head:   { name: String, description: String },
-      hands:  { name: String, description: String },
-      body:   { name: String, description: String },
-      feet:   { name: String, description: String },
-      sphere: { name: String, description: String },
-      rope:   { name: String, description: String },
+      head:   { name: String, description: String, icon: String },
+      hands:  { name: String, description: String, icon: String },
+      body:   { name: String, description: String, icon: String },
+      feet:   { name: String, description: String, icon: String },
+      sphere: { name: String, description: String, icon: String },
+      rope:   { name: String, description: String, icon: String },
     },
 
     // Set icon path (resolved to full CDN URL at seed time)

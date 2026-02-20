@@ -587,19 +587,16 @@ async function seedLightCones(lightCones, lcPromotions, lcRanks, items) {
       : {};
 
     // Superimpositions S1–S5
-    // rank.params is a 5-element array, each element is an array of numeric values
-    // We format each value array as strings for the frontend renderer
+    // rank.params is a 5-element array, each element is an array of numeric values.
+    // Store raw numbers — the frontend uses the #N[format] specifier and a % look-ahead
+    // to determine how to format each value (fraction × 100 for percentages, raw otherwise).
     const superimpositions = [];
     if (rank) {
       for (let s = 0; s < 5; s++) {
         const vals = rank.params?.[s] ?? [];
         superimpositions.push({
           description: rank.desc ?? "",
-          values: vals.map((v) =>
-            Number.isInteger(v * 100) && v < 10
-              ? `${Math.round(v * 100)}%`  // e.g. 0.12 → "12%"
-              : String(v)
-          ),
+          values: vals,
         });
       }
     }
@@ -670,6 +667,7 @@ async function seedRelics(relicSets, relicPieces) {
       pieces[key] = {
         name: piece.name,
         description: piece.desc ?? "",
+        icon: piece.icon ? cdnUrl(piece.icon) : null,
       };
     }
 

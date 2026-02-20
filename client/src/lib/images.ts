@@ -188,3 +188,19 @@ export function weaponTypeIconUrl(weaponType?: string): string | null {
   if (!weaponType) return null;
   return WEAPON_TYPE_ICON[weaponType] ?? null;
 }
+
+// ── HSR Light Cones ──────────────────────────────────────────────────────────
+
+export function lightConeIconUrl(images?: Record<string, string>): string | null {
+  return images?.icon ?? null;
+}
+
+export function lightConeSplashUrl(images?: Record<string, string>): string | null {
+  return images?.portrait ?? images?.preview ?? images?.icon ?? null;
+}
+
+// ── HSR Relics ────────────────────────────────────────────────────────────────
+
+export function relicIconUrl(images?: Record<string, string>): string | null {
+  return images?.icon ?? null;
+}

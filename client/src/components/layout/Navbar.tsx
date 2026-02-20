@@ -54,7 +54,7 @@ export function Navbar() {
     // Preserve current resource type when switching games,
     // mapping equivalent resources when they have different names
     const equivalents = game ? (RESOURCE_EQUIVALENTS[game] ?? {}) : {};
-    const resource = equivalents[currentResource] ?? currentResource || "characters";
+    const resource = (equivalents[currentResource] ?? currentResource) || "characters";
     navigate(`/${gameId}/${resource}`);
   }
 
