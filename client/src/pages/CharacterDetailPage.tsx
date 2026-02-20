@@ -347,12 +347,6 @@ export function CharacterDetailPage() {
     }
   }, [character]);
 
-  useEffect(() => {
-    setMemospriteGroupLevels(
-      activeTrace?.memospriteGroups?.map(() => 10) ?? []
-    );
-  }, [activeTrace]);
-
   // For Travelers (Genshin), derive active variant data from the selected element
   const isTraveler = !!talent?.isTraveler;
   const activeVariant      = isTraveler && activeElement ? talent?.elementVariants?.[activeElement] : null;
@@ -371,6 +365,12 @@ export function CharacterDetailPage() {
     ? (trace?.elementVariants?.[activeElement] as Partial<Trace> | undefined)
     : null;
   const activeTrace = activeTraceVariant ?? trace;
+
+  useEffect(() => {
+    setMemospriteGroupLevels(
+      activeTrace?.memospriteGroups?.map(() => 10) ?? []
+    );
+  }, [activeTrace]);
 
   const activeEidolonVariant = eidolon?.isTraveler && activeElement
     ? (eidolon?.elementVariants?.[activeElement] as Partial<Eidolon> | undefined)
