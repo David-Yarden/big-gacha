@@ -1,7 +1,7 @@
 # Run this script once to create the Big Gacha desktop shortcut.
 # After it runs, right-click the shortcut on your Desktop and choose "Pin to taskbar".
 
-$ProjectDir    = "C:\Repository\Big Gacha"
+$ProjectDir    = $PSScriptRoot
 $PngPath       = "$ProjectDir\client\public\BIG_GACHA_LOGO.png"
 $IcoPath       = "$ProjectDir\BIG_GACHA_LOGO.ico"
 $LaunchScript  = "$ProjectDir\launch.ps1"

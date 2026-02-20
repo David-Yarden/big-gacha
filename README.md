@@ -1,47 +1,123 @@
-# 🎮 Gacha DB
+# Big Gacha
 
-A multi-game gacha database API built with the MERN stack. Currently supports **Genshin Impact** with plans for HSR, ZZZ, Wuthering Waves, and Arknights: Endfield.
+A multi-game gacha database with a REST API and React frontend. Currently supports **Genshin Impact** and **Honkai: Star Rail**, with more games planned.
 
-## Features
+## Prerequisites
 
-- RESTful API with filtering, sorting, pagination, and search
-- Data for characters, weapons, artifacts, materials, talents, and constellations
-- Multi-game architecture — same endpoints, different games
-- Auto-seeding from `genshin-db` npm package
-- Designed for easy frontend integration
+- [Node.js 18+](https://nodejs.org/)
+- [MongoDB Community Server](https://www.mongodb.com/try/download/community) (local) **or** a free [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) cluster
 
-## Quick Start
+### Installing MongoDB locally (Windows)
 
-### Prerequisites
+Open **PowerShell as Administrator** (right-click → Run as Administrator) and run:
 
-- Node.js 18+
-- MongoDB (local or [Atlas free tier](https://www.mongodb.com/cloud/atlas))
+```powershell
+winget install MongoDB.Server --accept-package-agreements --accept-source-agreements
+```
 
-### Setup
+> The installer must run as Administrator — it registers MongoDB as a Windows service. Running without elevation will fail silently with error 1603.
+
+After installation, MongoDB starts automatically. Verify it's running:
+
+```powershell
+Get-Service -Name MongoDB
+```
+
+If the status is not `Running`, start it:
+
+```powershell
+net start MongoDB
+```
+
+## Setup
+
+### 1. Clone and install dependencies
 
 ```bash
-# Clone and install
 git clone <your-repo-url>
-cd gacha-db
+cd big-gacha
+
+# Install backend dependencies
 npm install
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your MongoDB URI
-
-# Seed the database with Genshin data
-npm run seed:genshin
-
-# Start the server
-npm run dev
+# Install frontend dependencies
+npm install --prefix client
 ```
 
-### Seed Commands
+### 2. Configure environment
 
 ```bash
-npm run seed:genshin          # Upsert (safe — won't delete existing data)
-npm run seed:genshin:force    # Drop all Genshin data and re-import
+cp .env.example .env
 ```
+
+The default `.env` works out of the box for a local MongoDB install:
+
+```
+MONGODB_URI=mongodb://localhost:27017/gacha-db
+PORT=5000
+```
+
+To use Atlas instead, replace `MONGODB_URI` with your Atlas connection string.
+
+### 3. Seed the database
+
+Run the seeders to populate game data. MongoDB must be running before seeding.
+
+```bash
+# Genshin Impact
+npm run seed:genshin
+
+# Honkai: Star Rail
+npm run seed:hsr
+```
+
+You should see `MongoDB connected: 127.0.0.1` (not "in-memory") — that confirms data will persist.
+
+### 4. Start the app
+
+```bash
+npm run dev:all
+```
+
+This starts both servers concurrently:
+- **Backend API** → http://localhost:5000
+- **Frontend** → http://localhost:3000
+
+---
+
+## Seed Commands
+
+| Command | Description |
+|---------|-------------|
+| `npm run seed:genshin` | Upsert Genshin data (safe, won't delete existing) |
+| `npm run seed:genshin:force` | Drop and re-import all Genshin data |
+| `npm run seed:hsr` | Upsert HSR data (safe) |
+| `npm run seed:hsr:force` | Drop and re-import all HSR data |
+
+## Updating Data
+
+```bash
+# Genshin (pulls from genshin-db npm package)
+npm update genshin-db
+npm run seed:genshin
+
+# HSR (pulls from Mar-7th/StarRailRes on GitHub)
+npm run seed:hsr
+```
+
+## Desktop Shortcut (Windows)
+
+Run `Create Shortcut.ps1` once to create a desktop shortcut that launches both servers and opens the browser:
+
+```powershell
+# Right-click → "Run with PowerShell"
+# or from a PowerShell terminal:
+& ".\Create Shortcut.ps1"
+```
+
+Then right-click the shortcut on your Desktop and pin it to the taskbar.
+
+---
 
 ## API Reference
 
@@ -51,18 +127,22 @@ Base URL: `http://localhost:5000/api`
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api` | API info and all available routes |
+| GET | `/api` | API info and available routes |
 | GET | `/api/:game/characters` | List characters |
 | GET | `/api/:game/characters/:name` | Get character by name |
-| GET | `/api/:game/weapons` | List weapons |
+| GET | `/api/:game/weapons` | List weapons (Genshin) |
 | GET | `/api/:game/weapons/:name` | Get weapon by name |
-| GET | `/api/:game/artifacts` | List artifact sets |
+| GET | `/api/:game/artifacts` | List artifact sets (Genshin) |
 | GET | `/api/:game/materials` | List materials |
-| GET | `/api/:game/talents` | List talent sets |
-| GET | `/api/:game/constellations` | List constellations |
+| GET | `/api/:game/talents` | List talent sets (Genshin) |
+| GET | `/api/:game/constellations` | List constellations (Genshin) |
+| GET | `/api/:game/light-cones` | List light cones (HSR) |
+| GET | `/api/:game/relics` | List relic sets (HSR) |
+| GET | `/api/:game/traces` | List traces (HSR) |
+| GET | `/api/:game/eidolons` | List eidolons (HSR) |
 | GET | `/api/:game/stats` | Collection counts for a game |
 
-Replace `:game` with: `genshin`, `hsr`, `zzz`, `wuwa`, or `endfield`
+Replace `:game` with: `genshin` or `hsr`
 
 ### Query Parameters
 
@@ -70,10 +150,8 @@ Replace `:game` with: `genshin`, `hsr`, `zzz`, `wuwa`, or `endfield`
 |-------|---------|-------------|
 | `search` | `?search=hu` | Case-insensitive name search |
 | `element` | `?element=Pyro` | Filter by element |
-| `weaponType` | `?weaponType=Polearm` | Filter by weapon type |
 | `rarity` | `?rarity=5` | Filter by rarity |
-| `region` | `?region=Liyue` | Filter by region |
-| `sort` | `?sort=-rarity,name` | Sort (prefix `-` for desc) |
+| `sort` | `?sort=-rarity,name` | Sort (prefix `-` for descending) |
 | `fields` | `?fields=name,element,rarity` | Select specific fields |
 | `page` | `?page=2` | Page number (default: 1) |
 | `limit` | `?limit=10` | Results per page (default: 25, max: 100) |
@@ -81,74 +159,76 @@ Replace `:game` with: `genshin`, `hsr`, `zzz`, `wuwa`, or `endfield`
 ### Example Requests
 
 ```bash
-# All 5-star Pyro characters
+# All 5-star Pyro characters in Genshin
 GET /api/genshin/characters?rarity=5&element=Pyro
+
+# HSR characters sorted by version
+GET /api/hsr/characters?sort=version
 
 # Search weapons by name
 GET /api/genshin/weapons?search=homa
-
-# All Liyue characters, sorted by name, only name and element fields
-GET /api/genshin/characters?region=Liyue&sort=name&fields=name,element,rarity
-
-# Page 2 of materials, 10 per page
-GET /api/genshin/materials?page=2&limit=10
 ```
+
+---
 
 ## Project Structure
 
 ```
-gacha-db/
-├── src/
+big-gacha/
+├── client/                      # React + Vite frontend (TypeScript)
+│   ├── src/
+│   │   ├── components/          # Shared UI components
+│   │   ├── pages/               # Route-level page components
+│   │   ├── hooks/               # Custom React hooks
+│   │   └── lib/                 # Utilities
+│   └── package.json
+├── src/                         # Express backend
 │   ├── config/
 │   │   └── db.js                # MongoDB connection
 │   ├── middleware/
-│   │   ├── errorHandler.js      # Global error handler
+│   │   ├── errorHandler.js
 │   │   └── queryBuilder.js      # Filter/sort/paginate middleware
 │   ├── models/
-│   │   ├── index.js             # Model exports
 │   │   ├── Character.js
+│   │   ├── Material.js
 │   │   ├── Weapon.js
 │   │   ├── Artifact.js
-│   │   ├── Material.js
 │   │   ├── Talent.js
-│   │   └── Constellation.js
+│   │   ├── Constellation.js
+│   │   ├── LightCone.js
+│   │   ├── Relic.js
+│   │   ├── Trace.js
+│   │   ├── Eidolon.js
+│   │   └── index.js
 │   ├── routes/
-│   │   ├── index.js             # Main router
-│   │   └── resourceRouter.js    # Generic CRUD factory
+│   │   ├── index.js
+│   │   └── resourceRouter.js
 │   ├── scripts/
-│   │   └── seedGenshin.js       # Genshin data importer
-│   └── server.js                # Express app entry
+│   │   ├── seedGenshin.js
+│   │   ├── seedHsr.js
+│   │   └── hsrData.js
+│   └── server.js
+├── Create Shortcut.ps1          # Windows desktop shortcut creator
+├── launch.ps1                   # Launches both servers + browser
 ├── .env.example
-├── .gitignore
-├── package.json
-└── README.md
+└── package.json
 ```
 
 ## Data Sources
 
 | Game | Source | Status |
 |------|--------|--------|
-| Genshin Impact | [genshin-db](https://github.com/theBowja/genshin-db) (npm) | ✅ Ready |
-| Honkai: Star Rail | Yatta.moe / StarRailData | 🔜 Planned |
-| Zenless Zone Zero | Dimbreath/ZenlessData | 🔜 Planned |
-| Wuthering Waves | Dimbreath/WutheringData | 🔜 Planned |
-| Arknights: Endfield | Community sources (TBD) | 🔜 Planned |
-
-## Updating Data
-
-When a new Genshin patch drops:
-
-```bash
-npm update genshin-db        # Pull latest data from npm
-npm run seed:genshin          # Upsert new entries into MongoDB
-```
+| Genshin Impact | [genshin-db](https://github.com/theBowja/genshin-db) (npm) | Ready |
+| Honkai: Star Rail | [Mar-7th/StarRailRes](https://github.com/Mar-7th/StarRailRes) (GitHub) | Ready |
+| Zenless Zone Zero | — | Planned |
+| Wuthering Waves | — | Planned |
+| Arknights: Endfield | — | Planned |
 
 ## Tech Stack
 
-- **Runtime:** Node.js
-- **Framework:** Express
-- **Database:** MongoDB + Mongoose
-- **Data Source:** genshin-db (npm)
+- **Backend:** Node.js, Express, Mongoose
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS, React Router
+- **Database:** MongoDB
 
 ## License
 

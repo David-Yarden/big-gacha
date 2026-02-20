@@ -1,4 +1,4 @@
-$ProjectDir  = "C:\Repository\Big Gacha"
+$ProjectDir  = $PSScriptRoot
 $BackendPort  = 5000
 $FrontendPort = 3000
 
