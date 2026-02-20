@@ -220,6 +220,11 @@ export interface TraceSkill {
   icon?: string;
 }
 
+export interface MemospriteGroup {
+  skills: TraceSkill[];
+  costs?: Record<string, MaterialCostEntry[]>;
+}
+
 export interface Trace {
   _id: string;
   game: Game;
@@ -229,8 +234,10 @@ export interface Trace {
   ultimate?: TraceSkill;
   talent?: TraceSkill;
   technique?: TraceSkill;
+  elation?: TraceSkill;
+  memospriteGroups?: MemospriteGroup[];
   statBonuses?: Array<{ stat: string; value: number; unlockPhase?: number }>;
-  costs?: Record<string, MaterialCostEntry[]>;
+  costs?: Record<string, Record<string, MaterialCostEntry[]>>;
   images?: Record<string, string>;
   isTraveler?: boolean;
   elementVariants?: Record<string, Partial<Trace>>;

@@ -1,18 +1,21 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { materialIconUrlById, materialFallbackIconUrlById } from "@/lib/images";
+import { mergeAllMaterials } from "@/lib/materials";
 import type { MaterialCostEntry } from "@/lib/materials";
+
+export interface SkillSection {
+  label: string;
+  materials: MaterialCostEntry[];
+  level: number;
+}
 
 interface TotalCostCalculatorProps {
   ascensionMaterials: MaterialCostEntry[];
-  talent1Materials: MaterialCostEntry[];
-  talent2Materials: MaterialCostEntry[];
-  talent3Materials: MaterialCostEntry[];
+  skillSections: SkillSection[];
+  skillsLabel?: string;
   totalMaterials: MaterialCostEntry[];
   charLevel: number;
-  talent1Level: number;
-  talent2Level: number;
-  talent3Level: number;
 }
 
 function CostTable({
@@ -59,23 +62,17 @@ function CostTable({
 
 export function TotalCostCalculator({
   ascensionMaterials,
-  talent1Materials,
-  talent2Materials,
-  talent3Materials,
+  skillSections,
+  skillsLabel = "Skills",
   totalMaterials,
   charLevel,
-  talent1Level,
-  talent2Level,
-  talent3Level,
 }: TotalCostCalculatorProps) {
-  const hasTalentMaterials =
-    talent1Materials.length > 0 ||
-    talent2Materials.length > 0 ||
-    talent3Materials.length > 0;
+  const allSkillMaterials = mergeAllMaterials(...skillSections.map((s) => s.materials));
+  const hasSkillMaterials = allSkillMaterials.length > 0;
 
-  if (ascensionMaterials.length === 0 && !hasTalentMaterials) {
-    return null;
-  }
+  if (ascensionMaterials.length === 0 && !hasSkillMaterials) return null;
+
+  const levelStr = skillSections.map((s) => s.level).join("/");
 
   return (
     <Card>
@@ -83,24 +80,16 @@ export function TotalCostCalculator({
         <div>
           <h3 className="text-lg font-semibold">Total Material Cost</h3>
           <p className="text-sm text-muted-foreground">
-            Lv. {charLevel} / Talents {talent1Level}/{talent2Level}/{talent3Level}
+            Lv. {charLevel} / {skillsLabel} {levelStr}
           </p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <CostTable
-            title="Character Ascension"
-            materials={ascensionMaterials}
-          />
-          {hasTalentMaterials && (
+          <CostTable title="Character Ascension" materials={ascensionMaterials} />
+          {hasSkillMaterials && (
             <CostTable
-              title={`Talents (${talent1Level}/${talent2Level}/${talent3Level})`}
-              materials={totalMaterials.filter((m) =>
-                // Show talent-only materials by checking if they appear in talent lists
-                talent1Materials.some((t) => t.name === m.name) ||
-                talent2Materials.some((t) => t.name === m.name) ||
-                talent3Materials.some((t) => t.name === m.name)
-              )}
+              title={`${skillsLabel} (${levelStr})`}
+              materials={allSkillMaterials}
             />
           )}
         </div>
@@ -112,9 +101,7 @@ export function TotalCostCalculator({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/30">
-                    <th className="px-3 py-2 text-left font-medium">
-                      Material
-                    </th>
+                    <th className="px-3 py-2 text-left font-medium">Material</th>
                     <th className="px-3 py-2 text-right font-medium">Count</th>
                   </tr>
                 </thead>

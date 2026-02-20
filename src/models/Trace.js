@@ -35,6 +35,13 @@ const traceSchema = new mongoose.Schema(
     talent:    mongoose.Schema.Types.Mixed,
     technique: mongoose.Schema.Types.Mixed, // { name, desc, icon } — no levels
 
+    // Elation Skill — Sparxie, Yao Guang
+    elation: mongoose.Schema.Types.Mixed,
+
+    // Memosprite groups — one per skill_tree node; skills in the same node level together.
+    // Each element: { skills: [{ name, maxLevel, desc, params, icon }], costs: { lvl2: [...] } }
+    memospriteGroups: [mongoose.Schema.Types.Mixed],
+
     // Stat bonus nodes (A2 / A4 / A6 unlocks)
     // [{ stat: "CriticalChance", value: 0.053, unlockPhase: 2 }, …]
     statBonuses: [mongoose.Schema.Types.Mixed],

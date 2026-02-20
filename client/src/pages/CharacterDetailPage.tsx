@@ -313,6 +313,8 @@ export function CharacterDetailPage() {
   const [hsrUltLevel, setHsrUltLevel] = useState(10);
   const [hsrTalentLevel, setHsrTalentLevel] = useState(10);
   const [hsrTechLevel, setHsrTechLevel] = useState(10);
+  const [elationLevel, setElationLevel] = useState(10);
+  const [memospriteGroupLevels, setMemospriteGroupLevels] = useState<number[]>([]);
 
   const { data: charData, loading: charLoading, error: charError } = useApiQuery(
     () => getCharacter(game as Game, name!),
@@ -344,6 +346,12 @@ export function CharacterDetailPage() {
       setActiveElement(character.availableElements[0]);
     }
   }, [character]);
+
+  useEffect(() => {
+    setMemospriteGroupLevels(
+      activeTrace?.memospriteGroups?.map(() => 10) ?? []
+    );
+  }, [activeTrace]);
 
   // For Travelers (Genshin), derive active variant data from the selected element
   const isTraveler = !!talent?.isTraveler;
@@ -387,7 +395,7 @@ export function CharacterDetailPage() {
     [isHsr, charLevel]
   );
 
-  // Talent costs (Genshin only for now)
+  // Talent costs (Genshin)
   const talentCosts = activeTalent?.costs;
   const talent1Materials = useMemo(
     () => calculateTalentMaterials(talentCosts, talent1Level),
@@ -402,17 +410,69 @@ export function CharacterDetailPage() {
     [talentCosts, talent3Level]
   );
 
+  // Trace costs (HSR) — costs is { basicAtk: { lvl2: [...] }, skill: {...}, ... }
+  const hsrBasicMaterials = useMemo(() => {
+    if (!isHsr) return [];
+    const c = activeTrace?.costs;
+    return calculateTalentMaterials(c?.basicAtk, hsrBasicLevel);
+  }, [isHsr, activeTrace, hsrBasicLevel]);
+  const hsrSkillMaterials = useMemo(() => {
+    if (!isHsr) return [];
+    const c = activeTrace?.costs;
+    return calculateTalentMaterials(c?.skill, hsrSkillLevel);
+  }, [isHsr, activeTrace, hsrSkillLevel]);
+  const hsrUltMaterials = useMemo(() => {
+    if (!isHsr) return [];
+    const c = activeTrace?.costs;
+    return calculateTalentMaterials(c?.ultimate, hsrUltLevel);
+  }, [isHsr, activeTrace, hsrUltLevel]);
+  const hsrTalentMaterials = useMemo(() => {
+    if (!isHsr) return [];
+    const c = activeTrace?.costs;
+    return calculateTalentMaterials(c?.talent, hsrTalentLevel);
+  }, [isHsr, activeTrace, hsrTalentLevel]);
+  const hsrTechMaterials = useMemo(() => {
+    if (!isHsr) return [];
+    const c = activeTrace?.costs;
+    return calculateTalentMaterials(c?.technique, hsrTechLevel);
+  }, [isHsr, activeTrace, hsrTechLevel]);
+
+  const elationMaterials = useMemo(() => {
+    if (!isHsr || !activeTrace?.elation) return [];
+    return calculateTalentMaterials(activeTrace.costs?.elation, elationLevel);
+  }, [isHsr, activeTrace, elationLevel]);
+
+  const memospriteGroupMaterials = useMemo(() => {
+    if (!isHsr || !activeTrace?.memospriteGroups) return [];
+    return activeTrace.memospriteGroups.map((group, idx) =>
+      calculateTalentMaterials(group.costs, memospriteGroupLevels[idx] ?? 10)
+    );
+  }, [isHsr, activeTrace, memospriteGroupLevels]);
+
   const totalMaterials = useMemo(
-    () =>
-      mergeAllMaterials(
-        ascensionMaterials,
-        expMaterials,
-        breakthroughMaterials,
-        talent1Materials,
-        talent2Materials,
-        talent3Materials
-      ),
-    [ascensionMaterials, expMaterials, breakthroughMaterials, talent1Materials, talent2Materials, talent3Materials]
+    () => isHsr
+      ? mergeAllMaterials(
+          ascensionMaterials,
+          hsrBasicMaterials,
+          hsrSkillMaterials,
+          hsrUltMaterials,
+          hsrTalentMaterials,
+          hsrTechMaterials,
+          elationMaterials,
+          ...memospriteGroupMaterials,
+        )
+      : mergeAllMaterials(
+          ascensionMaterials,
+          expMaterials,
+          breakthroughMaterials,
+          talent1Materials,
+          talent2Materials,
+          talent3Materials,
+        ),
+    [isHsr, ascensionMaterials, expMaterials, breakthroughMaterials,
+     talent1Materials, talent2Materials, talent3Materials,
+     hsrBasicMaterials, hsrSkillMaterials, hsrUltMaterials, hsrTalentMaterials, hsrTechMaterials,
+     elationMaterials, memospriteGroupMaterials]
   );
 
   if (charLoading) {
@@ -709,6 +769,68 @@ export function CharacterDetailPage() {
                     </Card>
                   ))
               )}
+              {/* Elation Skill */}
+              {activeTrace?.elation && (
+                <Card>
+                  <CardContent className="p-4">
+                    <HsrSkillSection skill={activeTrace.elation} label="Elation" level={elationLevel} onLevelChange={setElationLevel} defaultMax={15} />
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Memosprite Groups — each group is one skill_tree node whose skills level together */}
+              {activeTrace?.memospriteGroups?.map((group, idx) => {
+                const effectiveMax = group.skills[0]?.maxLevel ?? 12;
+                const level = Math.min(memospriteGroupLevels[idx] ?? 10, effectiveMax);
+                return (
+                  <Card key={`memospriteGroup_${idx}`}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">Memosprite</Badge>
+                          <span className="font-semibold text-sm">
+                            {group.skills.length === 1
+                              ? group.skills[0].name
+                              : `${group.skills.length} Skills`}
+                          </span>
+                        </div>
+                        <span className="text-sm text-muted-foreground">Lv. {level}</span>
+                      </div>
+                      <Slider
+                        min={1}
+                        max={effectiveMax}
+                        step={1}
+                        value={[level]}
+                        onValueChange={([v]) => setMemospriteGroupLevels(prev => {
+                          const next = [...prev]; next[idx] = v; return next;
+                        })}
+                      />
+                      <div className="space-y-3 pt-1">
+                        {group.skills.map((skill, si) => (
+                          <div key={si} className={`flex gap-3 ${si > 0 ? "pt-3 border-t" : ""}`}>
+                            {skill.icon && (
+                              <img
+                                src={skill.icon}
+                                alt={skill.name}
+                                className="h-8 w-8 rounded object-contain bg-muted/40 p-0.5 shrink-0 mt-0.5"
+                              />
+                            )}
+                            <div>
+                              <h5 className="font-medium text-sm">{skill.name}</h5>
+                              {skill.desc && (
+                                <p className="mt-1 text-xs text-muted-foreground whitespace-pre-line">
+                                  {parseHsrDesc(skill.desc, skill.params, level)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+
               {activeTrace?.statBonuses && activeTrace.statBonuses.length > 0 && (
                 <Card>
                   <CardContent className="p-4">
@@ -928,20 +1050,33 @@ export function CharacterDetailPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Total Cost Calculator (Genshin only for now) */}
-      {!isHsr && (
-        <TotalCostCalculator
-          ascensionMaterials={mergeAllMaterials(ascensionMaterials, expMaterials, breakthroughMaterials)}
-          talent1Materials={talent1Materials}
-          talent2Materials={talent2Materials}
-          talent3Materials={talent3Materials}
-          totalMaterials={totalMaterials}
-          charLevel={charLevel}
-          talent1Level={talent1Level}
-          talent2Level={talent2Level}
-          talent3Level={talent3Level}
-        />
-      )}
+      {/* Total Cost Calculator */}
+      <TotalCostCalculator
+        ascensionMaterials={mergeAllMaterials(ascensionMaterials, expMaterials, breakthroughMaterials)}
+        skillSections={isHsr
+          ? [
+              { label: "Basic ATK", materials: hsrBasicMaterials,  level: hsrBasicLevel   },
+              { label: "Skill",     materials: hsrSkillMaterials,   level: hsrSkillLevel   },
+              { label: "Ultimate",  materials: hsrUltMaterials,     level: hsrUltLevel     },
+              { label: "Talent",    materials: hsrTalentMaterials,  level: hsrTalentLevel  },
+              { label: "Technique", materials: hsrTechMaterials,    level: hsrTechLevel    },
+              ...(activeTrace?.elation ? [{ label: "Elation", materials: elationMaterials, level: elationLevel }] : []),
+              ...memospriteGroupMaterials.map((mats, i) => ({
+                label: activeTrace?.memospriteGroups?.[i]?.skills?.[0]?.name ?? `Memosprite ${i + 1}`,
+                materials: mats,
+                level: memospriteGroupLevels[i] ?? 10,
+              })),
+            ]
+          : [
+              { label: "Combat 1", materials: talent1Materials, level: talent1Level },
+              { label: "Combat 2", materials: talent2Materials, level: talent2Level },
+              { label: "Combat 3", materials: talent3Materials, level: talent3Level },
+            ]
+        }
+        skillsLabel={isHsr ? "Traces" : "Talents"}
+        totalMaterials={totalMaterials}
+        charLevel={charLevel}
+      />
     </div>
   );
 }

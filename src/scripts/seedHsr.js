@@ -365,14 +365,18 @@ async function seedTraces(characters, skills, skillTrees, items) {
   const ids = Object.keys(characters).filter((id) => !TRAILBLAZER_IDS.has(id));
   console.log(`  Seeding traces for ${ids.length} characters`);
 
-  // Skill type_text → our field name
+  // Skill type_text → our field name (single skills)
   const SKILL_KEY_MAP = {
-    "Basic ATK":  "basicAtk",
-    "Skill":      "skill",
-    "Ultimate":   "ultimate",
-    "Talent":     "talent",
-    "Technique":  "technique",
+    "Basic ATK":     "basicAtk",
+    "Skill":         "skill",
+    "Ultimate":      "ultimate",
+    "Talent":        "talent",
+    "Technique":     "technique",
+    "Elation Skill": "elation",
   };
+
+  // Memosprite skill types — these are grouped by node (multiple skills share one upgrade cost)
+  const MEMOSPRITE_TYPES = new Set(["Memosprite Skill", "Memosprite Talent"]);
 
   let count = 0;
   for (const id of ids) {
@@ -380,27 +384,45 @@ async function seedTraces(characters, skills, skillTrees, items) {
     if (!char) continue;
 
     // Gather skill nodes (those with level_up_skills) and stat nodes
-    const skillNodes   = {}; // skillKey → tree node (for cost extraction)
-    const statBonuses  = [];
-    const skillData    = {}; // skillKey → parsed skill
-    const images       = {};
+    const skillNodes          = {}; // skillKey → tree node (single skills)
+    const statBonuses         = [];
+    const skillData           = {}; // skillKey → parsed skill (single skills)
+    const images              = {};
+    const memospriteGroupNodes = []; // { node, groupSkills[] } — one per memo node
+    const seenSkillIds        = new Set(); // deduplicate single-skill nodes
 
     for (const nodeId of char.skill_trees ?? []) {
       const node = skillTrees[nodeId];
       if (!node) continue;
 
       if (node.level_up_skills?.length > 0) {
-        // Main skill-leveling node — find which skill it levels
-        const skillId = node.level_up_skills[0].id;
-        const skill = skills[skillId];
-        if (!skill) continue;
+        const firstSkillId = node.level_up_skills[0].id;
+        const firstSkill   = skills[firstSkillId];
 
-        const key = SKILL_KEY_MAP[skill.type_text];
-        if (!key) continue;
+        if (firstSkill && MEMOSPRITE_TYPES.has(firstSkill.type_text)) {
+          // Memosprite node — collect ALL unique skills in this node (they level together)
+          const groupSkills = [];
+          const seenInNode  = new Set();
+          for (const lu of node.level_up_skills) {
+            if (seenInNode.has(lu.id)) continue;
+            seenInNode.add(lu.id);
+            const s = skills[lu.id];
+            if (s) groupSkills.push(parseSkillDesc(s));
+          }
+          memospriteGroupNodes.push({ node, skills: groupSkills });
+        } else {
+          // Single skill node
+          if (seenSkillIds.has(firstSkillId)) continue;
+          seenSkillIds.add(firstSkillId);
+          if (!firstSkill) continue;
 
-        skillNodes[key] = node;
-        skillData[key]  = parseSkillDesc(skill);
-        images[key]     = cdnUrl(skill.icon);
+          const key = SKILL_KEY_MAP[firstSkill.type_text];
+          if (key) {
+            skillNodes[key] = node;
+            skillData[key]  = parseSkillDesc(firstSkill);
+            images[key]     = cdnUrl(firstSkill.icon);
+          }
+        }
       } else {
         // Stat bonus node — extract the stat grant from levels[0].properties
         const props = node.levels?.[0]?.properties ?? [];
@@ -415,11 +437,17 @@ async function seedTraces(characters, skills, skillTrees, items) {
       }
     }
 
-    // Build per-skill costs
+    // Build per-skill costs for single skills
     const costs = {};
     for (const [key, node] of Object.entries(skillNodes)) {
       costs[key] = buildSkillCosts(node, items);
     }
+
+    // Build memospriteGroups — each entry has skills[] + costs embedded
+    const memospriteGroups = memospriteGroupNodes.map(({ node, skills: groupSkills }) => ({
+      skills: groupSkills,
+      costs:  buildSkillCosts(node, items),
+    }));
 
     await upsert(Trace, { game: GAME, name: char.name }, {
       game: GAME,
@@ -429,6 +457,8 @@ async function seedTraces(characters, skills, skillTrees, items) {
       ultimate:  skillData.ultimate  ?? null,
       talent:    skillData.talent    ?? null,
       technique: skillData.technique ?? null,
+      elation:   skillData.elation   ?? null,
+      memospriteGroups: memospriteGroups.length > 0 ? memospriteGroups : null,
       statBonuses,
       costs,
       images,
@@ -442,25 +472,44 @@ async function seedTraces(characters, skills, skillTrees, items) {
     const char = characters[group.ids[0]];
     if (!char) continue;
 
-    const variantSkillData  = {};
-    const variantImages     = {};
-    const variantCosts      = {};
-    const variantStatBonus  = [];
-    const variantSkillNodes = {};
+    const variantSkillData        = {};
+    const variantImages           = {};
+    const variantCosts            = {};
+    const variantStatBonus        = [];
+    const variantSkillNodes       = {};
+    const variantMemoGroupNodes   = []; // { node, skills[] }
+    const variantSeenSkillIds     = new Set();
 
     for (const nodeId of char.skill_trees ?? []) {
       const node = skillTrees[nodeId];
       if (!node) continue;
 
       if (node.level_up_skills?.length > 0) {
-        const skillId = node.level_up_skills[0].id;
-        const skill = skills[skillId];
-        if (!skill) continue;
-        const key = SKILL_KEY_MAP[skill.type_text];
-        if (!key) continue;
-        variantSkillNodes[key] = node;
-        variantSkillData[key]  = parseSkillDesc(skill);
-        variantImages[key]     = cdnUrl(skill.icon);
+        const firstSkillId = node.level_up_skills[0].id;
+        const firstSkill   = skills[firstSkillId];
+
+        if (firstSkill && MEMOSPRITE_TYPES.has(firstSkill.type_text)) {
+          const groupSkills = [];
+          const seenInNode  = new Set();
+          for (const lu of node.level_up_skills) {
+            if (seenInNode.has(lu.id)) continue;
+            seenInNode.add(lu.id);
+            const s = skills[lu.id];
+            if (s) groupSkills.push(parseSkillDesc(s));
+          }
+          variantMemoGroupNodes.push({ node, skills: groupSkills });
+        } else {
+          if (variantSeenSkillIds.has(firstSkillId)) continue;
+          variantSeenSkillIds.add(firstSkillId);
+          if (!firstSkill) continue;
+
+          const key = SKILL_KEY_MAP[firstSkill.type_text];
+          if (key) {
+            variantSkillNodes[key] = node;
+            variantSkillData[key]  = parseSkillDesc(firstSkill);
+            variantImages[key]     = cdnUrl(firstSkill.icon);
+          }
+        }
       } else {
         const props = node.levels?.[0]?.properties ?? [];
         const unlockPhase = node.levels?.[0]?.promotion ?? 0;
@@ -474,12 +523,19 @@ async function seedTraces(characters, skills, skillTrees, items) {
       variantCosts[key] = buildSkillCosts(node, items);
     }
 
+    const variantMemoGroups = variantMemoGroupNodes.map(({ node, skills: groupSkills }) => ({
+      skills: groupSkills,
+      costs:  buildSkillCosts(node, items),
+    }));
+
     trailblazerVariants[group.element] = {
-      basicAtk:   variantSkillData.basicAtk  ?? null,
-      skill:      variantSkillData.skill     ?? null,
-      ultimate:   variantSkillData.ultimate  ?? null,
-      talent:     variantSkillData.talent    ?? null,
-      technique:  variantSkillData.technique ?? null,
+      basicAtk:  variantSkillData.basicAtk  ?? null,
+      skill:     variantSkillData.skill     ?? null,
+      ultimate:  variantSkillData.ultimate  ?? null,
+      talent:    variantSkillData.talent    ?? null,
+      technique: variantSkillData.technique ?? null,
+      elation:   variantSkillData.elation   ?? null,
+      memospriteGroups: variantMemoGroups.length > 0 ? variantMemoGroups : null,
       statBonuses: variantStatBonus,
       costs: variantCosts,
       images: variantImages,
