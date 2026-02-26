@@ -8,7 +8,7 @@ import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { RarityStars } from "@/components/shared/RarityStars";
 import { getLightCones } from "@/lib/api";
 import { useInfiniteList } from "@/hooks/useInfiniteList";
-import { lightConeSplashUrl } from "@/lib/images";
+import { lightConeSplashUrl, hsrPathIconUrl } from "@/lib/images";
 import {
   HSR_PATHS,
   HSR_LC_RARITIES,
@@ -22,7 +22,7 @@ const LC_FILTERS: FilterGroup[] = [
   {
     key: "path",
     label: "Path",
-    options: HSR_PATHS.map((p) => ({ value: p, label: p })),
+    options: HSR_PATHS.map((p) => ({ value: p, label: p, icon: hsrPathIconUrl(p) ?? undefined })),
   },
   {
     key: "rarity",
@@ -54,8 +54,11 @@ function LightConeCard({ lc, game }: { lc: LightCone; game: string }) {
           />
           {lc.path && (
             <Badge
-              className={`absolute top-2 right-2 ${pathClass} border-0 text-white text-xs`}
+              className={`absolute top-2 right-2 ${pathClass} border-0 text-white text-xs flex items-center gap-1`}
             >
+              {hsrPathIconUrl(lc.path) && (
+                <img src={hsrPathIconUrl(lc.path)!} className="h-3.5 w-3.5" alt="" />
+              )}
               {lc.path}
             </Badge>
           )}

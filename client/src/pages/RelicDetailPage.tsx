@@ -85,7 +85,7 @@ export function RelicDetailPage() {
             <h1 className="text-3xl font-bold">{relic.name}</h1>
             <div className="mt-1 flex items-center gap-2">
               <Badge variant="secondary">
-                {isPlanar ? "Planar Ornaments" : "Cavern Relics"}
+                {isPlanar ? "Planar Ornaments" : "Relics"}
               </Badge>
               {relic.version && (
                 <Badge variant="outline">v{relic.version}</Badge>

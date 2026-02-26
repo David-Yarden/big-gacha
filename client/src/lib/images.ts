@@ -118,6 +118,15 @@ export function materialFallbackIconUrlById(id?: number): string | null {
   return enkaUrl(`UI_ItemIcon_${id}`);
 }
 
+/**
+ * Derive HSR material icon URL from the numeric item ID.
+ * HSR material IDs map to icon/item/{id}.png on StarRailRes.
+ */
+export function hsrMaterialIconUrl(id?: number): string | null {
+  if (!id) return null;
+  return `${HSR_STARRAILRES}/icon/item/${id}.png`;
+}
+
 // ── Elements ─────────────────────────────────────────────
 
 // genshin.jmp.blue hosts element icons at /elements/{lowercase}/icon (WebP, verified 200)
@@ -187,6 +196,117 @@ const WEAPON_TYPE_ICON: Record<string, string> = {
 export function weaponTypeIconUrl(weaponType?: string): string | null {
   if (!weaponType) return null;
   return WEAPON_TYPE_ICON[weaponType] ?? null;
+}
+
+// ── HSR Elements & Paths ─────────────────────────────────────────────────────
+
+const HSR_STARRAILRES = "https://raw.githubusercontent.com/Mar-7th/StarRailRes/master";
+
+// Display name → internal key used in StarRailRes file paths
+const HSR_ELEMENT_SLUG: Record<string, string> = {
+  Physical:  "Physical",
+  Fire:      "Fire",
+  Ice:       "Ice",
+  Lightning: "Thunder",   // display name differs from file name
+  Wind:      "Wind",
+  Quantum:   "Quantum",
+  Imaginary: "Imaginary",
+};
+
+export function hsrElementIconUrl(element?: string): string | null {
+  if (!element) return null;
+  const slug = HSR_ELEMENT_SLUG[element];
+  return slug ? `${HSR_STARRAILRES}/icon/element/${slug}.png` : null;
+}
+
+// Display name → filename (most match, but "The Hunt" → "Hunt")
+const HSR_PATH_SLUG: Record<string, string> = {
+  Destruction:  "Destruction",
+  "The Hunt":   "Hunt",
+  Erudition:    "Erudition",
+  Harmony:      "Harmony",
+  Nihility:     "Nihility",
+  Preservation: "Preservation",
+  Abundance:    "Abundance",
+  Remembrance:  "Remembrance",
+};
+
+export function hsrPathIconUrl(path?: string): string | null {
+  if (!path) return null;
+  const slug = HSR_PATH_SLUG[path];
+  return slug ? `${HSR_STARRAILRES}/icon/path/${slug}.png` : null;
+}
+
+// ── HSR Stats ────────────────────────────────────────────────────────────────
+
+// Raw property type → { in-game display name, StarRailRes icon path }
+// Source: index_new/en/properties.json
+const HSR_STAT_DISPLAY: Record<string, { name: string; icon: string | null }> = {
+  MaxHP:                       { name: "HP",                       icon: "icon/property/IconMaxHP.png" },
+  Attack:                      { name: "ATK",                      icon: "icon/property/IconAttack.png" },
+  Defence:                     { name: "DEF",                      icon: "icon/property/IconDefence.png" },
+  Speed:                       { name: "SPD",                      icon: "icon/property/IconSpeed.png" },
+  CriticalChance:              { name: "CRIT Rate",                icon: "icon/property/IconCriticalChance.png" },
+  CriticalChanceBase:          { name: "CRIT Rate",                icon: "icon/property/IconCriticalChance.png" },
+  CriticalDamage:              { name: "CRIT DMG",                 icon: "icon/property/IconCriticalDamage.png" },
+  CriticalDamageBase:          { name: "CRIT DMG",                 icon: "icon/property/IconCriticalDamage.png" },
+  BreakDamageAddedRatio:       { name: "Break Effect",             icon: "icon/property/IconBreakUp.png" },
+  BreakDamageAddedRatioBase:   { name: "Break Effect",             icon: "icon/property/IconBreakUp.png" },
+  HealRatio:                   { name: "Outgoing Healing Boost",   icon: "icon/property/IconHealRatio.png" },
+  HealRatioBase:               { name: "Outgoing Healing Boost",   icon: "icon/property/IconHealRatio.png" },
+  HealTakenRatio:              { name: "Incoming Healing Boost",   icon: "icon/property/IconHealRatio.png" },
+  MaxSP:                       { name: "Max Energy",               icon: "icon/property/IconEnergyLimit.png" },
+  SPRatio:                     { name: "Energy Regen Rate",        icon: "icon/property/IconEnergyRecovery.png" },
+  SPRatioBase:                 { name: "Energy Regen Rate",        icon: "icon/property/IconEnergyRecovery.png" },
+  StatusProbability:           { name: "Effect Hit Rate",          icon: "icon/property/IconStatusProbability.png" },
+  StatusProbabilityBase:       { name: "Effect Hit Rate",          icon: "icon/property/IconStatusProbability.png" },
+  StatusResistance:            { name: "Effect RES",               icon: "icon/property/IconStatusResistance.png" },
+  StatusResistanceBase:        { name: "Effect RES",               icon: "icon/property/IconStatusResistance.png" },
+  PhysicalAddedRatio:          { name: "Physical DMG Boost",       icon: "icon/property/IconPhysicalAddedRatio.png" },
+  PhysicalResistance:          { name: "Physical RES Boost",       icon: "icon/property/IconPhysicalResistanceDelta.png" },
+  PhysicalResistanceDelta:     { name: "Physical RES Boost",       icon: "icon/property/IconPhysicalResistanceDelta.png" },
+  FireAddedRatio:              { name: "Fire DMG Boost",           icon: "icon/property/IconFireAddedRatio.png" },
+  FireResistance:              { name: "Fire RES Boost",           icon: "icon/property/IconFireResistanceDelta.png" },
+  FireResistanceDelta:         { name: "Fire RES Boost",           icon: "icon/property/IconFireResistanceDelta.png" },
+  IceAddedRatio:               { name: "Ice DMG Boost",            icon: "icon/property/IconIceAddedRatio.png" },
+  IceResistance:               { name: "Ice RES Boost",            icon: "icon/property/IconIceResistanceDelta.png" },
+  IceResistanceDelta:          { name: "Ice RES Boost",            icon: "icon/property/IconIceResistanceDelta.png" },
+  ThunderAddedRatio:           { name: "Lightning DMG Boost",      icon: "icon/property/IconThunderAddedRatio.png" },
+  ThunderResistance:           { name: "Lightning RES Boost",      icon: "icon/property/IconThunderResistanceDelta.png" },
+  ThunderResistanceDelta:      { name: "Lightning RES Boost",      icon: "icon/property/IconThunderResistanceDelta.png" },
+  WindAddedRatio:              { name: "Wind DMG Boost",           icon: "icon/property/IconWindAddedRatio.png" },
+  WindResistance:              { name: "Wind RES Boost",           icon: "icon/property/IconWindResistanceDelta.png" },
+  WindResistanceDelta:         { name: "Wind RES Boost",           icon: "icon/property/IconWindResistanceDelta.png" },
+  QuantumAddedRatio:           { name: "Quantum DMG Boost",        icon: "icon/property/IconQuantumAddedRatio.png" },
+  QuantumResistance:           { name: "Quantum RES Boost",        icon: "icon/property/IconQuantumResistanceDelta.png" },
+  QuantumResistanceDelta:      { name: "Quantum RES Boost",        icon: "icon/property/IconQuantumResistanceDelta.png" },
+  ImaginaryAddedRatio:         { name: "Imaginary DMG Boost",      icon: "icon/property/IconImaginaryAddedRatio.png" },
+  ImaginaryResistance:         { name: "Imaginary RES Boost",      icon: "icon/property/IconImaginaryResistanceDelta.png" },
+  ImaginaryResistanceDelta:    { name: "Imaginary RES Boost",      icon: "icon/property/IconImaginaryResistanceDelta.png" },
+  BaseHP:                      { name: "HP",                       icon: "icon/property/IconMaxHP.png" },
+  HPDelta:                     { name: "HP",                       icon: "icon/property/IconMaxHP.png" },
+  HPAddedRatio:                { name: "HP",                       icon: "icon/property/IconMaxHP.png" },
+  BaseAttack:                  { name: "ATK",                      icon: "icon/property/IconAttack.png" },
+  AttackDelta:                 { name: "ATK",                      icon: "icon/property/IconAttack.png" },
+  AttackAddedRatio:            { name: "ATK",                      icon: "icon/property/IconAttack.png" },
+  BaseDefence:                 { name: "DEF",                      icon: "icon/property/IconDefence.png" },
+  DefenceDelta:                { name: "DEF",                      icon: "icon/property/IconDefence.png" },
+  DefenceAddedRatio:           { name: "DEF",                      icon: "icon/property/IconDefence.png" },
+  BaseSpeed:                   { name: "SPD",                      icon: "icon/property/IconSpeed.png" },
+  SpeedDelta:                  { name: "SPD",                      icon: "icon/property/IconSpeed.png" },
+  SpeedAddedRatio:             { name: "SPD",                      icon: "icon/property/IconSpeed.png" },
+  AllDamageTypeAddedRatio:     { name: "DMG Boost",                icon: "icon/property/IconAttack.png" },
+  ElationDamageAddedRatio:     { name: "Elation DMG Boost",        icon: "icon/property/IconJoy.png" },
+  ElationDamageAddedRatioBase: { name: "Elation DMG Boost",        icon: "icon/property/IconJoy.png" },
+};
+
+export function hsrStatName(type: string): string {
+  return HSR_STAT_DISPLAY[type]?.name ?? type;
+}
+
+export function hsrStatIconUrl(type: string): string | null {
+  const icon = HSR_STAT_DISPLAY[type]?.icon;
+  return icon ? `${HSR_STARRAILRES}/${icon}` : null;
 }
 
 // ── HSR Light Cones ──────────────────────────────────────────────────────────

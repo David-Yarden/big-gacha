@@ -17,6 +17,9 @@ const constellationSchema = new mongoose.Schema(
     c5: { name: String, description: String },
     c6: { name: String, description: String },
 
+    // Hexerei: Secret Rite additions (v6.2) — keyed by slot (c1…c6)
+    hexerei: mongoose.Schema.Types.Mixed,
+
     images: mongoose.Schema.Types.Mixed,
 
     isTraveler: { type: Boolean, default: false },

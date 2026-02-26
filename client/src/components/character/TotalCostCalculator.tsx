@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
-import { materialIconUrlById, materialFallbackIconUrlById } from "@/lib/images";
+import { materialIconUrlById, materialFallbackIconUrlById, hsrMaterialIconUrl } from "@/lib/images";
 import { mergeAllMaterials } from "@/lib/materials";
 import type { MaterialCostEntry } from "@/lib/materials";
 
@@ -16,14 +16,17 @@ interface TotalCostCalculatorProps {
   skillsLabel?: string;
   totalMaterials: MaterialCostEntry[];
   charLevel: number;
+  isHsr?: boolean;
 }
 
 function CostTable({
   title,
   materials,
+  isHsr,
 }: {
   title: string;
   materials: MaterialCostEntry[];
+  isHsr?: boolean;
 }) {
   if (materials.length === 0) return null;
 
@@ -40,8 +43,8 @@ function CostTable({
                 <td className="px-3 py-1.5">
                   <span className="flex items-center gap-2">
                     <ImageWithFallback
-                      src={materialIconUrlById(mat.id)}
-                      fallbackSrc={materialFallbackIconUrlById(mat.id)}
+                      src={mat.icon ?? (isHsr ? hsrMaterialIconUrl(mat.id) : materialIconUrlById(mat.id))}
+                      fallbackSrc={isHsr ? undefined : materialFallbackIconUrlById(mat.id)}
                       alt={mat.name}
                       className="h-6 w-6 shrink-0 object-contain"
                     />
@@ -66,6 +69,7 @@ export function TotalCostCalculator({
   skillsLabel = "Skills",
   totalMaterials,
   charLevel,
+  isHsr,
 }: TotalCostCalculatorProps) {
   const allSkillMaterials = mergeAllMaterials(...skillSections.map((s) => s.materials));
   const hasSkillMaterials = allSkillMaterials.length > 0;
@@ -85,11 +89,12 @@ export function TotalCostCalculator({
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <CostTable title="Character Ascension" materials={ascensionMaterials} />
+          <CostTable title="Character Ascension" materials={ascensionMaterials} isHsr={isHsr} />
           {hasSkillMaterials && (
             <CostTable
               title={`${skillsLabel} (${levelStr})`}
               materials={allSkillMaterials}
+              isHsr={isHsr}
             />
           )}
         </div>
@@ -111,8 +116,8 @@ export function TotalCostCalculator({
                       <td className="px-3 py-1.5">
                         <span className="flex items-center gap-2">
                           <ImageWithFallback
-                            src={materialIconUrlById(mat.id)}
-                            fallbackSrc={materialFallbackIconUrlById(mat.id)}
+                            src={isHsr ? hsrMaterialIconUrl(mat.id) : materialIconUrlById(mat.id)}
+                            fallbackSrc={isHsr ? undefined : materialFallbackIconUrlById(mat.id)}
                             alt={mat.name}
                             className="h-6 w-6 shrink-0 object-contain"
                           />

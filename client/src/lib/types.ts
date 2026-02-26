@@ -19,6 +19,7 @@ export interface MaterialCostEntry {
   id: number;
   name: string;
   count: number;
+  icon?: string;
 }
 
 export interface Character {
@@ -142,6 +143,7 @@ export interface Talent extends TalentVariant {
   name: string;
   isTraveler?: boolean;
   elementVariants?: Record<string, TalentVariant>;
+  hexerei?: Record<string, string>;
 }
 
 export interface ConstellationLevel {
@@ -165,6 +167,7 @@ export interface Constellation extends ConstellationVariant {
   name: string;
   isTraveler?: boolean;
   elementVariants?: Record<string, ConstellationVariant>;
+  hexerei?: Record<string, string>;
 }
 
 export interface LightCone {
@@ -225,6 +228,14 @@ export interface MemospriteGroup {
   costs?: Record<string, MaterialCostEntry[]>;
 }
 
+export interface MajorTrace {
+  name: string;
+  desc?: string;
+  params?: number[][];
+  icon?: string;
+  unlockPhase?: number;
+}
+
 export interface Trace {
   _id: string;
   game: Game;
@@ -236,6 +247,7 @@ export interface Trace {
   technique?: TraceSkill;
   elation?: TraceSkill;
   memospriteGroups?: MemospriteGroup[];
+  majorTraces?: MajorTrace[];
   statBonuses?: Array<{ stat: string; value: number; unlockPhase?: number }>;
   costs?: Record<string, Record<string, MaterialCostEntry[]>>;
   images?: Record<string, string>;

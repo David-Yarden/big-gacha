@@ -27,6 +27,11 @@ import {
   statIconUrl,
   materialIconUrlById,
   materialFallbackIconUrlById,
+  hsrMaterialIconUrl,
+  hsrElementIconUrl,
+  hsrPathIconUrl,
+  hsrStatIconUrl,
+  hsrStatName,
 } from "@/lib/images";
 import { parseLabel, formatSpecialized } from "@/lib/formatters";
 import {
@@ -82,24 +87,51 @@ function formatHsrParam(value: number, fmt: string): string {
 }
 
 /**
- * Replaces #N[format] placeholders in HSR skill descriptions with actual values
- * from params[levelIndex][paramIndex] at the given level.
+ * Replaces #N[format] placeholders in HSR skill descriptions with styled spans.
+ * Raw param values are fractions for percentages (e.g. 0.5 = 50%) — we detect
+ * this by checking if the text immediately after the token starts with "%",
+ * then multiply by 100 before formatting.
  */
-function parseHsrDesc(desc: string, params: number[][] | undefined, level: number): string {
+function parseHsrDesc(desc: string, params: number[][] | undefined, level: number) {
   const levelParams = params ? (params[Math.min(level - 1, params.length - 1)] ?? []) : [];
-  return desc
-    .replace(/<[^>]+>/g, "")
-    .replace(/#(\d+)\[([^\]]+)\]/g, (_, indexStr, fmt) => {
-      const value = levelParams[parseInt(indexStr) - 1];
-      return value !== undefined ? formatHsrParam(value, fmt) : `#${indexStr}[${fmt}]`;
-    });
+  const clean = desc.replace(/<[^>]+>/g, "");
+  const parts = clean.split(/(#\d+\[[^\]]+\])/);
+  return parts.map((part, i) => {
+    if (i % 2 === 1) {
+      const m = part.match(/^#(\d+)\[([^\]]+)\]/);
+      if (!m) return part;
+      const idx = parseInt(m[1]) - 1;
+      const fmt = m[2].toLowerCase();
+      const raw = levelParams[idx];
+      if (raw === undefined) return part;
+      const nextPart = parts[i + 1] ?? "";
+      const n = nextPart.startsWith("%") ? raw * 100 : raw;
+      return (
+        <span key={i} className="font-bold text-amber-400">
+          {formatHsrParam(n, fmt)}
+        </span>
+      );
+    }
+    return part;
+  });
+}
+
+// ── Hexerei block ─────────────────────────────────────────────────────────────
+
+function HexereiBlock({ text }: { text: string }) {
+  return (
+    <div className="mt-3 rounded-md border border-violet-500/30 bg-violet-500/5 px-3 py-2">
+      <p className="text-xs font-semibold text-violet-400 mb-1">Hexerei: Secret Rite</p>
+      <p className="text-sm text-violet-200/80">{text}</p>
+    </div>
+  );
 }
 
 // ── Stat icon ────────────────────────────────────────────────────────────────
 
 function StatIcon({ substatType, className = "h-4 w-4 shrink-0" }: { substatType?: string; className?: string }) {
   if (!substatType) return null;
-  const url = statIconUrl(substatType);
+  const url = statIconUrl(substatType) ?? hsrStatIconUrl(substatType);
   if (!url) return null;
   return <img src={url} className={className} alt="" />;
 }
@@ -255,7 +287,7 @@ function HsrSkillSection({
 
 // ── Material cost table ───────────────────────────────────────────────────────
 
-function MaterialCostTable({ materials }: { materials: MaterialCostEntry[] }) {
+function MaterialCostTable({ materials, isHsr }: { materials: MaterialCostEntry[]; isHsr?: boolean }) {
   if (materials.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">No materials required</p>
@@ -277,8 +309,8 @@ function MaterialCostTable({ materials }: { materials: MaterialCostEntry[] }) {
               <td className="px-3 py-1.5">
                 <span className="flex items-center gap-2">
                   <ImageWithFallback
-                    src={materialIconUrlById(mat.id)}
-                    fallbackSrc={materialFallbackIconUrlById(mat.id)}
+                    src={mat.icon ?? (isHsr ? hsrMaterialIconUrl(mat.id) : materialIconUrlById(mat.id))}
+                    fallbackSrc={isHsr ? undefined : materialFallbackIconUrlById(mat.id)}
                     alt={mat.name}
                     className="h-6 w-6 shrink-0 object-contain"
                   />
@@ -533,9 +565,10 @@ export function CharacterDetailPage() {
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-3xl font-bold">{character.name}</h1>
               <Badge className={`${elementClass} border-0 text-white flex items-center gap-1`}>
-                {!isHsr && elementIconUrl(displayElement) && (
-                  <img src={elementIconUrl(displayElement)!} className="h-4 w-4" alt="" />
-                )}
+                {isHsr
+                  ? hsrElementIconUrl(displayElement) && <img src={hsrElementIconUrl(displayElement)!} className="h-4 w-4" alt="" />
+                  : elementIconUrl(displayElement) && <img src={elementIconUrl(displayElement)!} className="h-4 w-4" alt="" />
+                }
                 {displayElement}
               </Badge>
             </div>
@@ -549,8 +582,11 @@ export function CharacterDetailPage() {
           <div className="grid grid-cols-2 gap-3 text-sm">
             {isHsr ? (
               character.path && (
-                <div>
+                <div className="flex items-center gap-1">
                   <span className="text-muted-foreground">Path: </span>
+                  {hsrPathIconUrl(character.path) && (
+                    <img src={hsrPathIconUrl(character.path)!} className="h-4 w-4" alt="" />
+                  )}
                   {character.path}
                 </div>
               )
@@ -644,9 +680,10 @@ export function CharacterDetailPage() {
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
                   }`}
               >
-                {!isHsr && elementIconUrl(el) && (
-                  <img src={elementIconUrl(el)!} className="h-4 w-4" alt="" />
-                )}
+                {isHsr
+                  ? hsrElementIconUrl(el) && <img src={hsrElementIconUrl(el)!} className="h-4 w-4" alt="" />
+                  : elementIconUrl(el) && <img src={elementIconUrl(el)!} className="h-4 w-4" alt="" />
+                }
                 {el}
               </button>
             );
@@ -679,6 +716,7 @@ export function CharacterDetailPage() {
                       onLevelChange={setTalent1Level}
                       iconUrl={talentIconUrl(activeTalentImages, "combat1")}
                     />
+                    {activeTalent.hexerei?.combat1 && <HexereiBlock text={activeTalent.hexerei.combat1} />}
                   </CardContent>
                 </Card>
               )}
@@ -691,6 +729,7 @@ export function CharacterDetailPage() {
                       onLevelChange={setTalent2Level}
                       iconUrl={talentIconUrl(activeTalentImages, "combat2")}
                     />
+                    {activeTalent.hexerei?.combat2 && <HexereiBlock text={activeTalent.hexerei.combat2} />}
                   </CardContent>
                 </Card>
               )}
@@ -703,6 +742,7 @@ export function CharacterDetailPage() {
                       onLevelChange={setTalent3Level}
                       iconUrl={talentIconUrl(activeTalentImages, "combat3")}
                     />
+                    {activeTalent.hexerei?.combat3 && <HexereiBlock text={activeTalent.hexerei.combat3} />}
                   </CardContent>
                 </Card>
               )}
@@ -715,6 +755,7 @@ export function CharacterDetailPage() {
                       onLevelChange={() => {}}
                       iconUrl={talentIconUrl(activeTalentImages, "combatsp")}
                     />
+                    {activeTalent.hexerei?.combatsp && <HexereiBlock text={activeTalent.hexerei.combatsp} />}
                   </CardContent>
                 </Card>
               )}
@@ -737,6 +778,7 @@ export function CharacterDetailPage() {
                             passive={passive!}
                             iconUrl={talentIconUrl(activeTalentImages, key)}
                           />
+                          {activeTalent?.hexerei?.[key] && <HexereiBlock text={activeTalent.hexerei[key]} />}
                         </CardContent>
                       </Card>
                     ))}
@@ -831,29 +873,73 @@ export function CharacterDetailPage() {
                 );
               })}
 
-              {activeTrace?.statBonuses && activeTrace.statBonuses.length > 0 && (
-                <Card>
-                  <CardContent className="p-4">
-                    <h4 className="font-semibold mb-3">Stat Bonuses</h4>
-                    <div className="rounded-lg border">
-                      <table className="w-full text-sm">
-                        <tbody>
-                          {activeTrace.statBonuses.map((bonus, i) => (
-                            <tr key={i} className="border-b last:border-0">
-                              <td className="px-3 py-1.5 text-muted-foreground">{bonus.stat}</td>
-                              <td className="px-3 py-1.5 text-right font-mono font-semibold text-amber-400">
-                                {bonus.value < 1
-                                  ? `+${(bonus.value * 100).toFixed(1)}%`
-                                  : `+${Math.round(bonus.value)}`}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
+              {activeTrace?.majorTraces && activeTrace.majorTraces.length > 0 && (
+                <div className="space-y-3">
+                  {activeTrace.majorTraces.map((trace, i) => (
+                    <Card key={i}>
+                      <CardContent className="p-4">
+                        <div className="flex gap-3">
+                          {trace.icon && (
+                            <img
+                              src={trace.icon}
+                              alt={trace.name}
+                              className="h-10 w-10 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0 mt-0.5"
+                            />
+                          )}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              {trace.unlockPhase != null && (
+                                <Badge variant="outline" className="text-xs">A{trace.unlockPhase}</Badge>
+                              )}
+                              <h4 className="font-semibold">{trace.name}</h4>
+                            </div>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {parseHsrDesc(trace.desc ?? "", trace.params, 1)}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               )}
+
+              {activeTrace?.statBonuses && activeTrace.statBonuses.length > 0 && (() => {
+                const grouped = new Map<string, number>();
+                for (const bonus of activeTrace.statBonuses) {
+                  grouped.set(bonus.stat, (grouped.get(bonus.stat) ?? 0) + bonus.value);
+                }
+                return (
+                  <Card>
+                    <CardContent className="p-4">
+                      <h4 className="font-semibold mb-3">Stat Bonuses</h4>
+                      <div className="rounded-lg border">
+                        <table className="w-full text-sm">
+                          <tbody>
+                            {Array.from(grouped.entries()).map(([stat, total]) => (
+                              <tr key={stat} className="border-b last:border-0">
+                                <td className="px-3 py-1.5 text-muted-foreground">
+                                  <span className="flex items-center gap-1.5">
+                                    {hsrStatIconUrl(stat) && (
+                                      <img src={hsrStatIconUrl(stat)!} className="h-4 w-4 opacity-70 shrink-0" alt="" />
+                                    )}
+                                    {hsrStatName(stat)}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-1.5 text-right font-mono font-semibold text-amber-400">
+                                  {total < 1
+                                    ? `+${(total * 100).toFixed(1)}%`
+                                    : `+${Number.isInteger(total) ? total : total.toFixed(1)}`}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
             </div>
           </TabsContent>
         )}
@@ -897,6 +983,9 @@ export function CharacterDetailPage() {
                             </p>
                           </div>
                         </div>
+                        {activeConstellation?.hexerei?.[key] && (
+                          <HexereiBlock text={activeConstellation.hexerei[key]} />
+                        )}
                       </CardContent>
                     </Card>
                   ) : null
@@ -1006,7 +1095,7 @@ export function CharacterDetailPage() {
                   { label: "DEF", statType: "FIGHT_PROP_DEFENSE",value: Math.round(s.def).toLocaleString() },
                 ];
                 if (isHsr && (s as Record<string, number>).spd != null) {
-                  rows.push({ label: "SPD", statType: "", value: Math.round((s as Record<string, number>).spd).toString() });
+                  rows.push({ label: "SPD", statType: "Speed", value: Math.round((s as Record<string, number>).spd).toString() });
                 } else if (!isHsr && character.substatText) {
                   rows.push({
                     label: character.substatText,
@@ -1044,7 +1133,7 @@ export function CharacterDetailPage() {
                 );
               })()}
 
-              <MaterialCostTable materials={mergeAllMaterials(ascensionMaterials, expMaterials, breakthroughMaterials)} />
+              <MaterialCostTable materials={mergeAllMaterials(ascensionMaterials, expMaterials, breakthroughMaterials)} isHsr={isHsr} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -1076,6 +1165,7 @@ export function CharacterDetailPage() {
         skillsLabel={isHsr ? "Traces" : "Talents"}
         totalMaterials={totalMaterials}
         charLevel={charLevel}
+        isHsr={isHsr}
       />
     </div>
   );

@@ -8,7 +8,7 @@ import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { RarityStars } from "@/components/shared/RarityStars";
 import { getCharacters } from "@/lib/api";
 import { useInfiniteList } from "@/hooks/useInfiniteList";
-import { characterIconUrl, elementIconUrl, weaponTypeIconUrl } from "@/lib/images";
+import { characterIconUrl, elementIconUrl, weaponTypeIconUrl, hsrElementIconUrl, hsrPathIconUrl } from "@/lib/images";
 import {
   GENSHIN_ELEMENTS,
   GENSHIN_WEAPON_TYPES,
@@ -51,12 +51,12 @@ const HSR_FILTERS: FilterGroup[] = [
   {
     key: "element",
     label: "Element",
-    options: HSR_ELEMENTS.map((el) => ({ value: el, label: el })),
+    options: HSR_ELEMENTS.map((el) => ({ value: el, label: el, icon: hsrElementIconUrl(el) ?? undefined })),
   },
   {
     key: "path",
     label: "Path",
-    options: HSR_PATHS.map((p) => ({ value: p, label: p })),
+    options: HSR_PATHS.map((p) => ({ value: p, label: p, icon: hsrPathIconUrl(p) ?? undefined })),
   },
   {
     key: "rarity",
@@ -126,15 +126,23 @@ function HsrCharacterCard({ character, game }: { character: Character; game: str
             className="h-full w-full object-contain"
           />
           <Badge
-            className={`absolute top-2 right-2 ${elementClass} border-0 text-white text-xs`}
+            className={`absolute top-2 right-2 ${elementClass} border-0 text-white text-xs flex items-center gap-1`}
           >
+            {hsrElementIconUrl(character.element) && (
+              <img src={hsrElementIconUrl(character.element)!} className="h-3.5 w-3.5" alt="" />
+            )}
             {character.element}
           </Badge>
         </div>
         <CardContent className="p-3">
           <p className="font-semibold text-sm truncate">{character.name}</p>
           <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-            <span>{character.path}</span>
+            <span className="flex items-center gap-1">
+              {hsrPathIconUrl(character.path) && (
+                <img src={hsrPathIconUrl(character.path)!} className="h-3 w-3" alt="" />
+              )}
+              {character.path}
+            </span>
             <RarityStars rarity={character.rarity} className="text-xs" />
           </div>
         </CardContent>

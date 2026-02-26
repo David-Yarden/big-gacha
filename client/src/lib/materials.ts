@@ -2,6 +2,7 @@ export interface MaterialCostEntry {
   id: number;
   name: string;
   count: number;
+  icon?: string;
 }
 
 export const ASCENSION_LEVELS = [1, 20, 40, 50, 60, 70, 80, 90] as const;

@@ -194,7 +194,7 @@ async function upsert(Model, filter, data) {
 /**
  * Build the ascension cost arrays (ascend1…ascend6) from a promotions.materials array.
  * materials[0] is free (phase 0 base), so we start from index 1.
- * Each entry is an array of {id, num} — we resolve names from the items lookup.
+ * Each entry is an array of {id, num} — we resolve names and icon URLs from the items lookup.
  */
 function buildAscensionCosts(materialsArr, items) {
   const costs = {};
@@ -206,6 +206,7 @@ function buildAscensionCosts(materialsArr, items) {
       id: Number(m.id),
       name: items[m.id]?.name ?? `Item ${m.id}`,
       count: m.num,
+      icon: cdnUrl(items[m.id]?.icon) ?? undefined,
     }));
   }
   return costs;
@@ -226,6 +227,7 @@ function buildSkillCosts(node, items) {
       id: Number(m.id),
       name: items[m.id]?.name ?? `Item ${m.id}`,
       count: m.num,
+      icon: cdnUrl(items[m.id]?.icon) ?? undefined,
     }));
   }
   return costs;
@@ -386,6 +388,7 @@ async function seedTraces(characters, skills, skillTrees, items) {
     // Gather skill nodes (those with level_up_skills) and stat nodes
     const skillNodes          = {}; // skillKey → tree node (single skills)
     const statBonuses         = [];
+    const majorTraces         = []; // named passive abilities (A2/A4/A6)
     const skillData           = {}; // skillKey → parsed skill (single skills)
     const images              = {};
     const memospriteGroupNodes = []; // { node, groupSkills[] } — one per memo node
@@ -424,15 +427,22 @@ async function seedTraces(characters, skills, skillTrees, items) {
           }
         }
       } else {
-        // Stat bonus node — extract the stat grant from levels[0].properties
         const props = node.levels?.[0]?.properties ?? [];
         const unlockPhase = node.levels?.[0]?.promotion ?? 0;
-        for (const prop of props) {
-          statBonuses.push({
-            stat: prop.type,
-            value: prop.value,
+        if (node.desc) {
+          // Major trace — named passive ability (A2 / A4 / A6)
+          majorTraces.push({
+            name:        node.name,
+            desc:        node.desc,
+            params:      node.params ?? [],
+            icon:        cdnUrl(node.icon),
             unlockPhase,
           });
+        } else {
+          // Minor stat bonus node
+          for (const prop of props) {
+            statBonuses.push({ stat: prop.type, value: prop.value, unlockPhase });
+          }
         }
       }
     }
@@ -459,6 +469,7 @@ async function seedTraces(characters, skills, skillTrees, items) {
       technique: skillData.technique ?? null,
       elation:   skillData.elation   ?? null,
       memospriteGroups: memospriteGroups.length > 0 ? memospriteGroups : null,
+      majorTraces,
       statBonuses,
       costs,
       images,
@@ -476,6 +487,7 @@ async function seedTraces(characters, skills, skillTrees, items) {
     const variantImages           = {};
     const variantCosts            = {};
     const variantStatBonus        = [];
+    const variantMajorTraces      = [];
     const variantSkillNodes       = {};
     const variantMemoGroupNodes   = []; // { node, skills[] }
     const variantSeenSkillIds     = new Set();
@@ -513,8 +525,18 @@ async function seedTraces(characters, skills, skillTrees, items) {
       } else {
         const props = node.levels?.[0]?.properties ?? [];
         const unlockPhase = node.levels?.[0]?.promotion ?? 0;
-        for (const prop of props) {
-          variantStatBonus.push({ stat: prop.type, value: prop.value, unlockPhase });
+        if (node.desc) {
+          variantMajorTraces.push({
+            name:        node.name,
+            desc:        node.desc,
+            params:      node.params ?? [],
+            icon:        cdnUrl(node.icon),
+            unlockPhase,
+          });
+        } else {
+          for (const prop of props) {
+            variantStatBonus.push({ stat: prop.type, value: prop.value, unlockPhase });
+          }
         }
       }
     }
@@ -536,6 +558,7 @@ async function seedTraces(characters, skills, skillTrees, items) {
       technique: variantSkillData.technique ?? null,
       elation:   variantSkillData.elation   ?? null,
       memospriteGroups: variantMemoGroups.length > 0 ? variantMemoGroups : null,
+      majorTraces: variantMajorTraces,
       statBonuses: variantStatBonus,
       costs: variantCosts,
       images: variantImages,

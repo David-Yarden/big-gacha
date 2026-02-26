@@ -16,7 +16,7 @@ const RELIC_FILTERS: FilterGroup[] = [
     key: "type",
     label: "Type",
     options: [
-      { value: "cavern", label: "Cavern Relics" },
+      { value: "cavern", label: "Relics" },
       { value: "planar", label: "Planar Ornaments" },
     ],
   },
@@ -29,9 +29,9 @@ const SORT_OPTIONS: SortOption[] = [
 
 function RelicCard({ relic, game }: { relic: Relic; game: string }) {
   return (
-    <Link to={`/${game}/relics/${encodeURIComponent(relic.name)}`}>
-      <Card className="group overflow-hidden transition-colors hover:border-primary/40">
-        <div className="relative flex h-32 items-center justify-center bg-muted/10">
+    <Link to={`/${game}/relics/${encodeURIComponent(relic.name)}`} className="h-full">
+      <Card className="group h-full flex flex-col overflow-hidden transition-colors hover:border-primary/40">
+        <div className="relative flex h-32 shrink-0 items-center justify-center bg-muted/10">
           <ImageWithFallback
             src={relicIconUrl(relic.images)}
             alt={relic.name}
@@ -42,11 +42,11 @@ function RelicCard({ relic, game }: { relic: Relic; game: string }) {
               variant="secondary"
               className="absolute top-2 right-2 text-xs"
             >
-              {relic.type === "planar" ? "Planar" : "Cavern"}
+              {relic.type === "planar" ? "Planar" : "Relic"}
             </Badge>
           )}
         </div>
-        <CardContent className="p-3">
+        <CardContent className="flex flex-col p-3 flex-1">
           <p className="font-semibold text-sm truncate">{relic.name}</p>
           {relic.twoPieceBonus && (
             <p className="mt-1 text-xs text-muted-foreground line-clamp-2">

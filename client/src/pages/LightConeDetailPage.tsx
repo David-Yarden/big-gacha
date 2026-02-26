@@ -10,7 +10,7 @@ import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { RarityStars } from "@/components/shared/RarityStars";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { getLightCone } from "@/lib/api";
-import { lightConeSplashUrl } from "@/lib/images";
+import { lightConeSplashUrl, hsrPathIconUrl } from "@/lib/images";
 import { calculateAscensionMaterials } from "@/lib/materials";
 import { RARITY_COLOR_MAP, HSR_PATH_COLOR_MAP } from "@/lib/constants";
 import type { Game } from "@/lib/types";
@@ -83,7 +83,18 @@ function MaterialCostTable({ materials }: { materials: MaterialCostEntry[] }) {
         <tbody>
           {materials.map((mat) => (
             <tr key={mat.name} className="border-b last:border-0">
-              <td className="px-3 py-1.5">{mat.name}</td>
+              <td className="px-3 py-1.5">
+                <span className="flex items-center gap-2">
+                  {mat.icon && (
+                    <ImageWithFallback
+                      src={mat.icon}
+                      alt={mat.name}
+                      className="h-6 w-6 shrink-0 object-contain"
+                    />
+                  )}
+                  {mat.name}
+                </span>
+              </td>
               <td className="px-3 py-1.5 text-right font-mono">
                 {mat.count.toLocaleString()}
               </td>
@@ -169,7 +180,10 @@ export function LightConeDetailPage() {
             <div className="mt-1 flex items-center gap-2 flex-wrap">
               <RarityStars rarity={lc.rarity} className="text-lg" />
               {lc.path && (
-                <Badge className={`${pathClass} border-0 text-white`}>
+                <Badge className={`${pathClass} border-0 text-white flex items-center gap-1`}>
+                  {hsrPathIconUrl(lc.path) && (
+                    <img src={hsrPathIconUrl(lc.path)!} className="h-4 w-4" alt="" />
+                  )}
                   {lc.path}
                 </Badge>
               )}

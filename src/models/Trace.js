@@ -42,7 +42,11 @@ const traceSchema = new mongoose.Schema(
     // Each element: { skills: [{ name, maxLevel, desc, params, icon }], costs: { lvl2: [...] } }
     memospriteGroups: [mongoose.Schema.Types.Mixed],
 
-    // Stat bonus nodes (A2 / A4 / A6 unlocks)
+    // Major trace nodes — named passive abilities (A2 / A4 / A6)
+    // [{ name, desc, params, icon, unlockPhase }, …]
+    majorTraces: [mongoose.Schema.Types.Mixed],
+
+    // Minor stat bonus nodes (A2 / A4 / A6 unlocks)
     // [{ stat: "CriticalChance", value: 0.053, unlockPhase: 2 }, …]
     statBonuses: [mongoose.Schema.Types.Mixed],
 
