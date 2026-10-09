@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { GAME_IDS } = require("../../shared/games");
 
 /**
  * HSR Traces — equivalent to Genshin Talents.
@@ -22,7 +23,7 @@ const traceSchema = new mongoose.Schema(
     game: {
       type: String,
       required: true,
-      enum: ["genshin", "hsr", "zzz", "wuwa", "endfield"],
+      enum: GAME_IDS,
       index: true,
     },
 
@@ -56,10 +57,6 @@ const traceSchema = new mongoose.Schema(
     // Skill icon URLs keyed by skill type
     // { basicAtk: url, skill: url, ultimate: url, talent: url, technique: url }
     images: mongoose.Schema.Types.Mixed,
-
-    // Novaflare: Character Enhancement (HSR) — only the changed skills stored here.
-    // Keys: basicAtk, skill, ultimate, talent, technique, majorTraces, statBonuses
-    novaflare: mongoose.Schema.Types.Mixed,
 
     // Trailblazer support
     isTraveler: { type: Boolean, default: false },

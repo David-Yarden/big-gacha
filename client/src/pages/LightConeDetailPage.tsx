@@ -15,6 +15,7 @@ import { calculateAscensionMaterials } from "@/lib/materials";
 import { RARITY_COLOR_MAP, HSR_PATH_COLOR_MAP } from "@/lib/constants";
 import type { Game } from "@/lib/types";
 import type { MaterialCostEntry } from "@/lib/materials";
+import { colorizeElements } from "@/components/character/shared";
 
 const HSR_LC_ASCENSION_LEVELS = [1, 20, 30, 40, 50, 60, 70, 80] as const;
 
@@ -62,7 +63,7 @@ function renderEffect(template: string, values: number[]) {
         </span>
       );
     }
-    return part;
+    return <span key={i}>{colorizeElements(part, `lc${i}-`)}</span>;
   });
 }
 
@@ -164,12 +165,13 @@ export function LightConeDetailPage() {
 
       {/* Header */}
       <div className="flex flex-col gap-6 md:flex-row">
-        <div className="w-full md:w-64 shrink-0">
-          <Card className={`overflow-hidden ${rarityClass}/10`}>
+        <div className="mx-auto w-full max-w-[300px] shrink-0 md:mx-0 md:w-72">
+          {/* Full portrait art, edge to edge (902×1260) */}
+          <Card className={`gap-0 overflow-hidden py-0 aspect-[902/1260] ${rarityClass}/10`}>
             <ImageWithFallback
               src={lightConeSplashUrl(lc.images)}
               alt={lc.name}
-              className="w-full h-64 object-contain p-4"
+              className="h-full w-full object-cover"
             />
           </Card>
         </div>
@@ -191,6 +193,14 @@ export function LightConeDetailPage() {
                 <Badge variant="secondary">v{lc.version}</Badge>
               )}
             </div>
+            {lc.signatureOf && (
+              <p className="mt-2 text-sm">
+                <span className="text-muted-foreground">Signature of: </span>
+                <Link to={`/${game}/characters/${encodeURIComponent(lc.signatureOf)}`} className="font-medium text-primary hover:underline">
+                  {lc.signatureOf}
+                </Link>
+              </p>
+            )}
           </div>
 
           {stats && (

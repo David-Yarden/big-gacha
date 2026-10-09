@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { GAME_IDS } = require("../../shared/games");
 
 /**
  * WuWa Echo — individual equippable monster with no direct Genshin/HSR equivalent.
@@ -16,7 +17,7 @@ const echoSchema = new mongoose.Schema(
     game: {
       type: String,
       required: true,
-      enum: ["genshin", "hsr", "zzz", "wuwa", "endfield"],
+      enum: GAME_IDS,
       index: true,
     },
 
@@ -37,6 +38,8 @@ const echoSchema = new mongoose.Schema(
 
     // Sonata set this echo belongs to — references EchoSet.name
     sonataSet: { type: String, index: true },
+    // Every set the echo can roll (an echo usually has several)
+    sonataSets: { type: [String], index: true },
 
     // Echo skill — only active when equipped in slot 1
     // { name, desc, params: [[Number]], cooldown }

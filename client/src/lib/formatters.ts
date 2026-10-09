@@ -26,7 +26,7 @@ const FLAT_STAT_TYPES = new Set(["FIGHT_PROP_ELEMENT_MASTERY", "FIGHT_PROP_HP", 
 
 /** Format a character's ascension substat value for display. */
 export function formatSpecialized(value: number, substatType?: string): string {
-  if (substatType && FLAT_STAT_TYPES.has(substatType)) {
+  if (substatType && (FLAT_STAT_TYPES.has(substatType) || substatType.endsWith("_FLAT"))) {
     return Math.round(value).toString();
   }
   return (value * 100).toFixed(1) + "%";

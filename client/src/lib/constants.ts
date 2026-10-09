@@ -1,111 +1,10 @@
-import type { Game } from "./types";
 
-export interface GameInfo {
-  id: Game;
-  name: string;
-  shortName: string;
-  description: string;
-  available: boolean;
-  /** Title artwork in /public */
-  logo: string;
-  /** Extra classes for the logo (e.g. invert a dark logo on the dark theme) */
-  logoClassName?: string;
-}
+import { REGISTRY_GAMES, type RegistryGame } from "./registry";
 
-export const GAMES: GameInfo[] = [
-  {
-    id: "genshin",
-    name: "Genshin Impact",
-    shortName: "Genshin",
-    description: "Open-world action RPG by HoYoverse",
-    available: true,
-    logo: "/Genshin_title.svg",
-    logoClassName: "invert",
-  },
-  {
-    id: "hsr",
-    name: "Honkai: Star Rail",
-    shortName: "HSR",
-    description: "Space fantasy RPG by HoYoverse",
-    available: true,
-    logo: "/HSR_title.png",
-  },
-  {
-    id: "zzz",
-    name: "Zenless Zone Zero",
-    shortName: "ZZZ",
-    description: "Urban fantasy ARPG by HoYoverse",
-    available: false,
-    logo: "/ZZZ_title.png",
-  },
-  {
-    id: "wuwa",
-    name: "Wuthering Waves",
-    shortName: "WuWa",
-    description: "Open-world action RPG by Kuro Games",
-    available: true,
-    logo: "/WuWa_title.png",
-  },
-  {
-    id: "endfield",
-    name: "Arknights: Endfield",
-    shortName: "Endfield",
-    description: "Open-world RPG by Hypergryph",
-    available: false,
-    logo: "/Endfield_title.png",
-  },
-];
+export type GameInfo = RegistryGame;
 
-export const GENSHIN_ELEMENTS = [
-  "Pyro",
-  "Hydro",
-  "Anemo",
-  "Electro",
-  "Dendro",
-  "Cryo",
-  "Geo",
-] as const;
-
-export const GENSHIN_REGIONS = [
-  "Mondstadt",
-  "Liyue",
-  "Inazuma",
-  "Sumeru",
-  "Fontaine",
-  "Natlan",
-  "Snezhnaya",
-  "Nod-Krai",
-  "Others",
-] as const;
-
-export const GENSHIN_WEAPON_TYPES = [
-  "Sword",
-  "Claymore",
-  "Polearm",
-  "Catalyst",
-  "Bow",
-] as const;
-
-export const HSR_ELEMENTS = [
-  "Physical",
-  "Fire",
-  "Ice",
-  "Lightning",
-  "Wind",
-  "Quantum",
-  "Imaginary",
-] as const;
-
-export const HSR_PATHS = [
-  "Destruction",
-  "The Hunt",
-  "Erudition",
-  "Harmony",
-  "Nihility",
-  "Preservation",
-  "Abundance",
-  "Remembrance",
-] as const;
+/** Games known to Big Gacha — defined once in shared/games.json */
+export const GAMES: GameInfo[] = REGISTRY_GAMES;
 
 export const HSR_ELEMENT_COLOR_MAP: Record<string, string> = {
   Physical:  "bg-hsr-physical",
@@ -126,6 +25,7 @@ export const HSR_PATH_COLOR_MAP: Record<string, string> = {
   Preservation: "bg-hsr-preservation",
   Abundance:    "bg-hsr-abundance",
   Remembrance:  "bg-hsr-remembrance",
+  Elation:      "bg-hsr-elation",
 };
 
 export const HSR_LC_RARITIES = [5, 4, 3] as const;
@@ -161,6 +61,7 @@ export function resolveRegion(region?: string | null, name?: string): string {
 }
 
 export const RARITY_COLOR_MAP: Record<number, string> = {
+  6: "bg-rarity-6",
   5: "bg-rarity-5",
   4: "bg-rarity-4",
   3: "bg-rarity-3",
@@ -170,31 +71,6 @@ export const RARITY_COLOR_MAP: Record<number, string> = {
 
 // ── WuWa ─────────────────────────────────────────────────────────────────────
 
-export const WUWA_ELEMENTS = [
-  "Glacio",
-  "Fusion",
-  "Electro",
-  "Aero",
-  "Spectro",
-  "Havoc",
-] as const;
-
-export const WUWA_WEAPON_TYPES = [
-  "Sword",
-  "Broadblade",
-  "Pistols",
-  "Gauntlets",
-  "Rectifier",
-] as const;
-
-export const WUWA_REGIONS = [
-  "Jinzhou",
-  "Huanglong",
-  "Mt. Firmament",
-  "Ragunna",
-  "Others",
-] as const;
-
 export const WUWA_ELEMENT_COLOR_MAP: Record<string, string> = {
   Glacio:  "bg-wuwa-glacio",
   Fusion:  "bg-wuwa-fusion",
@@ -203,6 +79,30 @@ export const WUWA_ELEMENT_COLOR_MAP: Record<string, string> = {
   Spectro: "bg-wuwa-spectro",
   Havoc:   "bg-wuwa-havoc",
 };
+
+export const ZZZ_ELEMENT_COLOR_MAP: Record<string, string> = {
+  Physical: "bg-zzz-physical",
+  Fire:     "bg-zzz-fire",
+  Ice:      "bg-zzz-ice",
+  Electric: "bg-zzz-electric",
+  Ether:    "bg-zzz-ether",
+  Wind:     "bg-zzz-wind",
+  Lumiflux: "bg-zzz-lumiflux",
+};
+
+export const ENDFIELD_ELEMENT_COLOR_MAP: Record<string, string> = {
+  Physical: "bg-ef-physical",
+  Heat:     "bg-ef-heat",
+  Cryo:     "bg-ef-cryo",
+  Electric: "bg-ef-electric",
+  Nature:   "bg-ef-nature",
+};
+
+// Endfield operator promotions: at 20, 40, 60 and 80 (cap 90)
+export const ENDFIELD_ASCENSION_LEVELS = [1, 20, 40, 60, 80, 90] as const;
+
+// Agent promotion levels (one promotion every 10 levels, max 60)
+export const ZZZ_ASCENSION_LEVELS = [1, 10, 20, 30, 40, 50, 60] as const;
 
 // All five Forte skill keys (order matches in-game Forte tree display)
 export const WUWA_FORTE_SKILLS = [
@@ -219,6 +119,7 @@ export const WUWA_FORTE_SKILL_LABELS: Record<string, string> = {
   resonanceLiberation: "Resonance Liberation",
   forteCircuit:        "Forte Circuit",
   introSkill:          "Intro Skill",
+  outroSkill:          "Outro Skill",
 };
 
 export const WUWA_ECHO_CLASSES: Record<string, { label: string; cost: number }> = {

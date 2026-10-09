@@ -35,7 +35,7 @@ function MaterialCard({ material, game }: { material: Material; game: string }) 
 
   return (
     <Link to={`/${game}/materials/${encodeURIComponent(material.name)}`}>
-      <Card className="group overflow-hidden transition-colors hover:border-primary/40">
+      <Card className="group gap-0 overflow-hidden py-0 transition-colors hover:border-primary/40">
         <div
           className={`relative flex h-32 items-center justify-center ${rarityClass}/20`}
         >

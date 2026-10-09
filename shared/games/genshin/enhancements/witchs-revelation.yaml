@@ -1,0 +1,136 @@
+# Kit enhancement — see shared/games/README.md for the format.
+# Edited by hand; loaded into the database at server start and after each sync.
+id: witchs-revelation
+name: Witch's Revelation
+version: '6.7'
+kind: addition
+color: sky
+condition: Character level 70+ and their Witch's Revelation quest completed (world quest "Revelations
+  by Chance")
+description: >-
+  Luna VIII upgrades built around the new Stellar-Conduct reaction (Cryo + Electro, Polestar Field). Texts
+  below are summaries from community sources, exact numbers not verified yet — replace them with the in-game
+  text when you have it.
+verified: false
+entries:
+- character: Yae Miko
+  target: talent.extra
+  text: >-
+    In a Polestar Field, enters Radiance: Stellar-Conduct and gains a DMG bonus plus extra lightning strike
+    DMG. Sesshou Sakura lasts 10s longer; casting the Burst no longer destroys existing totems; with 3
+    totems active, the Skill triggers an extra lightning strike (40% ATK).
+  sources:
+  - https://allthings.how/genshin-impact-6-7-character-buffs-and-witchs-revelation-luna-viii/
+  - https://esports.gg/guides/genshin-impact/yae-miko-buffs-luna-viii/
+- character: Yae Miko
+  target: constellation.c1
+  text: >-
+    Triggering Superconduct or Stellar-Conduct (or dealing Stellar-Conduct DMG) grants party members an
+    Electro DMG and Stellar-Conduct DMG Bonus.
+  sources:
+  - https://esports.gg/guides/genshin-impact/yae-miko-buffs-luna-viii/
+- character: Yae Miko
+  target: constellation.c2
+  text: >-
+    With Sesshou Sakura totems on the field, Yae Miko's and the active character's Elemental Mastery increase
+    by 60/90/120/200 depending on totem level.
+  sources:
+  - https://esports.gg/guides/genshin-impact/yae-miko-buffs-luna-viii/
+- character: Yae Miko
+  target: constellation.c4
+  text: >-
+    Sesshou Sakura hits regenerate Energy for Yae Miko; Elemental Burst DMG is increased.
+  sources:
+  - https://esports.gg/guides/genshin-impact/yae-miko-buffs-luna-viii/
+- character: Yae Miko
+  target: constellation.c6
+  text: Yae Miko's Stellar-Conduct Electro CRIT DMG is increased.
+  sources:
+  - https://esports.gg/guides/genshin-impact/yae-miko-buffs-luna-viii/
+- character: Wriothesley
+  target: talent.extra
+  text: >-
+    In a Polestar Field, enters Radiance: Stellar-Conduct: some enhanced Normal and Charged Attacks count
+    as Stellar-Conduct DMG and he gains a Stellar-Conduct DMG Bonus. Enhanced Charged Attacks lose their
+    cooldown and restore HP on hit (once every 2s).
+  sources:
+  - https://allthings.how/genshin-impact-6-7-character-buffs-and-witchs-revelation-luna-viii/
+- character: Wriothesley
+  target: constellation.all
+  text: >-
+    Constellations: higher Stellar-Conduct DMG, extra Cryo DMG counted as Stellar-Conduct, reduced DMG
+    taken, party ATK SPD, and more CRIT with extra icicle DMG.
+  sources:
+  - https://allthings.how/genshin-impact-6-7-character-buffs-and-witchs-revelation-luna-viii/
+- character: Cyno
+  target: talent.extra
+  text: >-
+    In a Polestar Field, enters Radiance: Stellar-Conduct: Judication makes Duststalker Bolts deal Stellar-Conduct
+    DMG. His Elemental Skill can be infused at any time and he can briefly enter Pactsworn Pathclearer
+    regardless of timing.
+  sources:
+  - https://allthings.how/genshin-impact-6-7-character-buffs-and-witchs-revelation-luna-viii/
+- character: Cyno
+  target: constellation.all
+  text: >-
+    Constellations (in Pactsworn Pathclearer): higher Elemental Mastery, higher Stellar-Conduct DMG and
+    Energy restoration.
+  sources:
+  - https://allthings.how/genshin-impact-6-7-character-buffs-and-witchs-revelation-luna-viii/
+- character: Qiqi
+  target: talent.extra
+  text: >-
+    In a Polestar Field, enters Radiance: Stellar-Conduct, boosting the party's Superconduct and Stellar-Conduct
+    DMG; her Burst can deal extra Stellar-Conduct DMG. Herald of Frost cooldown is 15s and it fires a
+    coordinated Cryo attack when the active character hits.
+  sources:
+  - https://allthings.how/genshin-impact-6-7-character-buffs-and-witchs-revelation-luna-viii/
+- character: Qiqi
+  target: constellation.all
+  text: >-
+    Constellations: HP and Energy restoration, higher ATK, and higher Stellar-Conduct DMG for the active
+    character.
+  sources:
+  - https://allthings.how/genshin-impact-6-7-character-buffs-and-witchs-revelation-luna-viii/
+- character: Diona
+  target: talent.extra
+  text: >-
+    In a Polestar Field, enters Radiance: Stellar-Conduct. For a short time after her Skill, she fires
+    Icy Paws when party members trigger Superconduct or Stellar-Conduct.
+  sources:
+  - https://allthings.how/genshin-impact-6-7-character-buffs-and-witchs-revelation-luna-viii/
+- character: Diona
+  target: constellation.all
+  text: >-
+    Constellations: higher Max HP; in Radiance: Stellar-Conduct, characters in her Burst field deal more
+    Superconduct and Stellar-Conduct DMG.
+  sources:
+  - https://allthings.how/genshin-impact-6-7-character-buffs-and-witchs-revelation-luna-viii/
+- character: Beidou
+  target: talent.extra
+  text: >-
+    In a Polestar Field, enters Radiance: Stellar-Conduct. Holding her Skill stores power: the more it
+    stores, the shorter the Skill cooldown and the more Energy restored.
+  sources:
+  - https://allthings.how/genshin-impact-6-7-character-buffs-and-witchs-revelation-luna-viii/
+- character: Beidou
+  target: constellation.all
+  text: >-
+    Constellations (during her Burst in Radiance): lower nearby enemies' Cryo RES and raise the active
+    character's Elemental Mastery.
+  sources:
+  - https://allthings.how/genshin-impact-6-7-character-buffs-and-witchs-revelation-luna-viii/
+- character: Yumemizuki Mizuki
+  target: talent.extra
+  text: >-
+    In Dreamdrifter, a Swirl reaction increases her next AoE Anemo DMG instance and raises the party's
+    Elemental Mastery.
+  sources:
+  - https://allthings.how/genshin-impact-6-7-character-buffs-and-witchs-revelation-luna-viii/
+- character: Yumemizuki Mizuki
+  target: constellation.all
+  text: >-
+    Constellations (in Dreamdrifter): extra Anemo DMG, lower enemy Pyro/Hydro/Cryo/Electro/Dendro RES,
+    HP restoration, higher CRIT Rate and CRIT DMG.
+  sources:
+  - https://allthings.how/genshin-impact-6-7-character-buffs-and-witchs-revelation-luna-viii/

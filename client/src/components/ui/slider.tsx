@@ -9,9 +9,15 @@ function Slider({
   value,
   min = 0,
   max = 100,
+  thumbIcon,
   ...props
-}: React.ComponentProps<typeof SliderPrimitive.Root>) {
+}: React.ComponentProps<typeof SliderPrimitive.Root> & {
+  /** Image shown inside a larger thumb (e.g. the skill's button icon) */
+  thumbIcon?: string | null;
+}) {
   const _values = value ?? defaultValue ?? [min];
+  // Screen readers announce the thumb: give it a name (callers may pass aria-label)
+  const label = props["aria-label"] ?? "Level";
 
   return (
     <SliderPrimitive.Root
@@ -32,8 +38,14 @@ function Slider({
       {_values.map((_, i) => (
         <SliderPrimitive.Thumb
           key={i}
-          className="block h-4 w-4 rounded-full border border-primary/50 bg-background shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        />
+          aria-label={label}
+          className={cn(
+            "block rounded-full border bg-background shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            thumbIcon ? "h-7 w-7 cursor-grab border-primary/70 bg-black p-0.5 active:cursor-grabbing" : "h-4 w-4 border-primary/50"
+          )}
+        >
+          {thumbIcon && <img src={thumbIcon} alt="" draggable={false} className="pointer-events-none h-full w-full rounded-full object-contain" />}
+        </SliderPrimitive.Thumb>
       ))}
     </SliderPrimitive.Root>
   );

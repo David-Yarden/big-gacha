@@ -7,8 +7,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { RarityStars } from "@/components/shared/RarityStars";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import { getMaterial } from "@/lib/api";
-import { materialIconUrl, materialFallbackIconUrl } from "@/lib/images";
+import { getMaterial, getMaterialUsage } from "@/lib/api";
+import { gameUi } from "@/lib/gameUi";
+import { resourceLabel } from "@/lib/registry";
+import { materialIconUrl, materialFallbackIconUrl, weaponIconUrl, wuwaWeaponIconUrl, lightConePreviewUrl } from "@/lib/images";
 import { RARITY_COLOR_MAP } from "@/lib/constants";
 import { formatMaterialCategory } from "@/lib/formatters";
 import type { Game } from "@/lib/types";
@@ -88,7 +90,7 @@ export function MaterialDetailPage() {
           {material.description && (
             <Card>
               <CardContent className="p-4">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground whitespace-pre-line">
                   {material.description}
                 </p>
               </CardContent>
@@ -119,6 +121,57 @@ export function MaterialDetailPage() {
           )}
         </div>
       </div>
+
+      <UsedBy game={game!} name={material.name} />
+    </div>
+  );
+}
+
+interface Usage {
+  type: "characters" | "weapons" | "lightcones";
+  name: string;
+  rarity?: number;
+  images?: Record<string, string>;
+}
+
+function usageIcon(game: string, u: Usage): string | null {
+  if (u.type === "characters") return gameUi(game).portrait(u.images);
+  if (u.type === "lightcones") return lightConePreviewUrl(u.images);
+  return game === "wuwa" ? wuwaWeaponIconUrl(u.images) : weaponIconUrl(u.images);
+}
+
+/** Characters and weapons whose level-up, ascension or skill costs include this material. */
+function UsedBy({ game, name }: { game: string; name: string }) {
+  const { data } = useApiQuery(() => getMaterialUsage(game as Game, name), [game, name]);
+  const list = (data?.data ?? []) as Usage[];
+  if (!list.length) return null;
+  const groups = (["characters", "weapons", "lightcones"] as const)
+    .map((type) => ({ type, items: list.filter((u) => u.type === type) }))
+    .filter((g) => g.items.length);
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-semibold">Used by</h2>
+      {groups.map((g) => (
+        <div key={g.type} className="space-y-2">
+          <h3 className="text-sm font-medium text-muted-foreground">
+            {resourceLabel(game, g.type, g.type)} ({g.items.length})
+          </h3>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-9">
+            {g.items.map((u) => (
+              <Link
+                key={u.name}
+                to={`/${game}/${u.type}/${encodeURIComponent(u.name)}`}
+                className="group overflow-hidden rounded-lg border border-white/[0.08] bg-card/60 transition-colors hover:border-primary/40"
+              >
+                <div className={`aspect-square ${RARITY_COLOR_MAP[u.rarity ?? 0] ?? "bg-muted"}/20`}>
+                  <ImageWithFallback src={usageIcon(game, u)} alt={u.name} className="h-full w-full object-contain p-1" />
+                </div>
+                <p className="truncate px-1.5 py-1 text-center text-xs">{u.name}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

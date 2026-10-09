@@ -18,10 +18,17 @@ import type {
   Echo,
   EchoSet,
   GameStats,
+  EnhancementBundle,
+  SyncStatus,
+  ChangelogEntry,
+  SyncReport,
+  EnhancementLoadStatus, AgentKit, Bangboo
 } from "./types";
 
 const client = axios.create({
   baseURL: "/api",
+  // Required by the API for actions (see src/server.js)
+  headers: { "X-Big-Gacha": "1" },
 });
 
 export interface QueryParams {
@@ -44,216 +51,142 @@ function buildParams(params?: QueryParams): Record<string, string> {
   return out;
 }
 
-// Characters
-export async function getCharacters(
-  game: Game,
-  params?: QueryParams
-): Promise<PaginatedResponse<Character>> {
-  const { data } = await client.get(`/${game}/characters`, {
-    params: buildParams(params),
-  });
+// ── Generic resource access (every list/detail call goes through these two) ──
+
+async function getList<T>(game: Game, resource: string, params?: QueryParams): Promise<PaginatedResponse<T>> {
+  const { data } = await client.get(`/${game}/${resource}`, { params: buildParams(params) });
   return data;
 }
 
-export async function getCharacter(
-  game: Game,
-  name: string
-): Promise<ApiResponse<Character>> {
-  const { data } = await client.get(`/${game}/characters/${encodeURIComponent(name)}`);
+async function getOne<T>(game: Game, resource: string, name: string): Promise<ApiResponse<T>> {
+  const { data } = await client.get(`/${game}/${resource}/${encodeURIComponent(name)}`);
   return data;
 }
 
-// Weapons
-export async function getWeapons(
-  game: Game,
-  params?: QueryParams
-): Promise<PaginatedResponse<Weapon>> {
-  const { data } = await client.get(`/${game}/weapons`, {
-    params: buildParams(params),
-  });
+type List<T> = (game: Game, params?: QueryParams) => Promise<PaginatedResponse<T>>;
+type One<T> = (game: Game, name: string) => Promise<ApiResponse<T>>;
+const list = <T>(resource: string): List<T> => (game, params) => getList<T>(game, resource, params);
+const one = <T>(resource: string): One<T> => (game, name) => getOne<T>(game, resource, name);
+
+export const getCharacters = list<Character>("characters");
+export const getCharacter = one<Character>("characters");
+export const getWeapons = list<Weapon>("weapons");
+export const getWeapon = one<Weapon>("weapons");
+export const getArtifacts = list<Artifact>("artifacts");
+export const getArtifact = one<Artifact>("artifacts");
+export const getMaterials = list<Material>("materials");
+export const getMaterial = one<Material>("materials");
+export const getTalent = one<Talent>("talents");
+export const getConstellation = one<Constellation>("constellations");
+export const getTrace = one<Trace>("traces");
+export const getEidolon = one<Eidolon>("eidolons");
+export const getLightCones = list<LightCone>("lightcones");
+export const getLightCone = one<LightCone>("lightcones");
+export const getRelics = list<Relic>("relics");
+export const getRelic = one<Relic>("relics");
+export const getForte = one<Forte>("fortes");
+export const getResonanceChain = one<ResonanceChain>("resonancechains");
+export const getEchoes = list<Echo>("echoes");
+export const getEcho = one<Echo>("echoes");
+export const getEchoSets = list<EchoSet>("echosets");
+export const getEchoSet = one<EchoSet>("echosets");
+export const getAgentKit = one<AgentKit>("agentkits");
+// Game-wide reference tables (ZZZ "Drive Disc stats")
+export const getReference = one<{ name: string; data: unknown }>("references");
+
+export interface VersionEntry {
+  version: string;
+  groups: Array<{
+    type: "characters" | "weapons" | "lightcones" | "artifacts" | "relics" | "bangboos";
+    items: Array<{ name: string; rarity?: number | number[]; element?: string; subElement?: string; images?: Record<string, string> }>;
+  }>;
+}
+
+/** What each version added (newest first) */
+export async function getVersions(game: Game): Promise<ApiResponse<VersionEntry[]>> {
+  const { data } = await client.get(`/${game}/versions`);
   return data;
 }
 
-export async function getWeapon(
-  game: Game,
-  name: string
-): Promise<ApiResponse<Weapon>> {
-  const { data } = await client.get(`/${game}/weapons/${encodeURIComponent(name)}`);
+/** Characters / weapons whose costs include a material */
+export async function getMaterialUsage(game: Game, name: string): Promise<ApiResponse<unknown[]>> {
+  const { data } = await client.get(`/${game}/materials/${encodeURIComponent(name)}/usage`);
   return data;
 }
+export const getBangboos = list<Bangboo>("bangboos");
+export const getBangboo = one<Bangboo>("bangboos");
 
-// Artifacts
-export async function getArtifacts(
-  game: Game,
-  params?: QueryParams
-): Promise<PaginatedResponse<Artifact>> {
-  const { data } = await client.get(`/${game}/artifacts`, {
-    params: buildParams(params),
-  });
-  return data;
-}
-
-export async function getArtifact(
-  game: Game,
-  name: string
-): Promise<ApiResponse<Artifact>> {
-  const { data } = await client.get(`/${game}/artifacts/${encodeURIComponent(name)}`);
-  return data;
-}
-
-// Materials
-export async function getMaterials(
-  game: Game,
-  params?: QueryParams
-): Promise<PaginatedResponse<Material>> {
-  const { data } = await client.get(`/${game}/materials`, {
-    params: buildParams(params),
-  });
-  return data;
-}
-
-export async function getMaterial(
-  game: Game,
-  name: string
-): Promise<ApiResponse<Material>> {
-  const { data } = await client.get(`/${game}/materials/${encodeURIComponent(name)}`);
-  return data;
-}
-
-// Talents
-export async function getTalent(
-  game: Game,
-  name: string
-): Promise<ApiResponse<Talent>> {
-  const { data } = await client.get(`/${game}/talents/${encodeURIComponent(name)}`);
-  return data;
-}
-
-// Constellations
-export async function getConstellation(
-  game: Game,
-  name: string
-): Promise<ApiResponse<Constellation>> {
-  const { data } = await client.get(`/${game}/constellations/${encodeURIComponent(name)}`);
-  return data;
-}
-
-// HSR Traces
-export async function getTrace(
-  game: Game,
-  name: string
-): Promise<ApiResponse<Trace>> {
-  const { data } = await client.get(`/${game}/traces/${encodeURIComponent(name)}`);
-  return data;
-}
-
-// HSR Eidolons
-export async function getEidolon(
-  game: Game,
-  name: string
-): Promise<ApiResponse<Eidolon>> {
-  const { data } = await client.get(`/${game}/eidolons/${encodeURIComponent(name)}`);
-  return data;
-}
-
-// HSR Light Cones
-export async function getLightCones(
-  game: Game,
-  params?: QueryParams
-): Promise<PaginatedResponse<LightCone>> {
-  const { data } = await client.get(`/${game}/lightcones`, {
-    params: buildParams(params),
-  });
-  return data;
-}
-
-export async function getLightCone(
-  game: Game,
-  name: string
-): Promise<ApiResponse<LightCone>> {
-  const { data } = await client.get(`/${game}/lightcones/${encodeURIComponent(name)}`);
-  return data;
-}
-
-// HSR Relics
-export async function getRelics(
-  game: Game,
-  params?: QueryParams
-): Promise<PaginatedResponse<Relic>> {
-  const { data } = await client.get(`/${game}/relics`, {
-    params: buildParams(params),
-  });
-  return data;
-}
-
-export async function getRelic(
-  game: Game,
-  name: string
-): Promise<ApiResponse<Relic>> {
-  const { data } = await client.get(`/${game}/relics/${encodeURIComponent(name)}`);
-  return data;
-}
-
-// WuWa Fortes
-export async function getForte(
-  game: Game,
-  name: string
-): Promise<ApiResponse<Forte>> {
-  const { data } = await client.get(`/${game}/fortes/${encodeURIComponent(name)}`);
-  return data;
-}
-
-// WuWa Resonance Chains
-export async function getResonanceChain(
-  game: Game,
-  name: string
-): Promise<ApiResponse<ResonanceChain>> {
-  const { data } = await client.get(`/${game}/resonancechains/${encodeURIComponent(name)}`);
-  return data;
-}
-
-// WuWa Echoes
-export async function getEchoes(
-  game: Game,
-  params?: QueryParams
-): Promise<PaginatedResponse<Echo>> {
-  const { data } = await client.get(`/${game}/echoes`, {
-    params: buildParams(params),
-  });
-  return data;
-}
-
-export async function getEcho(
-  game: Game,
-  name: string
-): Promise<ApiResponse<Echo>> {
-  const { data } = await client.get(`/${game}/echoes/${encodeURIComponent(name)}`);
-  return data;
-}
-
-// WuWa Echo Sets (Sonata Effects)
-export async function getEchoSets(
-  game: Game,
-  params?: QueryParams
-): Promise<PaginatedResponse<EchoSet>> {
-  const { data } = await client.get(`/${game}/echosets`, {
-    params: buildParams(params),
-  });
-  return data;
-}
-
-export async function getEchoSet(
-  game: Game,
-  name: string
-): Promise<ApiResponse<EchoSet>> {
-  const { data } = await client.get(`/${game}/echosets/${encodeURIComponent(name)}`);
-  return data;
-}
-
-// Stats
 export async function getStats(
   game: Game
 ): Promise<ApiResponse<GameStats> & { game: string }> {
   const { data } = await client.get(`/${game}/stats`);
+  return data;
+}
+
+// Kit enhancements (all mechanics of a game, or those of one character)
+export async function getEnhancements(
+  game: Game,
+  character?: string
+): Promise<ApiResponse<EnhancementBundle>> {
+  const { data } = await client.get(`/${game}/enhancements`, {
+    params: character ? { character } : {},
+  });
+  return data;
+}
+
+// ── Synchronisation ───────────────────────────────────────────────────────────
+
+export async function getSyncStatus(): Promise<SyncStatus> {
+  const { data } = await client.get("/sync/status");
+  return data;
+}
+
+export async function getChangelog(game?: string, limit = 30): Promise<{ data: ChangelogEntry[] }> {
+  const { data } = await client.get("/sync/changelog", { params: { ...(game ? { game } : {}), limit } });
+  return data;
+}
+
+/** Sync one game, or every game with `game = "all"`. */
+export async function runSync(game: string, opts: { dryRun?: boolean; force?: boolean } = {}): Promise<SyncReport[]> {
+  const params: Record<string, string> = {};
+  if (opts.dryRun) params.dryRun = "1";
+  if (opts.force) params.force = "1";
+  const { data } = await client.post(`/sync/${game}`, null, { params, timeout: 15 * 60 * 1000 });
+  return Array.isArray(data.data) ? data.data : [data.data];
+}
+
+export async function rollbackSync(game: string): Promise<void> {
+  await client.post(`/sync/${game}/rollback`);
+}
+
+export async function markUpdatesSeen(): Promise<void> {
+  await client.post("/sync/seen");
+}
+
+export async function getEnhancementStatus(): Promise<{ data: EnhancementLoadStatus }> {
+  const { data } = await client.get("/enhancements/status");
+  return data;
+}
+
+export async function reloadEnhancements(): Promise<{ data: EnhancementLoadStatus }> {
+  const { data } = await client.post("/enhancements/reload");
+  return data;
+}
+
+// Search across every game
+export interface SearchResult {
+  game: Game;
+  type: string; // page path under /:game/ (characters, weapons, …)
+  label: string;
+  name: string;
+  rarity?: number;
+  element?: string;
+  path?: string;
+  weaponType?: string;
+  images?: Record<string, string>;
+}
+
+export async function searchAll(q: string, game?: Game): Promise<{ success: boolean; data: SearchResult[] }> {
+  const { data } = await client.get("/search", { params: { q, ...(game ? { game } : {}) } });
   return data;
 }

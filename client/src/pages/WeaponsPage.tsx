@@ -4,17 +4,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { ResourceGrid } from "@/components/shared/ResourceGrid";
 import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
-import { RarityStars } from "@/components/shared/RarityStars";
+import { RarityStars, rarityLabel, rankIcon } from "@/components/shared/RarityStars";
+import { gameUi } from "@/lib/gameUi";
 import { getWeapons } from "@/lib/api";
 import { useInfiniteList } from "@/hooks/useInfiniteList";
 import { weaponIconUrl, wuwaWeaponIconUrl } from "@/lib/images";
-import { formatBaseAtk } from "@/lib/formatters";
-import {
-  GENSHIN_WEAPON_TYPES,
-  WUWA_WEAPON_TYPES,
-  WEAPON_RARITIES,
-  RARITY_COLOR_MAP,
-} from "@/lib/constants";
+import { formatBaseAtk, formatSpecialized } from "@/lib/formatters";
+import { WEAPON_RARITIES, RARITY_COLOR_MAP } from "@/lib/constants";
+import { registryGame, resourceLabel } from "@/lib/registry";
 import type { Game, Weapon } from "@/lib/types";
 import type { FilterGroup, SortOption } from "@/components/shared/FilterBar";
 
@@ -23,15 +20,24 @@ const SORT_OPTIONS: SortOption[] = [
   { value: "version", label: "Release" },
 ];
 
+/** ATK at the highest level the weapon has stats for (what players compare), not level 1. */
+function maxLevelAtk(weapon: Weapon): { level: number; atk: number; specialized?: number } | null {
+  const stats = (weapon as { stats?: Record<string, { atk?: number; specialized?: number }> }).stats;
+  if (!stats) return null;
+  const level = Math.max(...Object.keys(stats).map(Number).filter((n) => stats[n]?.atk != null));
+  return Number.isFinite(level) ? { level, atk: stats[level].atk as number, specialized: stats[level].specialized } : null;
+}
+
 function WeaponCard({ weapon, game }: { weapon: Weapon; game: string }) {
   const rarityClass = RARITY_COLOR_MAP[weapon.rarity] ?? "bg-muted";
   const iconUrl = game === "wuwa" ? wuwaWeaponIconUrl(weapon.images) : weaponIconUrl(weapon.images);
+  const maxAtk = maxLevelAtk(weapon);
 
   return (
     <Link to={`/${game}/weapons/${encodeURIComponent(weapon.name)}`}>
-      <Card className="group overflow-hidden transition-colors hover:border-primary/40">
+      <Card className="group gap-0 overflow-hidden py-0 transition-colors hover:border-primary/40">
         <div
-          className={`relative flex h-40 items-center justify-center ${rarityClass}/20`}
+          className={`relative flex items-center justify-center ${game === "zzz" ? "aspect-square" : "h-40"} ${rarityClass}/20`}
         >
           <ImageWithFallback
             src={iconUrl}
@@ -45,11 +51,18 @@ function WeaponCard({ weapon, game }: { weapon: Weapon; game: string }) {
             <span>{weapon.weaponType}</span>
             <RarityStars rarity={weapon.rarity} className="text-xs" />
           </div>
-          {weapon.baseAtkValue && (
+          {maxAtk ? (
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Base ATK: {formatBaseAtk(weapon.baseAtkValue)}
+              ATK Lv. {maxAtk.level}: {formatBaseAtk(maxAtk.atk)}
             </p>
-          )}
+          ) : weapon.baseAtkValue ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">Base ATK: {formatBaseAtk(weapon.baseAtkValue)}</p>
+          ) : null}
+          {maxAtk?.specialized != null && weapon.mainStatText ? (
+            <p className="text-xs text-muted-foreground truncate">
+              {weapon.mainStatText}: {formatSpecialized(maxAtk.specialized, weapon.mainStatType)}
+            </p>
+          ) : null}
         </CardContent>
       </Card>
     </Link>
@@ -67,7 +80,6 @@ export function WeaponsPage() {
   const { game } = useParams<{ game: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const isWuwa = game === "wuwa";
 
   const search = searchParams.get("search") ?? undefined;
   const weaponType = searchParams.get("weaponType") ?? undefined;
@@ -77,16 +89,20 @@ export function WeaponsPage() {
 
   const sort = buildSort(sortBy, sortDir);
 
-  const weaponTypeOptions = isWuwa
-    ? WUWA_WEAPON_TYPES.map((wt) => ({ value: wt, label: wt }))
-    : GENSHIN_WEAPON_TYPES.map((wt) => ({ value: wt, label: wt }));
+  // ZZZ W-Engines are typed by agent specialty
+  const reg = registryGame(game);
+  const weaponTypeOptions = (reg?.weaponTypes ?? reg?.specialties ?? []).map((wt) => ({
+    value: wt,
+    label: wt,
+    icon: gameUi(game).weaponTypeIcon?.(wt) ?? undefined,
+  }));
 
   const filterGroups: FilterGroup[] = [
     { key: "weaponType", label: "Type", options: weaponTypeOptions },
     {
       key: "rarity",
       label: "Rarity",
-      options: WEAPON_RARITIES.map((r) => ({ value: String(r), label: "★".repeat(r) })),
+      options: (game === "zzz" ? [5, 4, 3] : game === "endfield" ? [6, 5, 4, 3] : WEAPON_RARITIES).map((r) => ({ value: String(r), label: rarityLabel(game, r), icon: rankIcon(game, r) })),
     },
   ];
 
@@ -106,7 +122,7 @@ export function WeaponsPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Weapons</h1>
+        <h1 className="text-2xl font-bold">{resourceLabel(game, "weapons", "Weapons")}</h1>
         {total > 0 && (
           <span className="text-sm text-muted-foreground">{total} total</span>
         )}
@@ -132,6 +148,7 @@ export function WeaponsPage() {
         loading={loading && items.length === 0}
         empty={items.length === 0 && !loading}
         emptyMessage="No weapons found"
+        columns={game === "zzz" ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8" : undefined}
       >
         {items.map((w) => (
           <WeaponCard key={w._id} weapon={w} game={game!} />

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -5,219 +6,148 @@ import { Badge } from "@/components/ui/badge";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { ResourceGrid } from "@/components/shared/ResourceGrid";
 import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
-import { RarityStars } from "@/components/shared/RarityStars";
-import { getCharacters } from "@/lib/api";
+import { TrimmedImage } from "@/components/shared/TrimmedImage";
+import { RarityStars, rarityLabel, rankIcon, rarityTextClass } from "@/components/shared/RarityStars";
+import { getCharacters, getEnhancements } from "@/lib/api";
+import { useApiQuery } from "@/hooks/useApiQuery";
 import { useInfiniteList } from "@/hooks/useInfiniteList";
-import { characterIconUrl, elementIconUrl, weaponTypeIconUrl, hsrElementIconUrl, hsrPathIconUrl, wuwaCharacterIconUrl, wuwaElementIconUrl, wuwaWeaponTypeIconUrl } from "@/lib/images";
-import {
-  GENSHIN_ELEMENTS,
-  GENSHIN_WEAPON_TYPES,
-  GENSHIN_REGIONS,
-  CHARACTER_RARITIES,
-  ELEMENT_COLOR_MAP,
-  RARITY_COLOR_MAP,
-  HSR_ELEMENTS,
-  HSR_PATHS,
-  HSR_ELEMENT_COLOR_MAP,
-  WUWA_ELEMENTS,
-  WUWA_WEAPON_TYPES,
-  WUWA_REGIONS,
-  WUWA_ELEMENT_COLOR_MAP,
-  resolveRegion,
-} from "@/lib/constants";
-import type { Game, Character } from "@/lib/types";
+import { CHARACTER_RARITIES, RARITY_COLOR_MAP, resolveRegion } from "@/lib/constants";
+import { gameUi } from "@/lib/gameUi";
+import { registryGame, resourceLabel } from "@/lib/registry";
+import type { Game, Character, EnhancementType } from "@/lib/types";
 import type { FilterGroup, SortOption } from "@/components/shared/FilterBar";
-
-const GENSHIN_FILTERS: FilterGroup[] = [
-  {
-    key: "element",
-    label: "Element",
-    options: GENSHIN_ELEMENTS.map((el) => ({ value: el, label: el, icon: elementIconUrl(el) ?? undefined })),
-  },
-  {
-    key: "weaponType",
-    label: "Weapon",
-    options: GENSHIN_WEAPON_TYPES.map((wt) => ({ value: wt, label: wt, icon: weaponTypeIconUrl(wt) ?? undefined })),
-  },
-  {
-    key: "rarity",
-    label: "Rarity",
-    options: CHARACTER_RARITIES.map((r) => ({ value: String(r), label: "★".repeat(r) })),
-  },
-  {
-    key: "region",
-    label: "Region",
-    options: GENSHIN_REGIONS.map((r) => ({ value: r, label: r })),
-  },
-];
-
-const HSR_FILTERS: FilterGroup[] = [
-  {
-    key: "element",
-    label: "Element",
-    options: HSR_ELEMENTS.map((el) => ({ value: el, label: el, icon: hsrElementIconUrl(el) ?? undefined })),
-  },
-  {
-    key: "path",
-    label: "Path",
-    options: HSR_PATHS.map((p) => ({ value: p, label: p, icon: hsrPathIconUrl(p) ?? undefined })),
-  },
-  {
-    key: "rarity",
-    label: "Rarity",
-    options: CHARACTER_RARITIES.map((r) => ({ value: String(r), label: "★".repeat(r) })),
-  },
-];
-
-const WUWA_FILTERS: FilterGroup[] = [
-  {
-    key: "element",
-    label: "Element",
-    options: WUWA_ELEMENTS.map((el) => ({ value: el, label: el, icon: wuwaElementIconUrl(el) ?? undefined })),
-  },
-  {
-    key: "weaponType",
-    label: "Weapon",
-    options: WUWA_WEAPON_TYPES.map((wt) => ({ value: wt, label: wt, icon: wuwaWeaponTypeIconUrl(wt) ?? undefined })),
-  },
-  {
-    key: "rarity",
-    label: "Rarity",
-    options: CHARACTER_RARITIES.map((r) => ({ value: String(r), label: "★".repeat(r) })),
-  },
-  {
-    key: "region",
-    label: "Region",
-    options: WUWA_REGIONS.map((r) => ({ value: r, label: r })),
-  },
-];
 
 const SORT_OPTIONS: SortOption[] = [
   { value: "name", label: "Name" },
   { value: "version", label: "Release" },
 ];
 
-function GenshinCharacterCard({ character, game }: { character: Character; game: string }) {
-  const elementClass = ELEMENT_COLOR_MAP[character.element ?? ""] ?? "bg-muted";
+/** Filters built from the registry (shared/games.json) + the game's icons. */
+function filtersFor(
+  game: string,
+  enhancementTypes: EnhancementType[] = [],
+  /** Factions read from the data (ZZZ): new ones appear without editing the registry */
+  dataRegions: Array<{ name: string; icon?: string }> = []
+): FilterGroup[] {
+  const reg = registryGame(game);
+  const ui = gameUi(game);
+  const groups: FilterGroup[] = [];
+
+  if (reg?.elements?.length) {
+    groups.push({
+      key: "element",
+      label: "Element",
+      options: reg.elements.map((el) => ({ value: el, label: el, icon: ui.elementIcon(el) ?? undefined, iconClass: game === "endfield" ? ui.elementColor[el] : undefined })),
+    });
+  }
+  if (reg?.paths?.length) {
+    groups.push({
+      key: "path",
+      label: "Path",
+      options: reg.paths.map((p) => ({ value: p, label: p, icon: ui.pathIcon?.(p) ?? undefined })),
+    });
+  }
+  if (reg?.specialties?.length) {
+    groups.push({
+      key: "specialty",
+      label: game === "endfield" ? "Class" : "Specialty",
+      options: reg.specialties.map((sp) => ({ value: sp, label: sp, icon: ui.specialtyIcon?.(sp) ?? undefined })),
+    });
+  }
+  if (reg?.weaponTypes?.length) {
+    groups.push({
+      key: "weaponType",
+      label: "Weapon",
+      options: reg.weaponTypes.map((wt) => ({ value: wt, label: wt, icon: ui.weaponTypeIcon?.(wt) ?? undefined })),
+    });
+  }
+  groups.push({
+    key: "rarity",
+    label: "Rarity",
+    options: (reg?.rarities ?? CHARACTER_RARITIES).map((r) => ({ value: String(r), label: rarityLabel(game, r), icon: rankIcon(game, r), labelClass: game === "endfield" ? rarityTextClass(r) : undefined })),
+  });
+  if (reg?.regions?.length) {
+    const known = new Set(reg.regions);
+    const extra = dataRegions.filter((r) => !known.has(r.name));
+    const icon = (name: string) => reg.regionIcons?.[name] ?? dataRegions.find((r) => r.name === name)?.icon;
+    groups.push({
+      key: "region",
+      label: reg.regionLabel ?? "Region",
+      options: [...reg.regions, ...extra.map((r) => r.name)].map((r) => ({ value: r, label: r, icon: icon(r) })),
+      iconOnly: !!reg.regionIcons,
+    });
+  }
+  if (enhancementTypes.length) {
+    groups.push({
+      key: "enhancements",
+      label: "Enhancement",
+      options: enhancementTypes.map((t) => ({ value: t.id, label: t.version ? `${t.name} ${t.version}` : t.name })),
+    });
+  }
+  return groups;
+}
+
+function CharacterCard({ character, game }: { character: Character; game: string }) {
+  const ui = gameUi(game);
+  const elementClass = ui.elementColor[character.element ?? ""] ?? "bg-muted";
   const rarityClass = RARITY_COLOR_MAP[character.rarity] ?? "bg-muted";
+  const elementIcon = ui.elementIcon(character.subElement ?? character.element) ?? ui.elementIcon(character.element);
+  const subIcon = character.specialty
+    ? ui.specialtyIcon?.(character.specialty)
+    : ui.showPath
+      ? ui.pathIcon?.(character.path)
+      : ui.weaponTypeIcon?.(character.weaponType);
+  const subLabel = character.specialty ?? (ui.showPath ? character.path : character.weaponType);
 
   return (
     <Link to={`/${game}/characters/${encodeURIComponent(character.name)}`}>
-      <Card className="group overflow-hidden transition-colors hover:border-primary/40">
-        <div className={`relative flex h-32 items-center justify-center ${rarityClass}/20`}>
+      <Card className="group gap-0 overflow-hidden py-0 transition-colors hover:border-primary/40">
+        <div className={`relative flex aspect-square items-center justify-center overflow-hidden ${rarityClass}/20`}>
           <ImageWithFallback
-            src={characterIconUrl(character.images)}
+            src={ui.portrait(character.images)}
             alt={character.name}
-            className="h-full w-full object-contain"
+            className={`h-full w-full ${ui.portraitFit === "cover" ? "object-cover object-top" : "object-contain"} transition-transform duration-300 group-hover:scale-105`}
           />
+          {character.enhancements && character.enhancements.length > 0 && (
+            <span
+              className="absolute bottom-2 left-2 rounded-full bg-background/80 px-1.5 py-0.5 text-[10px] font-medium text-amber-300 backdrop-blur-sm"
+              title={`Enhancements: ${character.enhancements.join(", ")}`}
+            >
+              ✦ {character.enhancements.length}
+            </span>
+          )}
           {character.element && character.element !== "None" && (
             <Badge
-              className={`absolute top-2 right-2 ${elementClass} border-0 text-white text-xs flex items-center gap-1`}
+              className={`absolute top-1.5 right-1.5 ${elementClass} flex items-center gap-1 border-0 px-1.5 py-0 text-[11px] text-white`}
+              title={character.subElement ?? character.element}
             >
-              {elementIconUrl(character.element) && (
-                <img src={elementIconUrl(character.element)!} className="h-3.5 w-3.5" alt="" />
-              )}
-              {character.element}
+              {elementIcon &&
+                (game === "endfield" ? (
+                  // Endfield glyphs sit off-centre in their PNG: trim them
+                  <span className="inline-flex h-3.5 w-3.5 items-center justify-center">
+                    <TrimmedImage src={elementIcon} alt="" maxWidth={12} maxHeight={12} />
+                  </span>
+                ) : (
+                  <img src={elementIcon} className="h-3.5 w-3.5" alt="" />
+                ))}
+              <span className="hidden sm:inline">{character.subElement ?? character.element}</span>
             </Badge>
           )}
         </div>
-        <CardContent className="p-3">
+        <CardContent className="px-2.5 py-2">
           <p className="font-semibold text-sm truncate">{character.name}</p>
-          <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              {weaponTypeIconUrl(character.weaponType) && (
-                <img src={weaponTypeIconUrl(character.weaponType)!} className="h-3 w-3" alt="" />
-              )}
-              {character.weaponType}
+          <div className="mt-1 flex items-center justify-between gap-1 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1 truncate">
+              {subIcon && <img src={subIcon} className="h-3 w-3" alt="" />}
+              {subLabel}
             </span>
-            <RarityStars rarity={character.rarity} className="text-xs" />
+            <RarityStars rarity={character.rarity} className="shrink-0 text-xs" />
           </div>
-          <p className="mt-0.5 text-xs text-muted-foreground truncate">
-            {resolveRegion(character.region, character.name)}
-          </p>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-}
-
-function WuwaCharacterCard({ character, game }: { character: Character; game: string }) {
-  const elementClass = WUWA_ELEMENT_COLOR_MAP[character.element ?? ""] ?? "bg-muted";
-  const rarityClass = RARITY_COLOR_MAP[character.rarity] ?? "bg-muted";
-
-  return (
-    <Link to={`/${game}/characters/${encodeURIComponent(character.name)}`}>
-      <Card className="group overflow-hidden transition-colors hover:border-primary/40">
-        <div className={`relative flex h-32 items-center justify-center ${rarityClass}/20`}>
-          <ImageWithFallback
-            src={wuwaCharacterIconUrl(character.images)}
-            alt={character.name}
-            className="h-full w-full object-contain"
-          />
-          {character.element && (
-            <Badge
-              className={`absolute top-2 right-2 ${elementClass} border-0 text-white text-xs flex items-center gap-1`}
-            >
-              {wuwaElementIconUrl(character.element) && (
-                <img src={wuwaElementIconUrl(character.element)!} className="h-3.5 w-3.5" alt="" />
-              )}
-              {character.element}
-            </Badge>
+          {ui.showRegion && (
+            <p className="mt-0.5 text-xs text-muted-foreground truncate">
+              {resolveRegion(character.region, character.name)}
+            </p>
           )}
-        </div>
-        <CardContent className="p-3">
-          <p className="font-semibold text-sm truncate">{character.name}</p>
-          <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              {wuwaWeaponTypeIconUrl(character.weaponType) && (
-                <img src={wuwaWeaponTypeIconUrl(character.weaponType)!} className="h-3 w-3" alt="" />
-              )}
-              {character.weaponType}
-            </span>
-            <RarityStars rarity={character.rarity} className="text-xs" />
-          </div>
-          <p className="mt-0.5 text-xs text-muted-foreground truncate">
-            {character.region ?? "Others"}
-          </p>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-}
-
-function HsrCharacterCard({ character, game }: { character: Character; game: string }) {
-  const elementClass = HSR_ELEMENT_COLOR_MAP[character.element ?? ""] ?? "bg-muted";
-  const rarityClass = RARITY_COLOR_MAP[character.rarity] ?? "bg-muted";
-
-  return (
-    <Link to={`/${game}/characters/${encodeURIComponent(character.name)}`}>
-      <Card className="group overflow-hidden transition-colors hover:border-primary/40">
-        <div className={`relative flex h-32 items-center justify-center ${rarityClass}/20`}>
-          <ImageWithFallback
-            src={characterIconUrl(character.images)}
-            alt={character.name}
-            className="h-full w-full object-contain"
-          />
-          <Badge
-            className={`absolute top-2 right-2 ${elementClass} border-0 text-white text-xs flex items-center gap-1`}
-          >
-            {hsrElementIconUrl(character.element) && (
-              <img src={hsrElementIconUrl(character.element)!} className="h-3.5 w-3.5" alt="" />
-            )}
-            {character.element}
-          </Badge>
-        </div>
-        <CardContent className="p-3">
-          <p className="font-semibold text-sm truncate">{character.name}</p>
-          <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              {hsrPathIconUrl(character.path) && (
-                <img src={hsrPathIconUrl(character.path)!} className="h-3 w-3" alt="" />
-              )}
-              {character.path}
-            </span>
-            <RarityStars rarity={character.rarity} className="text-xs" />
-          </div>
         </CardContent>
       </Card>
     </Link>
@@ -232,54 +162,51 @@ function buildSort(sortBy: string, sortDir: string): string {
 }
 
 export function CharactersPage() {
-  const { game } = useParams<{ game: string }>();
+  const { game = "genshin" } = useParams<{ game: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-
-  const isHsr = game === "hsr";
-  const isWuwa = game === "wuwa";
+  const { data: enhData } = useApiQuery(() => getEnhancements(game as Game), [game]);
+  // Factions present in the data, with their emblem (games with emblems only)
+  const hasEmblems = !!registryGame(game)?.regionIcons;
+  const { data: regionData } = useApiQuery(
+    () => (hasEmblems ? getCharacters(game as Game, { limit: 100, fields: "region,images" }) : Promise.resolve(null)),
+    [game, hasEmblems]
+  );
+  const dataRegions = useMemo(() => {
+    const m = new Map<string, string | undefined>();
+    for (const c of regionData?.data ?? []) if (c.region && !m.has(c.region)) m.set(c.region, c.images?.faction);
+    return [...m].map(([name, icon]) => ({ name, icon }));
+  }, [regionData]);
+  const filterGroups = filtersFor(game, enhData?.data.types, dataRegions);
+  const filterKeys = filterGroups.map((g) => g.key);
 
   const search = searchParams.get("search") ?? undefined;
-  const element = searchParams.get("element") ?? undefined;
-  const weaponType = searchParams.get("weaponType") ?? undefined;
-  const path = searchParams.get("path") ?? undefined;
-  const rarity = searchParams.get("rarity") ?? undefined;
-  const region = searchParams.get("region") ?? undefined;
   const sortBy = searchParams.get("sortBy") ?? "version";
   const sortDir = searchParams.get("sortDir") ?? "desc";
-
   const sort = buildSort(sortBy, sortDir);
 
-  const { items, total, loading, error, hasMore, sentinelRef } = useInfiniteList(
-    (page) =>
-      getCharacters(game as Game, {
-        page,
-        limit: 25,
-        search,
-        element,
-        weaponType: isHsr ? undefined : weaponType,
-        path: isHsr ? path : undefined,
-        rarity: rarity ? Number(rarity) : undefined,
-        region: isHsr ? undefined : region,
-        sort,
-      }),
-    [game, search, element, weaponType, path, rarity, region, sort]
-  );
+  // Only send the filters this game actually has
+  const filters: Record<string, string | number | undefined> = {};
+  for (const key of filterKeys) {
+    const value = searchParams.get(key) ?? undefined;
+    filters[key] = key === "rarity" && value ? Number(value) : value;
+  }
 
-  const filterGroups = isWuwa ? WUWA_FILTERS : isHsr ? HSR_FILTERS : GENSHIN_FILTERS;
+  const { items, total, loading, error, hasMore, sentinelRef } = useInfiniteList(
+    (page) => getCharacters(game as Game, { page, limit: 25, search, sort, ...filters }),
+    [game, search, sort, filters]
+  );
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Characters</h1>
-        {total > 0 && (
-          <span className="text-sm text-muted-foreground">{total} total</span>
-        )}
+        <h1 className="text-2xl font-bold">{resourceLabel(game, "characters", "Characters")}</h1>
+        {total > 0 && <span className="text-sm text-muted-foreground">{total} total</span>}
       </div>
 
       <FilterBar
         searchParams={searchParams}
         setSearchParams={setSearchParams}
-        searchPlaceholder="Search characters..."
+        searchPlaceholder={`Search ${resourceLabel(game, "characters", "characters").toLowerCase()}...`}
         filterGroups={filterGroups}
         sortOptions={SORT_OPTIONS}
         defaultSortBy="version"
@@ -296,16 +223,11 @@ export function CharactersPage() {
         loading={loading && items.length === 0}
         empty={items.length === 0 && !loading}
         emptyMessage="No characters found"
+        columns="grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8"
       >
-        {items.map((c) =>
-          isWuwa ? (
-            <WuwaCharacterCard key={c._id} character={c} game={game!} />
-          ) : isHsr ? (
-            <HsrCharacterCard key={c._id} character={c} game={game!} />
-          ) : (
-            <GenshinCharacterCard key={c._id} character={c} game={game!} />
-          )
-        )}
+        {items.map((c) => (
+          <CharacterCard key={c._id} character={c} game={game} />
+        ))}
       </ResourceGrid>
 
       {loading && items.length > 0 && (
@@ -317,9 +239,7 @@ export function CharactersPage() {
       <div ref={sentinelRef} className="h-px" />
 
       {!hasMore && items.length > 0 && (
-        <p className="text-center text-xs text-muted-foreground py-2">
-          All {total} characters loaded
-        </p>
+        <p className="text-center text-xs text-muted-foreground py-2">All {total} characters loaded</p>
       )}
     </div>
   );

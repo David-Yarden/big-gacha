@@ -3,8 +3,10 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { renderMarkdownText } from "@/components/character/shared";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import { getEchoSet } from "@/lib/api";
+import { getEchoSet, getEchoes } from "@/lib/api";
+import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { WUWA_ELEMENT_COLOR_MAP } from "@/lib/constants";
 import type { Game } from "@/lib/types";
 
@@ -17,6 +19,13 @@ export function EchoSetDetailPage() {
   );
 
   const echoSet = data?.data;
+
+  // Echoes that can roll this set
+  const { data: echoesData } = useApiQuery(
+    () => getEchoes(game as Game, { sonataSets: name!, limit: 100, sort: "-cost,name", fields: "name,cost,images" }),
+    [game, name]
+  );
+  const echoes = echoesData?.data ?? [];
 
   if (loading) {
     return (
@@ -70,19 +79,41 @@ export function EchoSetDetailPage() {
 
       {/* Set Bonuses */}
       <div className="space-y-4">
-        {echoSet.twoPieceBonus && (
-          <div className="rounded-lg border border-border bg-card p-4 space-y-2">
-            <Badge variant="outline">2-Piece Bonus</Badge>
-            <p className="text-sm text-muted-foreground">{echoSet.twoPieceBonus}</p>
-          </div>
-        )}
-        {echoSet.fivePieceBonus && (
-          <div className="rounded-lg border border-border bg-card p-4 space-y-2">
-            <Badge variant="outline">5-Piece Bonus</Badge>
-            <p className="text-sm text-muted-foreground">{echoSet.fivePieceBonus}</p>
-          </div>
-        )}
+        {([
+          [1, echoSet.onePieceBonus],
+          [2, echoSet.twoPieceBonus],
+          [3, echoSet.threePieceBonus],
+          [5, echoSet.fivePieceBonus],
+        ] as const)
+          .filter(([, text]) => text)
+          .map(([n, text]) => (
+            <div key={n} className="rounded-lg border border-border bg-card p-4 space-y-2">
+              <Badge variant="outline">{n}-Piece Bonus</Badge>
+              <p className="text-sm text-muted-foreground whitespace-pre-line">{renderMarkdownText(text!)}</p>
+            </div>
+          ))}
       </div>
+
+      {echoes.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">
+            Echoes <span className="text-sm font-normal text-muted-foreground">({echoes.length})</span>
+          </h2>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-2">
+            {echoes.map((e) => (
+              <Link
+                key={e._id}
+                to={`/${game}/echoes/${encodeURIComponent(e.name)}`}
+                className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-card p-2 text-center transition-colors hover:border-primary/40"
+              >
+                <ImageWithFallback src={e.images?.icon ?? null} alt="" className="h-14 w-14 object-contain" />
+                <span className="line-clamp-2 text-xs font-medium leading-tight">{e.name}</span>
+                {e.cost != null && <span className="text-[11px] text-muted-foreground">Cost {e.cost}</span>}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Description */}
       {echoSet.description && (

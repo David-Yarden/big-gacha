@@ -60,6 +60,31 @@ export function calculateExpMaterials(targetLevel: number): MaterialCostEntry[] 
   return entries;
 }
 
+/**
+ * EXP items needed to reach `targetLevel` from level 1, using the character's own
+ * EXP curve (WuWa). Greedy: biggest potion first, the smallest one rounds up.
+ */
+export function expPotions(
+  targetLevel: number,
+  character?: { levelExp?: { exp: number[]; items: Array<{ id: number; name: string; exp: number; icon?: string }> } }
+): MaterialCostEntry[] {
+  const curve = character?.levelExp;
+  if (!curve?.exp?.length || !curve.items?.length) return [];
+  let remaining = curve.exp[Math.min(targetLevel, curve.exp.length - 1)] ?? 0;
+  if (remaining <= 0) return [];
+  const items = [...curve.items].sort((a, b) => b.exp - a.exp);
+  const out: MaterialCostEntry[] = [];
+  items.forEach((it, i) => {
+    const last = i === items.length - 1;
+    const n = last ? Math.ceil(remaining / it.exp) : Math.floor(remaining / it.exp);
+    if (n > 0) {
+      out.push({ id: it.id, name: it.name, count: n, icon: it.icon });
+      remaining -= n * it.exp;
+    }
+  });
+  return out;
+}
+
 export function levelToAscensionPhase(level: number): number {
   if (level <= 20) return 0;
   if (level <= 40) return 1;
@@ -138,8 +163,6 @@ export const MASTERLESS_STELLA_FORTUNA: MaterialCostEntry & { id: 0 } = {
 };
 
 /** Selectable character levels, including the two breakthrough levels. */
-export const CHARACTER_LEVELS = [1, 20, 40, 50, 60, 70, 80, 90, 95, 100] as const;
-
 /**
  * Returns Masterless Stella Fortuna needed to reach the given breakthrough level.
  * 90 → 95: 1 copy  |  95 → 100: 2 more (3 total from 90)

@@ -66,6 +66,10 @@ function queryBuilder(Model) {
       // --- Sort ---
       const sortFields = cleanFieldList(req.query.sort, filterableFields(Model), { allowDesc: true });
       query = query.sort(sortFields.length ? sortFields.join(" ") : "name");
+      // Versions are strings: compare digits as numbers so "4.10" comes after "4.6"
+      if (sortFields.some((f) => f.replace(/^-/, "") === "version")) {
+        query = query.collation({ locale: "en", numericOrdering: true });
+      }
 
       // --- Field selection ---
       const selected = cleanFieldList(req.query.fields, selectableFields(Model));

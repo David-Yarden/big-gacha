@@ -1,0 +1,128 @@
+# Kit enhancement — see shared/games/README.md for the format.
+# Edited by hand; loaded into the database at server start and after each sync.
+id: novaflare
+name: Novaflare
+version: '3.4'
+kind: rework
+color: amber
+description: >-
+  Character Enhancement: reworked kits (v3.4 Jingliu, Blade, Kafka, Silver Wolf; v4.0 Sparkle, Black Swan).
+  'original' = text before the rework, 'enhanced' = text after. Reworked major traces come from the source
+  itself.
+characters:
+- Jingliu
+- Blade
+- Kafka
+- Silver Wolf
+- Sparkle
+- Black Swan
+entries:
+- character: Jingliu
+  target: eidolon.e1
+  enhanced:
+    name: Moon Crashes Tianguan Gate
+    description: >-
+      When using her Ultimate or Enhanced Skill, Jingliu's CRIT DMG increases by 36% for 1 turn(s). Moreover,
+      additionally deals 1 instance of Ice DMG equal to 80% of Jingliu's Max HP to the primary target.
+  original:
+    description: >-
+      When using her Ultimate or Enhanced Skill, Jingliu's CRIT DMG increases by 24% for 1 turn(s). If
+      only one enemy target is attacked, the target will additionally be dealt Ice DMG equal to 100% of
+      Jingliu's ATK.
+- character: Jingliu
+  target: eidolon.e4
+  enhanced:
+    name: Lunarlance Shines Skyward Dome
+    description: >-
+      While in the Spectral Transmigration state, each stack of Moonlight additionally increases CRIT
+      DMG by 20%.
+  original:
+    description: >-
+      During the Spectral Transmigration state, the ATK gained from consuming allies' HP is additionally
+      increased by 90% of the total HP consumed from the entire team. The cap for ATK gained this way
+      also increases by 30%.
+- character: Jingliu
+  target: eidolon.e6
+  enhanced:
+    name: Eclipse Hollows Corporeal Husk
+    description: >-
+      When Jingliu enters the Spectral Transmigration state, the Syzygy stack limit increases by 1, and
+      Jingliu obtains 2 stack(s) of Syzygy. While she is in the Spectral Transmigration state, her Ice
+      RES PEN increases by 30%.
+  original:
+    description: >-
+      When Jingliu enters the Spectral Transmigration state, the Syzygy stack limit increases by 1, and
+      Jingliu obtains 1 stack(s) of Syzygy. While she is in the Spectral Transmigration state, her CRIT
+      DMG increases by 50%.
+- character: Blade
+  target: eidolon.e1
+  enhanced:
+    name: Blade Cuts the Deepest in Hell
+    description: >-
+      Blade's Enhanced Basic ATK and Ultimate deal additionally increased DMG to one designated enemy,
+      with the increased amount equal to 150% of the tally of Blade's HP loss from his Ultimate.
+  original:
+    description: >-
+      Blade's Ultimate deals additionally increased DMG to a single enemy target, with the increased amount
+      equal to 150% of the tally of Blade's HP loss in the current battle.
+- character: Kafka
+  target: eidolon.e1
+  enhanced:
+    name: Da Capo
+    description: >-
+      When Kafka attacks enemies, there is a 100% base chance to increase the DoT received by the target
+      by 30% for 2 turn(s).
+  original:
+    description: >-
+      When the Talent triggers a follow-up attack, there is a 100% base chance to increase the DoT received
+      by the target by 30% for 2 turn(s).
+- character: Kafka
+  target: eidolon.e2
+  enhanced:
+    name: Fortississimo
+    description: While Kafka is on the field, DoT dealt by all allies increases by 33%.
+  original:
+    description: While Kafka is on the field, DoT dealt by all allies increases by 25%.
+- character: Silver Wolf
+  target: eidolon.e2
+  enhanced:
+    name: Zombie Network
+    description: >-
+      When any enemy target enters battle, increases their DMG taken by 20%. When an enemy target receives
+      an attack from ally targets, Silver Wolf has a 100% base chance to implant the attacked enemy target
+      with 1 random Bug.
+  original:
+    description: When an enemy enters battle, reduces their Effect RES by 20%.
+- character: Sparkle
+  target: eidolon.e1
+  enhanced:
+    name: Suspension of Disbelief
+    description: >-
+      The Cipher effect granted by the Ultimate lasts for 1 extra turn. All allies with Cipher have their
+      ATK increased by 40%. When the battle starts or when using Skill, increases Sparkle's SPD by 15%,
+      lasting for 2 turn(s).
+- character: Black Swan
+  target: eidolon.e2
+  enhanced:
+    name: Weep Not For Me, My Lamb
+    description: At the start of battle, inflicts 30 stack(s) of Arcana on all enemies.
+  original:
+    description: >-
+      When an enemy target afflicted with Arcana is defeated, there is a 100% base chance of inflicting
+      6 stack(s) of Arcana on adjacent targets.
+- character: Black Swan
+  target: eidolon.e4
+  enhanced:
+    name: In Tears We Gift
+    description: >-
+      While in the Epiphany state, enemy targets have their DMG taken increased by 20%. At the start of
+      each enemy turn or when enemy targets in the Epiphany state are defeated, Black Swan regenerates
+      8 Energy. This effect is not subject to a 1-time trigger limit.
+- character: Black Swan
+  target: eidolon.e6
+  enhanced:
+    name: Pantheon Merciful, Masses Pitiful
+    description: >-
+      When enemy targets get attacked by Black Swan's allies, Black Swan has a 65% base chance of inflicting
+      1 stack of Arcana on that target, and there is a 50% fixed chance to additionally increase the Arcana
+      stacks applied by 1. The maximum Arcana stack count for enemies is increased by 20.

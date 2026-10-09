@@ -1,11 +1,12 @@
 const mongoose = require("mongoose");
+const { GAME_IDS } = require("../../shared/games");
 
 const lightConeSchema = new mongoose.Schema(
   {
     game: {
       type: String,
       required: true,
-      enum: ["genshin", "hsr", "zzz", "wuwa", "endfield"],
+      enum: GAME_IDS,
       index: true,
     },
     sourceId: Number, // 5-digit internal game ID (e.g. 23000)
@@ -20,6 +21,7 @@ const lightConeSchema = new mongoose.Schema(
     effectTemplateRaw: String,  // desc string with #1[i]% placeholders
 
     version: String,
+    signatureOf: String, // character this light cone was made for
 
     // Pre-computed stats for every level 1–80
     // { "1": { hp, atk, def }, ..., "80": { hp, atk, def } }

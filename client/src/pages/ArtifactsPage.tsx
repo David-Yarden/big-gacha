@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { ResourceGrid } from "@/components/shared/ResourceGrid";
+import { GearStatTable } from "@/components/shared/GearStatTable";
 import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { RarityStars } from "@/components/shared/RarityStars";
 import { getArtifacts } from "@/lib/api";
@@ -33,7 +34,7 @@ function ArtifactCard({ artifact, game }: { artifact: Artifact; game: string }) 
 
   return (
     <Link to={`/${game}/artifacts/${encodeURIComponent(artifact.name)}`}>
-      <Card className="group overflow-hidden transition-colors hover:border-primary/40">
+      <Card className="group gap-0 overflow-hidden py-0 transition-colors hover:border-primary/40">
         <div className="relative flex h-32 items-center justify-center">
           <ImageWithFallback
             src={artifactIconUrl(artifact.images, "flower")}
@@ -102,6 +103,8 @@ export function ArtifactsPage() {
         defaultSortBy="version"
         defaultSortDir="desc"
       />
+
+      <GearStatTable game={game ?? "genshin"} />
 
       {error && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">

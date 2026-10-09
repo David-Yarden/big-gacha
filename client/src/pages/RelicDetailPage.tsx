@@ -9,6 +9,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { getRelic } from "@/lib/api";
 import { relicIconUrl } from "@/lib/images";
 import type { Game } from "@/lib/types";
+import { renderMarkdownText, GameText } from "@/components/character/shared";
 
 const CAVERN_PIECES = ["head", "hands", "body", "feet"] as const;
 const PLANAR_PIECES = ["sphere", "rope"] as const;
@@ -58,13 +59,14 @@ export function RelicDetailPage() {
 
   const pieces = relic.pieces ?? {};
   const isPlanar = relic.type === "planar";
+  const isDisc = relic.type === "disc";
   const pieceKeys = isPlanar ? PLANAR_PIECES : CAVERN_PIECES;
 
   return (
     <div className="space-y-6">
       <Link to={`/${game}/relics`}>
         <Button variant="ghost" size="sm">
-          <ArrowLeft className="mr-1 h-4 w-4" /> Relics
+          <ArrowLeft className="mr-1 h-4 w-4" /> {isDisc ? "Drive Discs" : "Relics"}
         </Button>
       </Link>
 
@@ -75,7 +77,7 @@ export function RelicDetailPage() {
             <ImageWithFallback
               src={relicIconUrl(relic.images)}
               alt={relic.name}
-              className="w-full h-48 object-contain p-4"
+              className={`w-full h-48 object-contain p-4 ${game === "endfield" ? "invert hue-rotate-180 opacity-85" : ""}`}
             />
           </Card>
         </div>
@@ -85,7 +87,7 @@ export function RelicDetailPage() {
             <h1 className="text-3xl font-bold">{relic.name}</h1>
             <div className="mt-1 flex items-center gap-2">
               <Badge variant="secondary">
-                {isPlanar ? "Planar Ornaments" : "Relics"}
+                {isDisc ? "Drive Disc" : isPlanar ? "Planar Ornaments" : "Relics"}
               </Badge>
               {relic.version && (
                 <Badge variant="outline">v{relic.version}</Badge>
@@ -95,13 +97,23 @@ export function RelicDetailPage() {
 
           {/* Set bonuses */}
           <div className="space-y-3">
+            {relic.setBonus && (
+              <div>
+                <Badge variant="outline" className="mb-1">
+                  {relic.setPieces ?? 3}-Piece Bonus
+                </Badge>
+                <div className="whitespace-pre-line text-sm text-muted-foreground">
+                  <GameText text={relic.setBonus.replace(/^\d-piece set effect:\s*/i, "")} />
+                </div>
+              </div>
+            )}
             {relic.twoPieceBonus && (
               <div>
                 <Badge variant="outline" className="mb-1">
                   2-Piece Bonus
                 </Badge>
                 <p className="text-sm text-muted-foreground">
-                  {relic.twoPieceBonus}
+                  {renderMarkdownText(relic.twoPieceBonus)}
                 </p>
               </div>
             )}
@@ -111,7 +123,7 @@ export function RelicDetailPage() {
                   4-Piece Bonus
                 </Badge>
                 <p className="text-sm text-muted-foreground">
-                  {relic.fourPieceBonus}
+                  {renderMarkdownText(relic.fourPieceBonus)}
                 </p>
               </div>
             )}
@@ -119,8 +131,41 @@ export function RelicDetailPage() {
         </div>
       </div>
 
+      {relic.description && (
+        <Card>
+          <CardContent className="p-4">
+            <p className="whitespace-pre-line text-sm italic leading-relaxed text-muted-foreground">{relic.description}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Endfield gear pieces, by slot and tier */}
+      {(relic.items ?? []).length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-xl font-semibold">Pieces</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {relic.items!.map((it) => (
+              <Card key={it.name} className="gap-0 py-0">
+                <CardContent className="flex items-center gap-3 p-3">
+                  <span className="h-12 w-12 shrink-0">
+                    <ImageWithFallback src={it.icon ?? null} alt="" className="h-12 w-12 object-contain" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold">{it.name}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {it.slot}
+                      {it.level ? ` · Lv. ${it.level}` : ""}
+                    </span>
+                  </span>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Pieces */}
-      <div className="space-y-3">
+      {Object.keys(pieces).length > 0 && <div className="space-y-3">
         <h2 className="text-xl font-semibold">Pieces</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {pieceKeys.map((key) => {
@@ -154,7 +199,7 @@ export function RelicDetailPage() {
             );
           })}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

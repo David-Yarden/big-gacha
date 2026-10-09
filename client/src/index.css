@@ -2,10 +2,11 @@
 
 /* Colour classes built at runtime (e.g. `${rarityClass}/20`) are invisible to
    Tailwind's scanner, so they are listed here explicitly. */
-@source inline("bg-rarity-{1,2,3,4,5}/20");
+@source inline("bg-rarity-{1,2,3,4,5,6}/20");
 @source inline("bg-{pyro,hydro,anemo,electro,dendro,cryo,geo}/20");
 @source inline("bg-hsr-{physical,fire,ice,lightning,wind,quantum,imaginary}/20");
 @source inline("bg-wuwa-{glacio,fusion,electro,aero,spectro,havoc}/20");
+@source inline("bg-ef-{physical,heat,cryo,electric,nature}/20");
 
 @theme {
   --color-background: oklch(0.145 0.02 270);
@@ -55,6 +56,7 @@
   --color-hsr-preservation: oklch(0.70 0.15 74);
   --color-hsr-abundance:    oklch(0.65 0.18 148);
   --color-hsr-remembrance:  oklch(0.72 0.10 213);
+  --color-hsr-elation:      oklch(0.70 0.17 350);
 
   /* WuWa element colors */
   --color-wuwa-glacio:  oklch(0.72 0.13 218);
@@ -63,8 +65,22 @@
   --color-wuwa-aero:    oklch(0.68 0.14 175);
   --color-wuwa-spectro: oklch(0.75 0.16 88);
   --color-wuwa-havoc:   oklch(0.50 0.20 320);
+  /* ZZZ attributes (in-game text colours) */
+  --color-zzz-physical: #c9a91f;
+  --color-zzz-fire:     #e04a1c;
+  --color-zzz-ice:      #3fb3c4;
+  --color-zzz-electric: #2e8fd6;
+  --color-zzz-ether:    #d9356b;
+  --color-zzz-wind:     #6f8fd6;
+  --color-zzz-lumiflux: #d977b4;
+  --color-ef-physical: #a89a86;
+  --color-ef-heat:     #e86a3a;
+  --color-ef-cryo:     #21b8c4;
+  --color-ef-electric: #d9a800;
+  --color-ef-nature:   #7fae2e;
 
   /* Rarity colors */
+  --color-rarity-6: oklch(0.63 0.23 30);
   --color-rarity-5: oklch(0.75 0.16 70);
   --color-rarity-4: oklch(0.6 0.2 290);
   --color-rarity-3: oklch(0.6 0.15 230);

@@ -10,6 +10,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { getArtifact } from "@/lib/api";
 import { artifactIconUrl } from "@/lib/images";
 import type { Game } from "@/lib/types";
+import { renderMarkdownText } from "@/components/character/shared";
 
 const PIECE_LABELS: Record<string, string> = {
   flower: "Flower of Life",
@@ -97,7 +98,7 @@ export function ArtifactDetailPage() {
                   2-Piece Bonus
                 </Badge>
                 <p className="text-sm text-muted-foreground">
-                  {artifact.twoPieceBonus}
+                  {renderMarkdownText(artifact.twoPieceBonus)}
                 </p>
               </div>
             )}
@@ -107,7 +108,7 @@ export function ArtifactDetailPage() {
                   4-Piece Bonus
                 </Badge>
                 <p className="text-sm text-muted-foreground">
-                  {artifact.fourPieceBonus}
+                  {renderMarkdownText(artifact.fourPieceBonus)}
                 </p>
               </div>
             )}

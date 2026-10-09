@@ -7,12 +7,18 @@
  * Requires Node 18+ (native fetch). Project runs on Node 22 — no extra packages needed.
  */
 
+const { fetchData } = require("../sync/http");
+
 // ── CDN / data source ────────────────────────────────────────────────────────
 
 const STARRAILRES_BASE =
   "https://raw.githubusercontent.com/Mar-7th/StarRailRes/master";
 
-const DATA_BASE = `${STARRAILRES_BASE}/index_new/en`;
+// Data files are read at the exact commit the sync checked (images keep using master)
+let DATA_REF = "master";
+function setDataRef(ref) {
+  DATA_REF = ref || "master";
+}
 
 /**
  * Fetch a JSON file from Mar-7th/StarRailRes.
@@ -20,10 +26,8 @@ const DATA_BASE = `${STARRAILRES_BASE}/index_new/en`;
  * @returns {Promise<object>}
  */
 async function fetchHsr(filename) {
-  const url = `${DATA_BASE}/${filename}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HSR data fetch failed: ${url} (${res.status})`);
-  return res.json();
+  const url = `https://raw.githubusercontent.com/Mar-7th/StarRailRes/${DATA_REF}/index_new/en/${filename}`;
+  return fetchData(url, { timeout: 120_000 });
 }
 
 /**
@@ -49,6 +53,7 @@ const PATH_MAP = {
   Knight:   "Preservation",
   Priest:   "Abundance",
   Memory:   "Remembrance",
+  Elation:  "Elation",
 };
 
 /**
@@ -116,7 +121,8 @@ function computeStats(values, maxLevel = 80, statKeys = ["hp", "atk", "def", "sp
     const [startLv, endLv] = PHASE_RANGES[phase];
 
     for (let lv = startLv; lv <= Math.min(endLv, maxLevel); lv++) {
-      const levelInPhase = lv - startLv; // 0-indexed within this phase
+      // Game formula: base + step × (level − 1); each phase only changes base/step
+      const levelInPhase = lv - 1;
       const statObj = {};
 
       for (const key of statKeys) {
@@ -136,6 +142,7 @@ function computeStats(values, maxLevel = 80, statKeys = ["hp", "atk", "def", "sp
 
 module.exports = {
   STARRAILRES_BASE,
+  setDataRef,
   fetchHsr,
   cdnUrl,
   PATH_MAP,

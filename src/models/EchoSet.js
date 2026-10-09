@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { GAME_IDS } = require("../../shared/games");
 
 /**
  * WuWa Echo Set (Sonata Effect) — equivalent to Genshin Artifact Sets and HSR Relic Sets.
@@ -7,10 +8,8 @@ const mongoose = require("mongoose");
  *   2-piece: minor bonus (e.g. +10% Glacio DMG)
  *   5-piece: major bonus (e.g. after Glacio skill, next Glacio DMG +100% for 15s)
  *
- * Known sets (as of v3.1):
- *   Freezing Frost, Molten Rift, Void Thunder, Sierra Gale,
- *   Celestial Light, Sun-Sinking Eclipse, Lingering Tunes,
- *   Rejuvenating Glow, Moonlit Clouds, Tidebreaking Courage
+ * Some later sets use 3-piece (or 1-piece) bonuses instead.
+ * The list is synchronised from the game data (see src/scripts/seedWuwa.js).
  */
 
 const echoSetSchema = new mongoose.Schema(
@@ -18,7 +17,7 @@ const echoSetSchema = new mongoose.Schema(
     game: {
       type: String,
       required: true,
-      enum: ["genshin", "hsr", "zzz", "wuwa", "endfield"],
+      enum: GAME_IDS,
       index: true,
     },
 
@@ -27,8 +26,12 @@ const echoSetSchema = new mongoose.Schema(
     name: { type: String, required: true }, // e.g. "Freezing Frost"
     description: String, // optional flavor text
 
-    twoPieceBonus: String,  // 2-piece sonata effect description
-    fivePieceBonus: String, // 5-piece sonata effect description
+    // Sonata effects. Most sets are 2+5-piece; newer ones are 3-piece only,
+    // and a few special sets activate with a single echo.
+    onePieceBonus: String,
+    twoPieceBonus: String,
+    threePieceBonus: String,
+    fivePieceBonus: String,
 
     // Primary element/theme association (for color coding and filtering)
     element: { type: String, index: true }, // e.g. "Glacio" for Freezing Frost

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { GAME_IDS } = require("../../shared/games");
 
 /**
  * WuWa Resonance Chain — equivalent to Genshin Constellations and HSR Eidolons.
@@ -11,7 +12,7 @@ const resonanceChainSchema = new mongoose.Schema(
     game: {
       type: String,
       required: true,
-      enum: ["genshin", "hsr", "zzz", "wuwa", "endfield"],
+      enum: GAME_IDS,
       index: true,
     },
 

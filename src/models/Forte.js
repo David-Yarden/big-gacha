@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { GAME_IDS } = require("../../shared/games");
 
 /**
  * WuWa Forte — equivalent to Genshin Talents and HSR Traces.
@@ -22,7 +23,7 @@ const forteSchema = new mongoose.Schema(
     game: {
       type: String,
       required: true,
-      enum: ["genshin", "hsr", "zzz", "wuwa", "endfield"],
+      enum: GAME_IDS,
       index: true,
     },
 
@@ -34,6 +35,11 @@ const forteSchema = new mongoose.Schema(
     resonanceLiberation: mongoose.Schema.Types.Mixed, // the "ultimate"
     forteCircuit:        mongoose.Schema.Types.Mixed, // signature passive mechanic
     introSkill:          mongoose.Schema.Types.Mixed, // triggered on switch-in
+    outroSkill:          mongoose.Schema.Types.Mixed, // triggered on switch-out
+
+    // In-game "Skill Input" guide:
+    // { features: [String], forteGauge: [String], instructions: [String], modes: [{ name, desc, icon }] }
+    guide: mongoose.Schema.Types.Mixed,
 
     // Inherent Skills — unlocked at ascension milestones, no level
     // [{ name, desc, icon, unlockPhase }]

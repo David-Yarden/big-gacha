@@ -17,7 +17,11 @@ import { EchoesPage } from "@/pages/EchoesPage";
 import { EchoDetailPage } from "@/pages/EchoDetailPage";
 import { EchoSetsPage } from "@/pages/EchoSetsPage";
 import { EchoSetDetailPage } from "@/pages/EchoSetDetailPage";
+import { BangboosPage } from "@/pages/BangboosPage";
+import { VersionsPage } from "@/pages/VersionsPage";
+import { BangbooDetailPage } from "@/pages/BangbooDetailPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
+import { UpdatesPage } from "@/pages/UpdatesPage";
 
 export default function App() {
   return (
@@ -25,6 +29,7 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/updates" element={<UpdatesPage />} />
           <Route path="/:game/characters" element={<CharactersPage />} />
           <Route path="/:game/characters/:name" element={<CharacterDetailPage />} />
           <Route path="/:game/weapons" element={<WeaponsPage />} />
@@ -41,6 +46,9 @@ export default function App() {
           <Route path="/:game/echoes/:name" element={<EchoDetailPage />} />
           <Route path="/:game/echosets" element={<EchoSetsPage />} />
           <Route path="/:game/echosets/:name" element={<EchoSetDetailPage />} />
+          <Route path="/:game/versions" element={<VersionsPage />} />
+          <Route path="/:game/bangboos" element={<BangboosPage />} />
+          <Route path="/:game/bangboos/:name" element={<BangbooDetailPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

@@ -15,4 +15,13 @@ module.exports = {
   ResonanceChain: require("./ResonanceChain"),
   Echo: require("./Echo"),
   EchoSet: require("./EchoSet"),
+  // ZZZ
+  AgentKit: require("./AgentKit"),
+  Bangboo: require("./Bangboo"),
+  Reference: require("./Reference"),
+  // Sync
+  SyncState: require("./SyncState"),
+  Changelog: require("./Changelog"),
+  // Kit enhancements
+  ...require("./Enhancement"),
 };

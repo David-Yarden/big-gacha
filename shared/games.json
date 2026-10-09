@@ -1,0 +1,170 @@
+{
+  "$comment": "Single source of truth for the games Big Gacha knows. Read by the API (src/) and the client (client/src/lib/registry.ts). Adding a game starts here.",
+  "games": [
+    {
+      "id": "genshin",
+      "name": "Genshin Impact",
+      "shortName": "Genshin",
+      "description": "Open-world action RPG by HoYoverse",
+      "available": true,
+      "logo": "/Genshin_title.svg",
+      "logoClassName": "invert",
+      "resources": [
+        { "path": "characters", "label": "Characters", "kind": "characters" },
+        { "path": "versions",   "label": "Versions",   "kind": "versions" },
+        { "path": "weapons",    "label": "Weapons",    "kind": "weapons" },
+        { "path": "artifacts",  "label": "Artifacts",  "kind": "gear" },
+        { "path": "materials",  "label": "Materials",  "kind": "materials" }
+      ],
+      "elements": ["Pyro", "Hydro", "Anemo", "Electro", "Dendro", "Cryo", "Geo"],
+      "weaponTypes": ["Sword", "Claymore", "Polearm", "Catalyst", "Bow"],
+      "regions": ["Mondstadt", "Liyue", "Inazuma", "Sumeru", "Fontaine", "Natlan", "Snezhnaya", "Nod-Krai", "Others"],
+      "regionIcons": {
+        "Mondstadt": "https://static.wikia.nocookie.net/gensin-impact/images/8/80/Emblem_Mondstadt.png",
+        "Liyue": "https://static.wikia.nocookie.net/gensin-impact/images/f/f8/Emblem_Liyue.png",
+        "Inazuma": "https://static.wikia.nocookie.net/gensin-impact/images/9/9e/Emblem_Inazuma.png",
+        "Sumeru": "https://static.wikia.nocookie.net/gensin-impact/images/3/38/Emblem_Sumeru.png",
+        "Fontaine": "https://static.wikia.nocookie.net/gensin-impact/images/4/49/Emblem_Fontaine.png",
+        "Natlan": "https://static.wikia.nocookie.net/gensin-impact/images/c/c3/Emblem_Natlan.png",
+        "Snezhnaya": "https://static.wikia.nocookie.net/gensin-impact/images/5/5a/Emblem_Snezhnaya.png",
+        "Nod-Krai": "https://static.wikia.nocookie.net/gensin-impact/images/8/87/Emblem_Nod-Krai.png"
+      }
+    },
+    {
+      "id": "hsr",
+      "name": "Honkai: Star Rail",
+      "shortName": "HSR",
+      "description": "Space fantasy RPG by HoYoverse",
+      "available": true,
+      "logo": "/HSR_title.png",
+      "resources": [
+        { "path": "characters", "label": "Characters",  "kind": "characters" },
+        { "path": "versions",   "label": "Versions",   "kind": "versions" },
+        { "path": "lightcones", "label": "Light Cones", "kind": "weapons" },
+        { "path": "relics",     "label": "Relics",      "kind": "gear" },
+        { "path": "materials",  "label": "Materials",   "kind": "materials" }
+      ],
+      "elements": ["Physical", "Fire", "Ice", "Lightning", "Wind", "Quantum", "Imaginary"],
+      "paths": ["Destruction", "The Hunt", "Erudition", "Harmony", "Nihility", "Preservation", "Abundance", "Remembrance", "Elation"],
+      "regionLabel": "Faction",
+      "regionIcons": {
+        "Astral Express": "https://static.wikia.nocookie.net/houkai-star-rail/images/5/56/Icon_Astral_Express.png",
+        "Herta Space Station": "https://static.wikia.nocookie.net/houkai-star-rail/images/e/e5/Icon_Herta_Space_Station.png",
+        "Belobog": "https://static.wikia.nocookie.net/houkai-star-rail/images/1/16/Bond_Belobog_Icon.png",
+        "The Xianzhou Luofu": "https://static.wikia.nocookie.net/houkai-star-rail/images/c/c0/Icon_The_Xianzhou_Luofu.png",
+        "The Xianzhou Yaoqing": "https://static.wikia.nocookie.net/houkai-star-rail/images/9/9c/Icon_Xianzhou_Alliance.png",
+        "The Xianzhou Yuque": "https://static.wikia.nocookie.net/houkai-star-rail/images/9/9c/Icon_Xianzhou_Alliance.png",
+        "The Xianzhou Zhuming": "https://static.wikia.nocookie.net/houkai-star-rail/images/9/9c/Icon_Xianzhou_Alliance.png",
+        "Stellaron Hunters": "https://static.wikia.nocookie.net/houkai-star-rail/images/8/84/Icon_Stellaron_Hunters.png",
+        "Interastral Peace Corporation": "https://static.wikia.nocookie.net/houkai-star-rail/images/7/78/Icon_Interastral_Peace_Corporation.png",
+        "Penacony": "https://static.wikia.nocookie.net/houkai-star-rail/images/f/ff/Icon_Penacony.png",
+        "Amphoreus": "https://static.wikia.nocookie.net/houkai-star-rail/images/3/33/Icon_Amphoreus.png",
+        "Planarcadia": "https://static.wikia.nocookie.net/houkai-star-rail/images/1/1e/Icon_Planarcadia.png",
+        "Galaxy Ranger": "https://static.wikia.nocookie.net/houkai-star-rail/images/f/f7/Bond_Galaxy_Ranger_Icon.png",
+        "Intelligentsia Guild": "https://static.wikia.nocookie.net/houkai-star-rail/images/2/2f/Icon_Intelligentsia_Guild.png",
+        "Masked Fools": "https://static.wikia.nocookie.net/houkai-star-rail/images/e/ec/Bond_Elation_Icon.png",
+        "Garden of Recollection": "https://static.wikia.nocookie.net/houkai-star-rail/images/0/04/Icon_Remembrance.png",
+        "Another World": "https://static.wikia.nocookie.net/houkai-star-rail/images/4/4d/Icon_Fate_stay_night.png"
+      },
+      "regions": [
+        "Astral Express", "Herta Space Station", "Belobog", "The Xianzhou Luofu", "The Xianzhou Yaoqing", "The Xianzhou Yuque", "The Xianzhou Zhuming", "Stellaron Hunters", "Interastral Peace Corporation", "Penacony", "Amphoreus", "Planarcadia", "Galaxy Ranger", "Intelligentsia Guild", "Masked Fools", "The Knights of Beauty", "Garden of Recollection", "The Cremators", "Another World", "Others"
+      ]
+    },
+    {
+      "id": "zzz",
+      "name": "Zenless Zone Zero",
+      "shortName": "ZZZ",
+      "description": "Urban fantasy ARPG by HoYoverse",
+      "available": true,
+      "logo": "/ZZZ_title.png",
+      "resources": [
+        { "path": "characters", "label": "Agents",      "kind": "characters" },
+        { "path": "versions",   "label": "Versions",   "kind": "versions" },
+        { "path": "weapons",    "label": "W-Engines",   "kind": "weapons" },
+        { "path": "relics",     "label": "Drive Discs", "kind": "gear" },
+        { "path": "bangboos",   "label": "Bangboos",    "kind": "bangboos" },
+        { "path": "materials",  "label": "Materials",   "kind": "materials" }
+      ],
+      "elements": ["Physical", "Fire", "Ice", "Electric", "Ether", "Wind", "Lumiflux"],
+      "specialties": ["Attack", "Stun", "Anomaly", "Support", "Defense", "Rupture", "Armorer"],
+      "regionLabel": "Faction",
+      "regionIcons": {
+        "Cunning Hares": "https://static.nanoka.cc/assets/zzz/IconCampGentleHouse.webp",
+        "Victoria Housekeeping Co.": "https://static.nanoka.cc/assets/zzz/IconCampVictoriaHousekeepingCo..webp",
+        "Belobog Heavy Industries": "https://static.nanoka.cc/assets/zzz/IconCampBelobogIndustries.webp",
+        "Sons of Calydon": "https://static.nanoka.cc/assets/zzz/IconCampSonsOfCalydon.webp",
+        "Hollow Special Operations Section 6": "https://static.nanoka.cc/assets/zzz/IconCampH.S.O-S6.webp",
+        "Public Security: Criminal Investigation Special Response Team": "https://static.nanoka.cc/assets/zzz/IconCampN.E.P.S..webp",
+        "Public Security: Metropolitan Order Division": "https://static.nanoka.cc/assets/zzz/IconCampN.E.P.S.Metropolitan.webp",
+        "Defense Force - Obol Squad": "https://static.nanoka.cc/assets/zzz/IconCampObols.webp",
+        "Stars of Lyra": "https://static.nanoka.cc/assets/zzz/IconCampStarsOfLyra.webp",
+        "Mockingbird": "https://static.nanoka.cc/assets/zzz/IconCampMockingBird.webp",
+        "Yunkui Summit": "https://static.nanoka.cc/assets/zzz/IconCampSuibian.webp",
+        "Spook Shack": "https://static.nanoka.cc/assets/zzz/IconCampSpookShack.webp",
+        "Krampus Compliance Authority": "https://static.nanoka.cc/assets/zzz/IconCampBlackRoot.webp",
+        "Angels of Delusion": "https://static.nanoka.cc/assets/zzz/IconCampAngelsOfDelusion.webp",
+        "Roscaelifer Airspace Patrol Department": "https://static.nanoka.cc/assets/zzz/IconCampA.P.D.webp",
+        "Roscaelifer Flint Workshop": "https://static.nanoka.cc/assets/zzz/IconCampFlontWorks.webp",
+        "Covenant of Dayat": "https://static.nanoka.cc/assets/zzz/IconCampCovenantOfDayat.webp",
+        "Phaethon": "https://raw.githubusercontent.com/Gaiiiaaa-GH/ZZZdle-Assets/master/type_icons/factions/phaethon.webp",
+        "Roscaelifer External Strategy Department": "https://static.wikia.nocookie.net/zenless-zone-zero/images/8/88/Faction_External_Strategy_Department_Icon.png",
+        "Defense Force - Silver Squad": "https://static.wikia.nocookie.net/zenless-zone-zero/images/b/b5/Faction_Defense_Force_-_Silver_Squad_Icon.png"
+      },
+      "regions": [
+        "Cunning Hares", "Victoria Housekeeping Co.", "Belobog Heavy Industries", "Sons of Calydon",
+        "Hollow Special Operations Section 6", "Public Security: Criminal Investigation Special Response Team",
+        "Public Security: Metropolitan Order Division", "Defense Force - Obol Squad", "Defense Force - Silver Squad",
+        "Stars of Lyra", "Mockingbird", "Yunkui Summit", "Spook Shack", "Krampus Compliance Authority",
+        "Angels of Delusion", "Phaethon", "Roscaelifer External Strategy Department",
+        "Roscaelifer Airspace Patrol Department", "Roscaelifer Flint Workshop", "Covenant of Dayat"
+      ]
+    },
+    {
+      "id": "wuwa",
+      "name": "Wuthering Waves",
+      "shortName": "WuWa",
+      "description": "Open-world action RPG by Kuro Games",
+      "available": true,
+      "logo": "/WuWa_title.png",
+      "resources": [
+        { "path": "characters", "label": "Characters",     "kind": "characters" },
+        { "path": "versions",   "label": "Versions",   "kind": "versions" },
+        { "path": "weapons",    "label": "Weapons",        "kind": "weapons" },
+        { "path": "echoes",     "label": "Echoes",         "kind": "echoes" },
+        { "path": "echosets",   "label": "Sonata Effects", "kind": "gear" },
+        { "path": "materials",  "label": "Materials",      "kind": "materials" }
+      ],
+      "elements": ["Glacio", "Fusion", "Electro", "Aero", "Spectro", "Havoc"],
+      "weaponTypes": ["Sword", "Broadblade", "Pistols", "Gauntlets", "Rectifier"],
+      "regions": ["Huanglong", "New Federation", "Rinascita", "Lahai-Roi", "Ashinohara", "The Black Shores", "Others"],
+      "regionIcons": {
+        "Huanglong": "https://static.wikia.nocookie.net/wutheringwaves/images/a/a3/Huanglong_Emblem.png",
+        "Rinascita": "https://static.wikia.nocookie.net/wutheringwaves/images/a/ab/Rinascita_Emblem.png",
+        "Lahai-Roi": "https://static.wikia.nocookie.net/wutheringwaves/images/b/bf/Roya_Frostlands_Emblem.png",
+        "The Black Shores": "https://static.wikia.nocookie.net/wutheringwaves/images/d/d9/The_Black_Shores_Emblem.png"
+      }
+    },
+    {
+      "id": "endfield",
+      "name": "Arknights: Endfield",
+      "shortName": "Endfield",
+      "description": "Open-world RPG by Hypergryph",
+      "available": true,
+      "logo": "/Endfield_title.png",
+      "resources": [
+        { "path": "characters", "label": "Operators",  "kind": "characters" },
+        { "path": "versions",   "label": "Versions",   "kind": "versions" },
+        { "path": "weapons",    "label": "Weapons",    "kind": "weapons" },
+        { "path": "relics",     "label": "Gear Sets",  "kind": "gear" },
+        { "path": "materials",  "label": "Materials",  "kind": "materials" }
+      ],
+      "elements": ["Physical", "Heat", "Cryo", "Electric", "Nature"],
+      "weaponTypes": ["Sword", "Greatsword", "Polearm", "Handcannon", "Arts Unit"],
+      "specialties": ["Guard", "Caster", "Defender", "Supporter", "Striker", "Vanguard"],
+      "rarities": [6, 5, 4],
+      "regionLabel": "Faction",
+      "regions": ["Endfield Industries", "Rhodes Island", "Hongshan Academy of Sciences", "Talos-II General Chamber of Commerce", "The Pack", "Seš'qa", "Hannabit Circuit", "Order of Steel Oath", "Cabal of Tranquility", "United Workers' Syndicates of Talos II", "Qingbo Stockade", "Yinglung Special Task Force"],
+      "regionIcons": {}
+    }
+  ]
+}

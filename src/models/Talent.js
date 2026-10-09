@@ -1,11 +1,12 @@
 const mongoose = require("mongoose");
+const { GAME_IDS } = require("../../shared/games");
 
 const talentSchema = new mongoose.Schema(
   {
     game: {
       type: String,
       required: true,
-      enum: ["genshin", "hsr", "zzz", "wuwa", "endfield"],
+      enum: GAME_IDS,
       index: true,
     },
 
@@ -18,9 +19,6 @@ const talentSchema = new mongoose.Schema(
     passive2: mongoose.Schema.Types.Mixed,
     passive3: mongoose.Schema.Types.Mixed,
     passive4: mongoose.Schema.Types.Mixed,
-
-    // Hexerei: Secret Rite additions (v6.2) — keyed by slot (combat1, combat2, combat3, passive1…)
-    hexerei: mongoose.Schema.Types.Mixed,
 
     costs: mongoose.Schema.Types.Mixed,
     images: mongoose.Schema.Types.Mixed,

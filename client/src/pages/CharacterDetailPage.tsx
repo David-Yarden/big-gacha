@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, type ReactNode } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,614 +7,66 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
-import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
+import { ImageWithFallback, viaCache } from "@/components/shared/ImageWithFallback";
+import { TrimmedImage } from "@/components/shared/TrimmedImage";
 import { RarityStars } from "@/components/shared/RarityStars";
-import { useApiQuery } from "@/hooks/useApiQuery";
-import {
-  getCharacter,
-  getTalent,
-  getConstellation,
-  getTrace,
-  getEidolon,
-  getForte,
-  getResonanceChain,
-} from "@/lib/api";
-import {
-  characterSplashUrl,
-  characterIconUrl,
-  talentIconUrl,
-  constellationIconUrl,
-  elementIconUrl,
-  weaponTypeIconUrl,
-  statIconUrl,
-  materialIconUrlById,
-  materialFallbackIconUrlById,
-  hsrMaterialIconUrl,
-  hsrElementIconUrl,
-  hsrPathIconUrl,
-  hsrStatIconUrl,
-  hsrStatName,
-  wuwaCharacterIconUrl,
-  wuwaCharacterSplashUrl,
-  wuwaElementIconUrl,
-  wuwaWeaponTypeIconUrl,
-  wuwaForteSkillIconUrl,
-  wuwaMaterialIconUrl,
-} from "@/lib/images";
-import { parseLabel, formatSpecialized } from "@/lib/formatters";
-import {
-  ASCENSION_LEVELS,
-  levelToAscensionPhase,
-  calculateAscensionMaterials,
-  calculateTalentMaterials,
-  calculateExpMaterials,
-  calculateBreakthroughMaterials,
-  mergeAllMaterials,
-} from "@/lib/materials";
-import {
-  ELEMENT_COLOR_MAP,
-  HSR_ELEMENT_COLOR_MAP,
-  WUWA_ELEMENT_COLOR_MAP,
-  WUWA_FORTE_SKILLS,
-  WUWA_FORTE_SKILL_LABELS,
-  WUWA_ASCENSION_LEVELS,
-  resolveRegion,
-} from "@/lib/constants";
-import type { Game, TalentCombat, Talent, Constellation, Trace, TraceNovaflare, Eidolon, Forte, ResonanceChain } from "@/lib/types";
-import type { MaterialCostEntry } from "@/lib/materials";
 import { TotalCostCalculator } from "@/components/character/TotalCostCalculator";
+import { MaterialCostTable, StatIcon, GlossaryContext, type GlossaryTerm } from "@/components/character/shared";
+import { KITS, useNoKit } from "@/components/character/kits";
+import { useApiQuery } from "@/hooks/useApiQuery";
+import { getCharacter } from "@/lib/api";
+import { hsrPathIconUrl } from "@/lib/images";
+import { formatSpecialized } from "@/lib/formatters";
+import { calculateAscensionMaterials, mergeAllMaterials } from "@/lib/materials";
+import { resolveRegion } from "@/lib/constants";
+import { gameUi } from "@/lib/gameUi";
+import { registryGame, resourceLabel } from "@/lib/registry";
+import type { Character, Game } from "@/lib/types";
 
-// HSR ascension checkpoints
-const HSR_ASCENSION_LEVELS = [1, 20, 30, 40, 50, 60, 70, 80] as const;
-
-function hsrLevelToAscensionPhase(level: number): number {
-  if (level <= 20) return 0;
-  if (level <= 30) return 1;
-  if (level <= 40) return 2;
-  if (level <= 50) return 3;
-  if (level <= 60) return 4;
-  if (level <= 70) return 5;
-  return 6;
-}
-
-// ── Text rendering helpers ────────────────────────────────────────────────────
-
-/** Converts **bold** markdown to <strong> elements for Genshin descriptions. */
-function renderMarkdownText(text: string) {
-  const parts = text.split(/\*\*([^*]+)\*\*/);
-  return parts.map((part, i) =>
-    i % 2 === 1
-      ? <strong key={i} className="text-foreground font-semibold">{part}</strong>
-      : part
-  );
-}
-
-function formatHsrParam(value: number, fmt: string): string {
-  switch (fmt.toLowerCase()) {
-    case "i": return String(Math.round(value));
-    case "f1": return value.toFixed(1);
-    case "f2": return value.toFixed(2);
-    default: return String(Math.round(value));
-  }
-}
+const NO_TERMS: GlossaryTerm[] = [];
 
 /**
- * Replaces #N[format] placeholders in HSR skill descriptions with styled spans.
- * Raw param values are fractions for percentages (e.g. 0.5 = 50%) — we detect
- * this by checking if the text immediately after the token starts with "%",
- * then multiply by 100 before formatting.
+ * Character page = shared header + level/ascension tab + the game's "kit"
+ * (skills, duplicates, controls) from components/character/kits.
  */
-function parseHsrDesc(desc: string, params: number[][] | undefined, level: number) {
-  const levelParams = params ? (params[Math.min(level - 1, params.length - 1)] ?? []) : [];
-  const clean = desc.replace(/<[^>]+>/g, "");
-  const parts = clean.split(/(#\d+\[[^\]]+\])/);
-  return parts.map((part, i) => {
-    if (i % 2 === 1) {
-      const m = part.match(/^#(\d+)\[([^\]]+)\]/);
-      if (!m) return part;
-      const idx = parseInt(m[1]) - 1;
-      const fmt = m[2].toLowerCase();
-      const raw = levelParams[idx];
-      if (raw === undefined) return part;
-      const nextPart = parts[i + 1] ?? "";
-      const n = nextPart.startsWith("%") ? raw * 100 : raw;
-      return (
-        <span key={i} className="font-bold text-amber-400">
-          {formatHsrParam(n, fmt)}
-        </span>
-      );
-    }
-    return part;
-  });
-}
-
-// ── Hexerei block ─────────────────────────────────────────────────────────────
-
-function HexereiBlock({ text }: { text: string }) {
-  return (
-    <div className="mt-3 rounded-md border border-violet-500/30 bg-violet-500/5 px-3 py-2">
-      <p className="text-xs font-semibold text-violet-400 mb-1">Hexerei: Secret Rite</p>
-      <p className="text-sm text-violet-200/80">{text}</p>
-    </div>
-  );
-}
-
-// ── Stat icon ────────────────────────────────────────────────────────────────
-
-function StatIcon({ substatType, className = "h-4 w-4 shrink-0" }: { substatType?: string; className?: string }) {
-  if (!substatType) return null;
-  const url = statIconUrl(substatType) ?? hsrStatIconUrl(substatType);
-  if (!url) return null;
-  return <img src={url} className={className} alt="" />;
-}
-
-// ── Genshin talent section ────────────────────────────────────────────────────
-
-function TalentSection({
-  talent,
-  level,
-  onLevelChange,
-  iconUrl,
-}: {
-  talent: TalentCombat;
-  level: number;
-  onLevelChange: (v: number) => void;
-  iconUrl?: string | null;
-}) {
-  const labels = talent.attributes?.labels ?? [];
-  const parameters = talent.attributes?.parameters;
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        {iconUrl && (
-          <img
-            src={iconUrl}
-            alt={talent.name}
-            className="h-10 w-10 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0"
-          />
-        )}
-        <div className="flex-1 flex items-center justify-between">
-          <h4 className="font-semibold">{talent.name}</h4>
-          <span className="text-sm text-muted-foreground">Lv. {level}</span>
-        </div>
-      </div>
-      <Slider
-        min={1}
-        max={15}
-        step={1}
-        value={[level]}
-        onValueChange={([v]) => onLevelChange(v)}
-      />
-      {talent.description && (
-        <p className="text-sm text-muted-foreground whitespace-pre-line">{renderMarkdownText(talent.description)}</p>
-      )}
-      {labels.length > 0 && (
-        <div className="rounded-lg border">
-          <table className="w-full text-sm">
-            <tbody>
-              {labels.map((label, i) => {
-                const parsed = parseLabel(label, parameters, level - 1);
-                if (!parsed.value) return null;
-                return (
-                  <tr key={i} className="border-b last:border-0">
-                    <td className="px-3 py-1.5 text-muted-foreground">
-                      {parsed.name}
-                    </td>
-                    <td className="px-3 py-1.5 text-right font-mono font-semibold text-amber-400">
-                      {parsed.value}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function PassiveSection({
-  passive,
-  iconUrl,
-}: {
-  passive: { name: string; description: string };
-  iconUrl?: string | null;
-}) {
-  return (
-    <div className="flex gap-3">
-      {iconUrl && (
-        <img
-          src={iconUrl}
-          alt={passive.name}
-          className="h-10 w-10 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0 mt-0.5"
-        />
-      )}
-      <div>
-        <h4 className="font-semibold">{passive.name}</h4>
-        <p className="mt-1 text-sm text-muted-foreground">{renderMarkdownText(passive.description)}</p>
-      </div>
-    </div>
-  );
-}
-
-// ── HSR trace section ─────────────────────────────────────────────────────────
-
-function HsrSkillSection({
-  skill,
-  label,
-  level,
-  onLevelChange,
-  defaultMax,
-}: {
-  skill: { name: string; maxLevel?: number; desc?: string; params?: number[][]; icon?: string };
-  label?: string;
-  level: number;
-  onLevelChange: (v: number) => void;
-  defaultMax: number;
-}) {
-  const effectiveMax = skill.maxLevel ?? defaultMax;
-  const clampedLevel = Math.min(level, effectiveMax);
-
-  return (
-    <div className="flex gap-3">
-      {skill.icon && (
-        <img
-          src={skill.icon}
-          alt={skill.name}
-          className="h-10 w-10 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0 mt-0.5"
-        />
-      )}
-      <div className="flex-1">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            {label && <Badge variant="outline" className="text-xs">{label}</Badge>}
-            <h4 className="font-semibold">{skill.name}</h4>
-          </div>
-          {effectiveMax > 1 && (
-            <span className="text-sm text-muted-foreground">Lv. {clampedLevel}</span>
-          )}
-        </div>
-        {effectiveMax > 1 && (
-          <div className="mt-2">
-            <Slider
-              min={1}
-              max={effectiveMax}
-              step={1}
-              value={[clampedLevel]}
-              onValueChange={([v]) => onLevelChange(v)}
-            />
-          </div>
-        )}
-        {skill.desc && (
-          <p className="mt-2 text-sm text-muted-foreground whitespace-pre-line">
-            {parseHsrDesc(skill.desc, skill.params, clampedLevel)}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Material cost table ───────────────────────────────────────────────────────
-
-function MaterialCostTable({ materials, isHsr }: { materials: MaterialCostEntry[]; isHsr?: boolean }) {
-  if (materials.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">No materials required</p>
-    );
-  }
-
-  return (
-    <div className="rounded-lg border">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b bg-muted/30">
-            <th className="px-3 py-2 text-left font-medium">Material</th>
-            <th className="px-3 py-2 text-right font-medium">Count</th>
-          </tr>
-        </thead>
-        <tbody>
-          {materials.map((mat) => (
-            <tr key={mat.name} className="border-b last:border-0">
-              <td className="px-3 py-1.5">
-                <span className="flex items-center gap-2">
-                  <ImageWithFallback
-                    src={mat.icon ?? (isHsr ? hsrMaterialIconUrl(mat.id) : materialIconUrlById(mat.id))}
-                    fallbackSrc={isHsr ? undefined : materialFallbackIconUrlById(mat.id)}
-                    alt={mat.name}
-                    className="h-6 w-6 shrink-0 object-contain"
-                  />
-                  {mat.name}
-                </span>
-              </td>
-              <td className="px-3 py-1.5 text-right font-mono">
-                {mat.count.toLocaleString()}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// ── Main page ─────────────────────────────────────────────────────────────────
-
-/**
- * Keep one major trace per ascension phase (A2/A4/A6).
- * When a phase appears several times, the source lists the original node first
- * and the reworked (Novaflare) node last.
- */
-function dedupeByPhase<T extends { unlockPhase?: number | null }>(
-  list: T[] | undefined,
-  preferOriginal: boolean
-): T[] | undefined {
-  if (!list || list.length < 2) return list;
-  const byPhase = new Map<string, T>();
-  list.forEach((item, i) => {
-    const key = item.unlockPhase != null ? `p${item.unlockPhase}` : `i${i}`;
-    if (!byPhase.has(key) || !preferOriginal) byPhase.set(key, item);
-  });
-  return [...byPhase.values()];
-}
-
-/**
- * Reworked characters list their minor stat nodes twice (old tree + new tree),
- * which doubles the totals. If the second half repeats the first half exactly,
- * keep a single copy.
- */
-function dedupeRepeatedHalf<T extends { stat: string; value: number }>(list: T[] | undefined): T[] | undefined {
-  if (!list || list.length < 2 || list.length % 2 !== 0) return list;
-  const half = list.length / 2;
-  const sig = (x: T) => `${x.stat}:${x.value}`;
-  const same = list.slice(0, half).every((x, i) => sig(x) === sig(list[i + half]));
-  return same ? list.slice(0, half) : list;
-}
-
 export function CharacterDetailPage() {
-  const { game, name } = useParams<{ game: string; name: string }>();
-  const isHsr = game === "hsr";
-  const isWuwa = game === "wuwa";
+  const { game = "genshin", name = "" } = useParams<{ game: string; name: string }>();
+  // Remount per character: levels and selections start fresh, and the kit hook
+  // chosen for a game never changes during a component's life.
+  return <CharacterDetail key={`${game}/${name}`} game={game as Game} name={name} />;
+}
 
-  const defaultLevel = isHsr ? 80 : 90;
-  const [charLevel, setCharLevel] = useState(defaultLevel);
-  const [talent1Level, setTalent1Level] = useState(10);
-  const [talent2Level, setTalent2Level] = useState(10);
-  const [talent3Level, setTalent3Level] = useState(10);
+function CharacterDetail({ game, name }: { game: Game; name: string }) {
+  const ui = gameUi(game);
+  const useKit = KITS[game] ?? useNoKit;
+
+  const [charLevel, setCharLevel] = useState(ui.maxLevel);
   const [activeElement, setActiveElement] = useState<string | null>(null);
-  const [novaflareMode, setNovaflareMode] = useState(true);
-  const [hsrBasicLevel, setHsrBasicLevel] = useState(6);
-  const [hsrSkillLevel, setHsrSkillLevel] = useState(10);
-  const [hsrUltLevel, setHsrUltLevel] = useState(10);
-  const [hsrTalentLevel, setHsrTalentLevel] = useState(10);
-  const [hsrTechLevel, setHsrTechLevel] = useState(10);
-  const [elationLevel, setElationLevel] = useState(10);
-  const [memospriteGroupLevels, setMemospriteGroupLevels] = useState<number[]>([]);
 
-  // WuWa forte skill levels (5 skills, all 1–10)
-  const [wuwaBasicLevel,     setWuwaBasicLevel]     = useState(10);
-  const [wuwaSkillLevel,     setWuwaSkillLevel]     = useState(10);
-  const [wuwaLibLevel,       setWuwaLibLevel]       = useState(10);
-  const [wuwaForteLevel,     setWuwaForteLevel]     = useState(10);
-  const [wuwaIntroLevel,     setWuwaIntroLevel]     = useState(10);
-
-  const { data: charData, loading: charLoading, error: charError } = useApiQuery(
-    () => getCharacter(game as Game, name!),
-    [game, name]
-  );
-
-  const { data: talentData } = useApiQuery(
-    () => isHsr ? getTrace(game as Game, name!) : isWuwa ? getForte(game as Game, name!) : getTalent(game as Game, name!),
-    [game, name]
-  );
-
-  const { data: constellationData } = useApiQuery(
-    () => isHsr ? getEidolon(game as Game, name!) : isWuwa ? getResonanceChain(game as Game, name!) : getConstellation(game as Game, name!),
-    [game, name]
-  );
-
-  const character = charData?.data;
-
-  // Genshin-only: talent / constellation
-  const talent = (!isHsr && !isWuwa) ? (talentData?.data as Talent | undefined) : undefined;
-  const constellation = (!isHsr && !isWuwa) ? (constellationData?.data as Constellation | undefined) : undefined;
-
-  // HSR-only: trace / eidolon
-  const trace = isHsr ? (talentData?.data as Trace | undefined) : undefined;
-  const eidolon = isHsr ? (constellationData?.data as Eidolon | undefined) : undefined;
-
-  // WuWa-only: forte / resonancechain
-  const forte = isWuwa ? (talentData?.data as Forte | undefined) : undefined;
-  const resonanceChain = isWuwa ? (constellationData?.data as ResonanceChain | undefined) : undefined;
+  const { data: charData, loading, error } = useApiQuery(() => getCharacter(game, name), [game, name]);
+  const baseCharacter = charData?.data;
+  // Trailblazer / Rover: the selected element's own path, stats, costs and art
+  const character = useMemo(() => withVariant(baseCharacter, activeElement), [baseCharacter, activeElement]);
 
   useEffect(() => {
     if (character?.availableElements?.length && !activeElement) {
       setActiveElement(character.availableElements[0]);
     }
-  }, [character]);
+  }, [character, activeElement]);
 
-  // For Travelers (Genshin), derive active variant data from the selected element
-  const isTraveler = !!talent?.isTraveler;
-  const activeVariant      = isTraveler && activeElement ? talent?.elementVariants?.[activeElement] : null;
-  const activeTalent       = activeVariant ?? talent;
-  const activeTalentImages = activeVariant?.images ?? talent?.images;
+  const kit = useKit({ game, name, activeElement });
 
-  const activeConstVariant  = constellation?.isTraveler && activeElement
-    ? constellation?.elementVariants?.[activeElement]
-    : null;
-  const activeConstellation  = activeConstVariant ?? constellation;
-  const activeConstImages    = activeConstVariant?.images ?? constellation?.images;
-
-  // For Trailblazer (HSR), derive active variant from selected element
-  const isTrailblazer = !!trace?.isTraveler;
-  const activeTraceVariant = isTrailblazer && activeElement
-    ? (trace?.elementVariants?.[activeElement] as Partial<Trace> | undefined)
-    : null;
-  const activeTrace = activeTraceVariant ?? trace;
-
-  useEffect(() => {
-    setMemospriteGroupLevels(
-      activeTrace?.memospriteGroups?.map(() => 10) ?? []
-    );
-  }, [activeTrace]);
-
-  const activeEidolonVariant = eidolon?.isTraveler && activeElement
-    ? (eidolon?.elementVariants?.[activeElement] as Partial<Eidolon> | undefined)
-    : null;
-  const activeEidolon = activeEidolonVariant ?? eidolon;
-
-  // Novaflare: merge enhanced active skills over base trace data when in Novaflare mode.
-  // For reworked characters the source lists BOTH the original and the new major traces
-  // (two A2, two A4, two A6, original first). Keep one per ascension phase: the original
-  // in "Original" mode, the newest otherwise.
-  const hasNovaflare = !!(activeTrace?.novaflare || activeEidolon?.novaflare);
-  const displayTrace = useMemo((): Trace | null | undefined => {
-    if (!activeTrace) return activeTrace;
-    const preferOriginal = hasNovaflare && !novaflareMode;
-    const majorTraces = dedupeByPhase(activeTrace.majorTraces, preferOriginal);
-    const statBonuses = dedupeRepeatedHalf(activeTrace.statBonuses);
-    if (!novaflareMode || !activeTrace.novaflare) return { ...activeTrace, majorTraces, statBonuses } as Trace;
-    const nf: TraceNovaflare = activeTrace.novaflare;
-    return {
-      ...activeTrace,
-      majorTraces,
-      statBonuses,
-      basicAtk:  nf.basicAtk  ?? activeTrace.basicAtk,
-      skill:     nf.skill     ?? activeTrace.skill,
-      ultimate:  nf.ultimate  ?? activeTrace.ultimate,
-      talent:    nf.talent    ?? activeTrace.talent,
-      technique: nf.technique ?? activeTrace.technique,
-    };
-  }, [activeTrace, novaflareMode, hasNovaflare]);
-
-  // WuWa Rover variant handling (mirrors Trailblazer pattern)
-  const isRover = !!forte?.isTraveler;
-  const activeForteVariant = isRover && activeElement
-    ? (forte?.elementVariants?.[activeElement] as Partial<Forte> | undefined)
-    : null;
-  const activeForte = activeForteVariant ?? forte;
-
-  const activeRcVariant = resonanceChain?.isTraveler && activeElement
-    ? (resonanceChain?.elementVariants?.[activeElement] as Partial<ResonanceChain> | undefined)
-    : null;
-  const activeResonanceChain = activeRcVariant ?? resonanceChain;
-
-  // Level/ascension calculations
-  const ascLevels = isHsr ? HSR_ASCENSION_LEVELS : WUWA_ASCENSION_LEVELS;
-  const toPhase = isHsr ? hsrLevelToAscensionPhase : levelToAscensionPhase;
-  const ascensionPhase = toPhase(charLevel);
-
-  const ascensionMaterials = useMemo(
-    () => calculateAscensionMaterials(character?.costs, ascensionPhase),
-    [character?.costs, ascensionPhase]
+  const ascensionPhase = ui.levelToPhase(Math.min(charLevel, ui.maxLevel));
+  const levelMaterials = useMemo(
+    () => mergeAllMaterials(calculateAscensionMaterials(character?.costs, ascensionPhase), ui.levelMaterials(charLevel, character ?? undefined)),
+    [character, ascensionPhase, charLevel, ui]
   );
-  const expMaterials = useMemo(
-    () => isHsr ? [] : calculateExpMaterials(charLevel),
-    [isHsr, charLevel]
-  );
-  const breakthroughMaterials = useMemo(
-    () => isHsr ? [] : calculateBreakthroughMaterials(charLevel),
-    [isHsr, charLevel]
-  );
-
-  // Talent costs (Genshin)
-  const talentCosts = activeTalent?.costs;
-  const talent1Materials = useMemo(
-    () => calculateTalentMaterials(talentCosts, talent1Level),
-    [talentCosts, talent1Level]
-  );
-  const talent2Materials = useMemo(
-    () => calculateTalentMaterials(talentCosts, talent2Level),
-    [talentCosts, talent2Level]
-  );
-  const talent3Materials = useMemo(
-    () => calculateTalentMaterials(talentCosts, talent3Level),
-    [talentCosts, talent3Level]
-  );
-
-  // Trace costs (HSR) — costs is { basicAtk: { lvl2: [...] }, skill: {...}, ... }
-  const hsrBasicMaterials = useMemo(() => {
-    if (!isHsr) return [];
-    const c = activeTrace?.costs;
-    return calculateTalentMaterials(c?.basicAtk, hsrBasicLevel);
-  }, [isHsr, activeTrace, hsrBasicLevel]);
-  const hsrSkillMaterials = useMemo(() => {
-    if (!isHsr) return [];
-    const c = activeTrace?.costs;
-    return calculateTalentMaterials(c?.skill, hsrSkillLevel);
-  }, [isHsr, activeTrace, hsrSkillLevel]);
-  const hsrUltMaterials = useMemo(() => {
-    if (!isHsr) return [];
-    const c = activeTrace?.costs;
-    return calculateTalentMaterials(c?.ultimate, hsrUltLevel);
-  }, [isHsr, activeTrace, hsrUltLevel]);
-  const hsrTalentMaterials = useMemo(() => {
-    if (!isHsr) return [];
-    const c = activeTrace?.costs;
-    return calculateTalentMaterials(c?.talent, hsrTalentLevel);
-  }, [isHsr, activeTrace, hsrTalentLevel]);
-  const hsrTechMaterials = useMemo(() => {
-    if (!isHsr) return [];
-    const c = activeTrace?.costs;
-    return calculateTalentMaterials(c?.technique, hsrTechLevel);
-  }, [isHsr, activeTrace, hsrTechLevel]);
-
-  const elationMaterials = useMemo(() => {
-    if (!isHsr || !activeTrace?.elation) return [];
-    return calculateTalentMaterials(activeTrace.costs?.elation, elationLevel);
-  }, [isHsr, activeTrace, elationLevel]);
-
-  const memospriteGroupMaterials = useMemo(() => {
-    if (!isHsr || !activeTrace?.memospriteGroups) return [];
-    return activeTrace.memospriteGroups.map((group, idx) =>
-      calculateTalentMaterials(group.costs, memospriteGroupLevels[idx] ?? 10)
-    );
-  }, [isHsr, activeTrace, memospriteGroupLevels]);
-
-  // WuWa forte materials — compute per skill from activeForte.costs
-  const wuwaForteMaterials = useMemo(() => {
-    if (!isWuwa || !activeForte?.costs) return [];
-    const costs = activeForte.costs as Record<string, Record<string, import("@/lib/materials").MaterialCostEntry[]>>;
-    return mergeAllMaterials(
-      calculateTalentMaterials(costs.basicAtk,            wuwaBasicLevel),
-      calculateTalentMaterials(costs.resonanceSkill,       wuwaSkillLevel),
-      calculateTalentMaterials(costs.resonanceLiberation,  wuwaLibLevel),
-      calculateTalentMaterials(costs.forteCircuit,         wuwaForteLevel),
-      calculateTalentMaterials(costs.introSkill,           wuwaIntroLevel),
-    );
-  }, [isWuwa, activeForte, wuwaBasicLevel, wuwaSkillLevel, wuwaLibLevel, wuwaForteLevel, wuwaIntroLevel]);
-
   const totalMaterials = useMemo(
-    () => isHsr
-      ? mergeAllMaterials(
-          ascensionMaterials,
-          hsrBasicMaterials,
-          hsrSkillMaterials,
-          hsrUltMaterials,
-          hsrTalentMaterials,
-          hsrTechMaterials,
-          elationMaterials,
-          ...memospriteGroupMaterials,
-        )
-      : isWuwa
-      ? mergeAllMaterials(ascensionMaterials, wuwaForteMaterials)
-      : mergeAllMaterials(
-          ascensionMaterials,
-          expMaterials,
-          breakthroughMaterials,
-          talent1Materials,
-          talent2Materials,
-          talent3Materials,
-        ),
-    [isHsr, isWuwa, ascensionMaterials, expMaterials, breakthroughMaterials,
-     talent1Materials, talent2Materials, talent3Materials,
-     hsrBasicMaterials, hsrSkillMaterials, hsrUltMaterials, hsrTalentMaterials, hsrTechMaterials,
-     elationMaterials, memospriteGroupMaterials, wuwaForteMaterials]
+    () => mergeAllMaterials(levelMaterials, ...kit.skillSections.map((s) => s.materials)),
+    [levelMaterials, kit.skillSections]
   );
 
-  if (charLoading) {
+  if (loading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-48" />
@@ -624,184 +76,47 @@ export function CharacterDetailPage() {
     );
   }
 
-  if (charError || !character) {
+  if (error || !character) {
     return (
       <div className="space-y-4">
-        <Link to={`/${game}/characters`}>
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="mr-1 h-4 w-4" /> Back
-          </Button>
-        </Link>
+        <BackLink game={game} />
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
-          {charError ?? "Character not found"}
+          {error ?? "Character not found"}
         </div>
       </div>
     );
   }
 
-  const displayElement = (isTraveler || isTrailblazer || isRover) ? (activeElement ?? character.element) : character.element;
-  const elementColorMap = isHsr ? HSR_ELEMENT_COLOR_MAP : isWuwa ? WUWA_ELEMENT_COLOR_MAP : ELEMENT_COLOR_MAP;
-  const elementClass = elementColorMap[displayElement ?? ""] ?? "bg-muted";
-
-  const tabTraces = isHsr ? "traces" : isWuwa ? "forte" : "talents";
-  const tabEidolons = isHsr ? "eidolons" : isWuwa ? "resonancechain" : "constellations";
+  const isMultiElement = !!character.availableElements?.length;
+  const displayElement = isMultiElement ? (activeElement ?? character.element) : character.element;
+  const elementClass = ui.elementColor[displayElement ?? ""] ?? "bg-muted";
+  const [skillsTab] = kit.tabs;
 
   return (
+    <GlossaryContext.Provider value={character.glossary ?? NO_TERMS}>
     <div className="space-y-6">
-      {/* Back button */}
-      <Link to={`/${game}/characters`}>
-        <Button variant="ghost" size="sm">
-          <ArrowLeft className="mr-1 h-4 w-4" /> Characters
-        </Button>
-      </Link>
+      <BackLink game={game} />
 
-      {/* Header */}
-      <div className="relative">
-        <Card className={`overflow-hidden aspect-[2/1] ${elementClass}/20`}>
-          <ImageWithFallback
-            src={isWuwa
-              ? (wuwaCharacterSplashUrl(character.images) ?? wuwaCharacterIconUrl(character.images))
-              : (characterSplashUrl(character.images) ?? characterIconUrl(character.images))
-            }
-            alt={character.name}
-            className="w-full h-full object-contain"
-          />
-        </Card>
+      <CharacterHeader character={character} game={game} element={displayElement} elementClass={elementClass} />
 
-        {/* Info panel */}
-        <div className="mt-6 md:mt-0 md:absolute md:inset-y-0 md:right-0 md:w-[42%] md:flex md:flex-col md:justify-center md:p-6">
-          <div className="space-y-4 md:bg-background/90 md:backdrop-blur-sm md:rounded-xl md:p-5 md:border md:border-white/10">
-          <div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-3xl font-bold">{character.name}</h1>
-              <Badge className={`${elementClass} border-0 text-white flex items-center gap-1`}>
-                {isHsr
-                  ? hsrElementIconUrl(displayElement) && <img src={hsrElementIconUrl(displayElement)!} className="h-4 w-4" alt="" />
-                  : isWuwa
-                  ? wuwaElementIconUrl(displayElement) && <img src={wuwaElementIconUrl(displayElement)!} className="h-4 w-4" alt="" />
-                  : elementIconUrl(displayElement) && <img src={elementIconUrl(displayElement)!} className="h-4 w-4" alt="" />
-                }
-                {displayElement}
-              </Badge>
-            </div>
-            {character.title && (
-              <p className="mt-1 text-muted-foreground">{character.title}</p>
-            )}
-          </div>
-
-          <RarityStars rarity={character.rarity} className="text-lg" />
-
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            {isHsr ? (
-              character.path && (
-                <div className="flex items-center gap-1">
-                  <span className="text-muted-foreground">Path: </span>
-                  {hsrPathIconUrl(character.path) && (
-                    <img src={hsrPathIconUrl(character.path)!} className="h-4 w-4" alt="" />
-                  )}
-                  {character.path}
-                </div>
-              )
-            ) : (
-              <>
-                {character.weaponType && (
-                  <div className="flex items-center gap-1">
-                    <span className="text-muted-foreground">Weapon: </span>
-                    {(isWuwa ? wuwaWeaponTypeIconUrl(character.weaponType) : weaponTypeIconUrl(character.weaponType)) && (
-                      <img
-                        src={(isWuwa ? wuwaWeaponTypeIconUrl(character.weaponType) : weaponTypeIconUrl(character.weaponType))!}
-                        className="h-4 w-4"
-                        alt=""
-                      />
-                    )}
-                    {character.weaponType}
-                  </div>
-                )}
-                <div>
-                  <span className="text-muted-foreground">Region: </span>
-                  {resolveRegion(character.region, character.name)}
-                </div>
-              </>
-            )}
-            {character.substatText && (
-              <div className="flex items-center gap-1">
-                <span className="text-muted-foreground">Asc. Stat: </span>
-                <span className="flex items-center gap-1">
-                  <StatIcon substatType={character.substatType} className="h-3.5 w-3.5 opacity-70 shrink-0" />
-                  {character.substatText}
-                </span>
-              </div>
-            )}
-            {character.affiliation && (
-              <div>
-                <span className="text-muted-foreground">Affiliation: </span>
-                {character.affiliation}
-              </div>
-            )}
-            {character.constellation && (
-              <div>
-                <span className="text-muted-foreground">Constellation: </span>
-                {character.constellation}
-              </div>
-            )}
-            {character.birthday && (
-              <div>
-                <span className="text-muted-foreground">Birthday: </span>
-                {character.birthday}
-              </div>
-            )}
-            {character.version && (
-              <div>
-                <span className="text-muted-foreground">Version: </span>
-                {character.version}
-              </div>
-            )}
-          </div>
-
-          {character.cv && (
-            <div className="space-y-1 text-sm">
-              <p className="font-medium">Voice Actors</p>
-              <div className="grid grid-cols-2 gap-1 text-muted-foreground">
-                {character.cv.english && <span>EN: {character.cv.english}</span>}
-                {character.cv.japanese && <span>JP: {character.cv.japanese}</span>}
-                {character.cv.chinese && <span>CN: {character.cv.chinese}</span>}
-                {character.cv.korean && <span>KR: {character.cv.korean}</span>}
-              </div>
-            </div>
-          )}
-
-          {character.description && (
-            <p className="text-sm text-muted-foreground">
-              {character.description}
-            </p>
-          )}
-          </div>
-        </div>
-      </div>
-
-      {/* Element/path selector for multi-element characters */}
-      {character.availableElements && character.availableElements.length > 0 && (
+      {/* Element / path selector for multi-element characters */}
+      {isMultiElement && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm text-muted-foreground">{isHsr ? "Path:" : "Element:"}</span>
-          {character.availableElements.map((el) => {
-            const elClass = elementColorMap[el] ?? "bg-muted";
+          <span className="text-sm text-muted-foreground">{ui.variantLabel}</span>
+          {character.availableElements!.map((el) => {
             const isActive = activeElement === el;
+            const icon = ui.elementIcon(el);
             return (
               <button
                 key={el}
                 onClick={() => setActiveElement(el)}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-all
-                  ${isActive
-                    ? `${elClass} text-white ring-2 ring-white/60 ring-offset-2 ring-offset-background`
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-all ${
+                  isActive
+                    ? `${ui.elementColor[el] ?? "bg-muted"} text-white ring-2 ring-white/60 ring-offset-2 ring-offset-background`
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  }`}
+                }`}
               >
-                {isHsr
-                  ? hsrElementIconUrl(el) && <img src={hsrElementIconUrl(el)!} className="h-4 w-4" alt="" />
-                  : isWuwa
-                  ? wuwaElementIconUrl(el) && <img src={wuwaElementIconUrl(el)!} className="h-4 w-4" alt="" />
-                  : elementIconUrl(el) && <img src={elementIconUrl(el)!} className="h-4 w-4" alt="" />
-                }
+                {icon && <img src={icon} className="h-4 w-4" alt="" />}
                 {el}
               </button>
             );
@@ -809,679 +124,473 @@ export function CharacterDetailPage() {
         </div>
       )}
 
-      {/* Novaflare version toggle — shown for any Novaflare character (affects all tabs) */}
-      {isHsr && (activeTrace?.novaflare || activeEidolon?.novaflare) && (
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Version:</span>
-          {(["Original", "Novaflare"] as const).map((label) => {
-            const isActive = label === "Novaflare" ? novaflareMode : !novaflareMode;
-            return (
-              <button
-                key={label}
-                onClick={() => setNovaflareMode(label === "Novaflare")}
-                className={`rounded-full px-3 py-1 text-sm font-medium transition-all
-                  ${isActive
-                    ? "bg-amber-500 text-white ring-2 ring-white/60 ring-offset-2 ring-offset-background"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {kit.controls}
 
-      {/* Tabs */}
-      <Tabs defaultValue={tabTraces}>
+      <Tabs defaultValue={skillsTab?.value ?? "ascension"}>
         <TabsList>
-          <TabsTrigger value={tabTraces}>
-            {isHsr ? "Traces" : isWuwa ? "Forte" : "Talents"}
-          </TabsTrigger>
-          <TabsTrigger value={tabEidolons}>
-            {isHsr ? "Eidolons" : isWuwa ? "Resonance Chain" : "Constellations"}
-          </TabsTrigger>
+          {kit.tabs.map((t) => (
+            <TabsTrigger key={t.value} value={t.value}>{t.label}</TabsTrigger>
+          ))}
           <TabsTrigger value="ascension">Ascension</TabsTrigger>
         </TabsList>
 
-        {/* Talents tab (Genshin) */}
-        {!isHsr && !isWuwa && (
-          <TabsContent value="talents">
-            <div className="space-y-6">
-              {activeTalent?.combat1 && (
-                <Card>
-                  <CardContent className="p-4">
-                    <TalentSection
-                      talent={activeTalent.combat1}
-                      level={talent1Level}
-                      onLevelChange={setTalent1Level}
-                      iconUrl={talentIconUrl(activeTalentImages, "combat1")}
-                    />
-                    {activeTalent.hexerei?.combat1 && <HexereiBlock text={activeTalent.hexerei.combat1} />}
-                  </CardContent>
-                </Card>
-              )}
-              {activeTalent?.combat2 && (
-                <Card>
-                  <CardContent className="p-4">
-                    <TalentSection
-                      talent={activeTalent.combat2}
-                      level={talent2Level}
-                      onLevelChange={setTalent2Level}
-                      iconUrl={talentIconUrl(activeTalentImages, "combat2")}
-                    />
-                    {activeTalent.hexerei?.combat2 && <HexereiBlock text={activeTalent.hexerei.combat2} />}
-                  </CardContent>
-                </Card>
-              )}
-              {activeTalent?.combat3 && (
-                <Card>
-                  <CardContent className="p-4">
-                    <TalentSection
-                      talent={activeTalent.combat3}
-                      level={talent3Level}
-                      onLevelChange={setTalent3Level}
-                      iconUrl={talentIconUrl(activeTalentImages, "combat3")}
-                    />
-                    {activeTalent.hexerei?.combat3 && <HexereiBlock text={activeTalent.hexerei.combat3} />}
-                  </CardContent>
-                </Card>
-              )}
-              {activeTalent?.combatsp && (
-                <Card>
-                  <CardContent className="p-4">
-                    <TalentSection
-                      talent={activeTalent.combatsp}
-                      level={1}
-                      onLevelChange={() => {}}
-                      iconUrl={talentIconUrl(activeTalentImages, "combatsp")}
-                    />
-                    {activeTalent.hexerei?.combatsp && <HexereiBlock text={activeTalent.hexerei.combatsp} />}
-                  </CardContent>
-                </Card>
-              )}
-              {(activeTalent?.passive1 || activeTalent?.passive2 || activeTalent?.passive3) && (
-                <div className="space-y-3">
-                  <h3 className="text-lg font-semibold">Passive Talents</h3>
-                  {(
-                    [
-                      ["passive1", activeTalent?.passive1],
-                      ["passive2", activeTalent?.passive2],
-                      ["passive3", activeTalent?.passive3],
-                      ["passive4", activeTalent?.passive4],
-                    ] as const
-                  )
-                    .filter(([, p]) => p != null)
-                    .map(([key, passive]) => (
-                      <Card key={key}>
-                        <CardContent className="p-4">
-                          <PassiveSection
-                            passive={passive!}
-                            iconUrl={talentIconUrl(activeTalentImages, key)}
-                          />
-                          {activeTalent?.hexerei?.[key] && <HexereiBlock text={activeTalent.hexerei[key]} />}
-                        </CardContent>
-                      </Card>
-                    ))}
-                </div>
-              )}
-            </div>
-          </TabsContent>
-        )}
+        {kit.tabs.map((t) => (
+          <TabsContent key={t.value} value={t.value}>{t.content}</TabsContent>
+        ))}
 
-        {/* Traces tab (HSR) */}
-        {isHsr && (
-          <TabsContent value="traces">
-            <div className="space-y-4">
-              {displayTrace && (
-                (
-                  [
-                    { skill: displayTrace.basicAtk,  label: "Basic ATK", level: hsrBasicLevel, onLevelChange: setHsrBasicLevel, defaultMax: 10 },
-                    { skill: displayTrace.skill,     label: "Skill",     level: hsrSkillLevel, onLevelChange: setHsrSkillLevel, defaultMax: 15 },
-                    { skill: displayTrace.ultimate,  label: "Ultimate",  level: hsrUltLevel,   onLevelChange: setHsrUltLevel,   defaultMax: 15 },
-                    { skill: displayTrace.talent,    label: "Talent",    level: hsrTalentLevel,onLevelChange: setHsrTalentLevel,defaultMax: 15 },
-                    { skill: displayTrace.technique, label: "Technique", level: hsrTechLevel,  onLevelChange: setHsrTechLevel,  defaultMax: 15 },
-                  ] as Array<{ skill: { name: string; maxLevel?: number; desc?: string; params?: number[][]; icon?: string } | null | undefined; label: string; level: number; onLevelChange: (v: number) => void; defaultMax: number }>
-                )
-                  .filter((e) => e.skill != null)
-                  .map((e) => (
-                    <Card key={e.label}>
-                      <CardContent className="p-4">
-                        <HsrSkillSection skill={e.skill!} label={e.label} level={e.level} onLevelChange={e.onLevelChange} defaultMax={e.defaultMax} />
-                      </CardContent>
-                    </Card>
-                  ))
-              )}
-              {/* Elation Skill */}
-              {activeTrace?.elation && (
-                <Card>
-                  <CardContent className="p-4">
-                    <HsrSkillSection skill={activeTrace.elation} label="Elation" level={elationLevel} onLevelChange={setElationLevel} defaultMax={15} />
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Memosprite Groups — each group is one skill_tree node whose skills level together */}
-              {activeTrace?.memospriteGroups?.map((group, idx) => {
-                const effectiveMax = group.skills[0]?.maxLevel ?? 12;
-                const level = Math.min(memospriteGroupLevels[idx] ?? 10, effectiveMax);
-                return (
-                  <Card key={`memospriteGroup_${idx}`}>
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">Memosprite</Badge>
-                          <span className="font-semibold text-sm">
-                            {group.skills.length === 1
-                              ? group.skills[0].name
-                              : `${group.skills.length} Skills`}
-                          </span>
-                        </div>
-                        <span className="text-sm text-muted-foreground">Lv. {level}</span>
-                      </div>
-                      <Slider
-                        min={1}
-                        max={effectiveMax}
-                        step={1}
-                        value={[level]}
-                        onValueChange={([v]) => setMemospriteGroupLevels(prev => {
-                          const next = [...prev]; next[idx] = v; return next;
-                        })}
-                      />
-                      <div className="space-y-3 pt-1">
-                        {group.skills.map((skill, si) => (
-                          <div key={si} className={`flex gap-3 ${si > 0 ? "pt-3 border-t" : ""}`}>
-                            {skill.icon && (
-                              <img
-                                src={skill.icon}
-                                alt={skill.name}
-                                className="h-8 w-8 rounded object-contain bg-muted/40 p-0.5 shrink-0 mt-0.5"
-                              />
-                            )}
-                            <div>
-                              <h5 className="font-medium text-sm">{skill.name}</h5>
-                              {skill.desc && (
-                                <p className="mt-1 text-xs text-muted-foreground whitespace-pre-line">
-                                  {parseHsrDesc(skill.desc, skill.params, level)}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-
-              {displayTrace?.majorTraces && displayTrace.majorTraces.length > 0 && (
-                <div className="space-y-3">
-                  {displayTrace.majorTraces.map((trace, i) => (
-                    <Card key={i}>
-                      <CardContent className="p-4">
-                        <div className="flex gap-3">
-                          {trace.icon && (
-                            <img
-                              src={trace.icon}
-                              alt={trace.name}
-                              className="h-10 w-10 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0 mt-0.5"
-                            />
-                          )}
-                          <div>
-                            <div className="flex items-center gap-2">
-                              {trace.unlockPhase != null && (
-                                <Badge variant="outline" className="text-xs">A{trace.unlockPhase}</Badge>
-                              )}
-                              <h4 className="font-semibold">{trace.name}</h4>
-                            </div>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              {parseHsrDesc(trace.desc ?? "", trace.params, 1)}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-
-              {displayTrace?.statBonuses && displayTrace.statBonuses.length > 0 && (() => {
-                const grouped = new Map<string, number>();
-                for (const bonus of displayTrace.statBonuses) {
-                  grouped.set(bonus.stat, (grouped.get(bonus.stat) ?? 0) + bonus.value);
-                }
-                return (
-                  <Card>
-                    <CardContent className="p-4">
-                      <h4 className="font-semibold mb-3">Stat Bonuses</h4>
-                      <div className="rounded-lg border">
-                        <table className="w-full text-sm">
-                          <tbody>
-                            {Array.from(grouped.entries()).map(([stat, total]) => (
-                              <tr key={stat} className="border-b last:border-0">
-                                <td className="px-3 py-1.5 text-muted-foreground">
-                                  <span className="flex items-center gap-1.5">
-                                    {hsrStatIconUrl(stat) && (
-                                      <img src={hsrStatIconUrl(stat)!} className="h-4 w-4 opacity-70 shrink-0" alt="" />
-                                    )}
-                                    {hsrStatName(stat)}
-                                  </span>
-                                </td>
-                                <td className="px-3 py-1.5 text-right font-mono font-semibold text-amber-400">
-                                  {total < 1
-                                    ? `+${(total * 100).toFixed(1)}%`
-                                    : `+${Number.isInteger(total) ? total : total.toFixed(1)}`}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })()}
-            </div>
-          </TabsContent>
-        )}
-
-        {/* Forte tab (WuWa) */}
-        {isWuwa && (
-          <TabsContent value="forte">
-            <div className="space-y-4">
-              {activeForte && (
-                <>
-                  {/* Five leveled active skills */}
-                  {(
-                    [
-                      { key: "basicAtk",            skill: activeForte.basicAtk,            level: wuwaBasicLevel,  onLevelChange: setWuwaBasicLevel  },
-                      { key: "resonanceSkill",       skill: activeForte.resonanceSkill,       level: wuwaSkillLevel,  onLevelChange: setWuwaSkillLevel  },
-                      { key: "resonanceLiberation",  skill: activeForte.resonanceLiberation,  level: wuwaLibLevel,    onLevelChange: setWuwaLibLevel    },
-                      { key: "forteCircuit",         skill: activeForte.forteCircuit,         level: wuwaForteLevel,  onLevelChange: setWuwaForteLevel  },
-                      { key: "introSkill",           skill: activeForte.introSkill,           level: wuwaIntroLevel,  onLevelChange: setWuwaIntroLevel  },
-                    ] as Array<{ key: string; skill: { name: string; maxLevel?: number; desc?: string; params?: number[][]; icon?: string } | null | undefined; level: number; onLevelChange: (v: number) => void }>
-                  )
-                    .filter((e) => e.skill != null)
-                    .map((e) => (
-                      <Card key={e.key}>
-                        <CardContent className="p-4">
-                          <HsrSkillSection
-                            skill={e.skill!}
-                            label={WUWA_FORTE_SKILL_LABELS[e.key]}
-                            level={e.level}
-                            onLevelChange={e.onLevelChange}
-                            defaultMax={10}
-                          />
-                        </CardContent>
-                      </Card>
-                    ))
-                  }
-
-                  {/* Inherent Skills (passive, milestone-unlocked) */}
-                  {(activeForte.inherentSkill1 || activeForte.inherentSkill2) && (
-                    <div className="space-y-3">
-                      <h3 className="text-lg font-semibold">Inherent Skills</h3>
-                      {[activeForte.inherentSkill1, activeForte.inherentSkill2]
-                        .filter(Boolean)
-                        .map((skill, i) => (
-                          <Card key={i}>
-                            <CardContent className="p-4">
-                              <div className="flex gap-3">
-                                {skill!.icon && (
-                                  <img
-                                    src={wuwaForteSkillIconUrl(skill!.icon) ?? skill!.icon}
-                                    alt={skill!.name}
-                                    className="h-10 w-10 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0 mt-0.5"
-                                  />
-                                )}
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    {skill!.unlockPhase != null && (
-                                      <Badge variant="outline" className="text-xs">A{skill!.unlockPhase}</Badge>
-                                    )}
-                                    <h4 className="font-semibold">{skill!.name}</h4>
-                                  </div>
-                                  {skill!.desc && (
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                      {parseHsrDesc(skill!.desc, undefined, 1)}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                    </div>
-                  )}
-
-                  {/* Stat Bonus Nodes */}
-                  {activeForte.statBonuses && activeForte.statBonuses.length > 0 && (() => {
-                    const grouped = new Map<string, number>();
-                    for (const bonus of activeForte.statBonuses) {
-                      grouped.set(bonus.stat, (grouped.get(bonus.stat) ?? 0) + bonus.value);
-                    }
-                    return (
-                      <Card>
-                        <CardContent className="p-4">
-                          <h4 className="font-semibold mb-3">Stat Bonuses</h4>
-                          <div className="rounded-lg border">
-                            <table className="w-full text-sm">
-                              <tbody>
-                                {Array.from(grouped.entries()).map(([stat, total]) => (
-                                  <tr key={stat} className="border-b last:border-0">
-                                    <td className="px-3 py-1.5 text-muted-foreground">{stat}</td>
-                                    <td className="px-3 py-1.5 text-right font-mono font-semibold text-amber-400">
-                                      {total < 1
-                                        ? `+${(total * 100).toFixed(1)}%`
-                                        : `+${Number.isInteger(total) ? total : total.toFixed(1)}`}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })()}
-                </>
-              )}
-            </div>
-          </TabsContent>
-        )}
-
-        {/* Resonance Chain tab (WuWa) */}
-        {isWuwa && (
-          <TabsContent value="resonancechain">
-            <div className="space-y-3">
-              {activeResonanceChain && (
-                (
-                  [
-                    ["s1", activeResonanceChain.s1],
-                    ["s2", activeResonanceChain.s2],
-                    ["s3", activeResonanceChain.s3],
-                    ["s4", activeResonanceChain.s4],
-                    ["s5", activeResonanceChain.s5],
-                    ["s6", activeResonanceChain.s6],
-                  ] as const
-                ).map(([key, s]) =>
-                  s ? (
-                    <Card key={key}>
-                      <CardContent className="p-4">
-                        <div className="flex gap-3">
-                          {activeResonanceChain.images?.[key] && (
-                            <img
-                              src={activeResonanceChain.images[key]}
-                              alt={s.name}
-                              className="h-10 w-10 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0"
-                            />
-                          )}
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline">{key.toUpperCase()}</Badge>
-                              <h4 className="font-semibold">{s.name}</h4>
-                            </div>
-                            <p className="mt-2 text-sm text-muted-foreground">
-                              {renderMarkdownText(s.description)}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ) : null
-                )
-              )}
-            </div>
-          </TabsContent>
-        )}
-
-        {/* Constellations tab (Genshin) */}
-        {!isHsr && !isWuwa && (
-          <TabsContent value="constellations">
-            <div className="space-y-3">
-              {activeConstellation &&
-                (
-                  [
-                    ["c1", activeConstellation.c1],
-                    ["c2", activeConstellation.c2],
-                    ["c3", activeConstellation.c3],
-                    ["c4", activeConstellation.c4],
-                    ["c5", activeConstellation.c5],
-                    ["c6", activeConstellation.c6],
-                  ] as const
-                ).map(([key, c]) =>
-                  c ? (
-                    <Card key={key}>
-                      <CardContent className="p-4">
-                        <div className="flex gap-3">
-                          {(() => {
-                            const iconUrl = constellationIconUrl(activeConstImages, key);
-                            return iconUrl ? (
-                              <img
-                                src={iconUrl}
-                                alt={c.name}
-                                className="h-10 w-10 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0"
-                              />
-                            ) : null;
-                          })()}
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline">{key.toUpperCase()}</Badge>
-                              <h4 className="font-semibold">{c.name}</h4>
-                            </div>
-                            <p className="mt-2 text-sm text-muted-foreground">
-                              {renderMarkdownText(c.description)}
-                            </p>
-                          </div>
-                        </div>
-                        {activeConstellation?.hexerei?.[key] && (
-                          <HexereiBlock text={activeConstellation.hexerei[key]} />
-                        )}
-                      </CardContent>
-                    </Card>
-                  ) : null
-                )}
-            </div>
-          </TabsContent>
-        )}
-
-        {/* Eidolons tab (HSR) */}
-        {isHsr && (
-          <TabsContent value="eidolons">
-            <div className="space-y-3">
-              {activeEidolon &&
-                (
-                  [
-                    ["e1", activeEidolon.e1],
-                    ["e2", activeEidolon.e2],
-                    ["e3", activeEidolon.e3],
-                    ["e4", activeEidolon.e4],
-                    ["e5", activeEidolon.e5],
-                    ["e6", activeEidolon.e6],
-                  ] as const
-                ).map(([key, e]) => {
-                  if (!e) return null;
-                  const novaflareEntry = novaflareMode ? activeEidolon.novaflare?.[key] : undefined;
-                  const displayE = novaflareEntry ? { ...e, ...novaflareEntry } : e;
-                  const isEnhanced = !!novaflareEntry;
-                  return (
-                    <Card key={key} className={isEnhanced ? "border-amber-500/40" : ""}>
-                      <CardContent className="p-4">
-                        <div className="flex gap-3">
-                          {activeEidolon.images?.[key] && (
-                            <img
-                              src={activeEidolon.images![key]}
-                              alt={displayE.name}
-                              className="h-10 w-10 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0"
-                            />
-                          )}
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline">{key.toUpperCase()}</Badge>
-                              <h4 className="font-semibold">{displayE.name}</h4>
-                              {isEnhanced && (
-                                <span className="text-xs font-medium text-amber-400 ml-auto">Novaflare</span>
-                              )}
-                            </div>
-                            <p className="mt-2 text-sm text-muted-foreground">
-                              {renderMarkdownText(displayE.description)}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-            </div>
-          </TabsContent>
-        )}
-
-        {/* Ascension tab */}
         <TabsContent value="ascension">
-          <Card>
-            <CardContent className="p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold">{isWuwa ? "Resonator Level" : "Character Level"}</h3>
-                <span className="text-sm text-muted-foreground">
-                  Lv. {charLevel}{charLevel <= (isHsr ? 80 : 90) ? ` (Phase ${ascensionPhase})` : " (Breakthrough)"}
-                </span>
-              </div>
-              <Slider
-                min={1}
-                max={isHsr ? 80 : 90}
-                step={1}
-                value={[charLevel > (isHsr ? 80 : 90) ? (isHsr ? 80 : 90) : charLevel]}
-                onValueChange={([v]) => setCharLevel(v)}
-                disabled={charLevel > (isHsr ? 80 : 90)}
-              />
-              {/* Ascension quick-jump buttons */}
-              <div className="flex justify-between text-xs text-muted-foreground">
-                {ascLevels.map((l) => (
-                  <button
-                    key={l}
-                    className={`px-1 ${charLevel === l ? "text-primary font-bold" : ""}`}
-                    onClick={() => setCharLevel(l)}
-                  >
-                    {l}
-                  </button>
-                ))}
-              </div>
-              {/* Breakthrough levels — Genshin only (WuWa has no breakthrough) */}
-              {!isHsr && !isWuwa && (
-                <div className="flex items-center gap-2 pt-1 border-t">
-                  <span className="text-xs text-muted-foreground shrink-0">Breakthrough</span>
-                  {([95, 100] as const).map((l) => (
-                    <button
-                      key={l}
-                      onClick={() => setCharLevel(charLevel === l ? 90 : l)}
-                      className={`px-3 py-0.5 rounded text-xs border transition-colors ${
-                        charLevel === l
-                          ? "border-amber-400 text-amber-400 font-bold bg-amber-400/10"
-                          : "border-muted-foreground/30 text-muted-foreground hover:border-amber-400/60 hover:text-amber-400"
-                      }`}
-                    >
-                      Lv. {l}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {character.stats?.[charLevel] && (() => {
-                const s = character.stats![charLevel];
-                const rows = [
-                  { label: "HP",  statType: "FIGHT_PROP_HP",     value: Math.round(s.hp).toLocaleString() },
-                  { label: "ATK", statType: "FIGHT_PROP_ATTACK", value: Math.round(s.atk).toLocaleString() },
-                  { label: "DEF", statType: "FIGHT_PROP_DEFENSE",value: Math.round(s.def).toLocaleString() },
-                ];
-                if (isHsr && (s as Record<string, number>).spd != null) {
-                  rows.push({ label: "SPD", statType: "Speed", value: Math.round((s as Record<string, number>).spd).toString() });
-                } else if (!isHsr && character.substatText) {
-                  rows.push({
-                    label: character.substatText,
-                    statType: character.substatType ?? "",
-                    value: formatSpecialized(s.specialized, character.substatType),
-                  });
-                }
-                return (
-                  <div className="rounded-lg border">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b bg-muted/30">
-                          <th className="px-3 py-2 text-left font-medium" colSpan={2}>
-                            Base Stats at Lv. {charLevel}
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rows.map(({ label, statType, value }) => (
-                          <tr key={label} className="border-b last:border-0">
-                            <td className="px-3 py-1.5 text-muted-foreground">
-                              <span className="flex items-center gap-1.5">
-                                <StatIcon substatType={statType} className="h-4 w-4 opacity-70 shrink-0" />
-                                {label}
-                              </span>
-                            </td>
-                            <td className="px-3 py-1.5 text-right font-mono font-semibold">
-                              {value}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })()}
-
-              <MaterialCostTable materials={mergeAllMaterials(ascensionMaterials, expMaterials, breakthroughMaterials)} isHsr={isHsr} />
-            </CardContent>
-          </Card>
+          <AscensionPanel
+            character={character}
+            game={game}
+            level={charLevel}
+            onLevelChange={setCharLevel}
+            phase={ascensionPhase}
+            materials={levelMaterials}
+          />
         </TabsContent>
       </Tabs>
 
-      {/* Total Cost Calculator */}
       <TotalCostCalculator
-        ascensionMaterials={mergeAllMaterials(ascensionMaterials, expMaterials, breakthroughMaterials)}
-        skillSections={isHsr
-          ? [
-              { label: "Basic ATK", materials: hsrBasicMaterials,  level: hsrBasicLevel   },
-              { label: "Skill",     materials: hsrSkillMaterials,   level: hsrSkillLevel   },
-              { label: "Ultimate",  materials: hsrUltMaterials,     level: hsrUltLevel     },
-              { label: "Talent",    materials: hsrTalentMaterials,  level: hsrTalentLevel  },
-              { label: "Technique", materials: hsrTechMaterials,    level: hsrTechLevel    },
-              ...(activeTrace?.elation ? [{ label: "Elation", materials: elationMaterials, level: elationLevel }] : []),
-              ...memospriteGroupMaterials.map((mats, i) => ({
-                label: activeTrace?.memospriteGroups?.[i]?.skills?.[0]?.name ?? `Memosprite ${i + 1}`,
-                materials: mats,
-                level: memospriteGroupLevels[i] ?? 10,
-              })),
-            ]
-          : isWuwa
-          ? (WUWA_FORTE_SKILLS.map((key) => ({
-              label: WUWA_FORTE_SKILL_LABELS[key],
-              materials: calculateTalentMaterials(
-                (activeForte?.costs as Record<string, Record<string, import("@/lib/materials").MaterialCostEntry[]>> | undefined)?.[key],
-                key === "basicAtk" ? wuwaBasicLevel
-                  : key === "resonanceSkill" ? wuwaSkillLevel
-                  : key === "resonanceLiberation" ? wuwaLibLevel
-                  : key === "forteCircuit" ? wuwaForteLevel
-                  : wuwaIntroLevel
-              ),
-              level: key === "basicAtk" ? wuwaBasicLevel
-                : key === "resonanceSkill" ? wuwaSkillLevel
-                : key === "resonanceLiberation" ? wuwaLibLevel
-                : key === "forteCircuit" ? wuwaForteLevel
-                : wuwaIntroLevel,
-            })))
-          : [
-              { label: "Combat 1", materials: talent1Materials, level: talent1Level },
-              { label: "Combat 2", materials: talent2Materials, level: talent2Level },
-              { label: "Combat 3", materials: talent3Materials, level: talent3Level },
-            ]
-        }
-        skillsLabel={isHsr ? "Traces" : isWuwa ? "Forte" : "Talents"}
+        ascensionMaterials={levelMaterials}
+        skillSections={kit.skillSections}
+        skillsLabel={kit.skillsLabel}
         totalMaterials={totalMaterials}
         charLevel={charLevel}
-        isHsr={isHsr}
+        game={game}
       />
     </div>
+    </GlossaryContext.Provider>
+  );
+}
+
+function withVariant(character: Character | undefined, element: string | null): Character | undefined {
+  const variant = element ? character?.elementVariants?.[element] : undefined;
+  if (!character || !variant) return character;
+  return {
+    ...character,
+    ...variant,
+    element,
+    images: { ...(character.images ?? {}), ...(variant.images ?? {}) },
+  };
+}
+
+function BackLink({ game }: { game: string }) {
+  return (
+    <Button asChild variant="ghost" size="sm">
+      <Link to={`/${game}/characters`}>
+        <ArrowLeft className="mr-1 h-4 w-4" /> {resourceLabel(game, "characters", "Characters")}
+      </Link>
+    </Button>
+  );
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+
+/**
+ * Splash art, with the character's outfits as thumbnails underneath: a click shows that
+ * outfit's art, its name and description. Nothing extra for characters without outfits.
+ */
+/**
+ * Share of fully transparent rows at the top of an image (0 when unreadable).
+ * WuWa portraits are drawn low in their 696×960 canvas: the frame drops that empty band.
+ */
+function useEmptyTop(src: string | null | undefined, enabled: boolean): number {
+  const [top, setTop] = useState(0);
+  useEffect(() => {
+    setTop(0);
+    if (!enabled || !src) return;
+    let cancelled = false;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (cancelled) return;
+      try {
+        const W = 120;
+        const H = Math.round((img.naturalHeight / img.naturalWidth) * W);
+        const c = document.createElement("canvas");
+        c.width = W;
+        c.height = H;
+        const ctx = c.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0, W, H);
+        const data = ctx.getImageData(0, 0, W, H).data;
+        let y = 0;
+        rows: for (; y < H; y++) for (let x = 0; x < W; x++) if (data[(y * W + x) * 4 + 3] > 16) break rows;
+        // Keep a little air above the head; never cut more than a third
+        setTop(Math.min(Math.max(0, y / H - 0.03), 0.33));
+      } catch {
+        /* cross-origin pixels: keep the full frame */
+      }
+    };
+    img.src = viaCache(src) ?? src;
+    return () => {
+      cancelled = true;
+    };
+  }, [src, enabled]);
+  return top;
+}
+
+function SplashWithOutfits({ character, game, elementClass }: { character: Character; game: Game; elementClass: string }) {
+  const ui = gameUi(game);
+  const skins = character.skins ?? [];
+  const [selected, setSelected] = useState(0);
+  useEffect(() => setSelected(0), [character.name]);
+  const skin = skins[selected];
+  const src = skin && !skin.default ? skin.splash : ui.splash(character.images);
+  const emptyTop = useEmptyTop(src, game === "wuwa");
+
+  return (
+    <div className="mx-auto w-full max-w-[340px] space-y-3 md:mx-0">
+      {/* Splash in portrait: WuWa art fits exactly, wider art is cropped around the character */}
+      <Card
+        className={`relative w-full gap-0 overflow-hidden py-0 transition-[aspect-ratio] duration-300 ${elementClass}/20`}
+        style={{ aspectRatio: `696 / ${Math.round(960 * (1 - emptyTop))}` }}
+      >
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_80%_at_50%_30%,transparent_0%,rgba(0,0,0,0.35)_100%)]" />
+        <ImageWithFallback
+          key={src ?? ""}
+          src={src}
+          // Big art straight from its CDN, except the wiki's (it blocks hotlinks: served by our cache)
+          cache={/wikia\.nocookie\.net/.test(src ?? "")}
+          alt={skin?.name ?? character.name}
+          className={`relative h-full w-full ${
+            skin?.fit === "contain" && !skin.default ? "object-contain p-6" : `object-cover ${emptyTop > 0 ? "object-bottom" : "object-top"}`
+          }`}
+        />
+      </Card>
+
+      {skins.length > 1 && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Outfits">
+            {skins.map((sk, i) => (
+              <button
+                key={sk.name ?? i}
+                type="button"
+                onClick={() => setSelected(i)}
+                aria-pressed={i === selected}
+                title={sk.name}
+                className={`h-14 w-14 overflow-hidden rounded-lg border-2 bg-muted/40 transition-colors ${
+                  i === selected ? "border-primary" : "border-transparent opacity-70 hover:opacity-100"
+                }`}
+              >
+                <ImageWithFallback src={sk.icon ?? null} alt={sk.name ?? ""} className="h-full w-full object-cover object-top" />
+              </button>
+            ))}
+          </div>
+          {skin && (
+            <div className="text-sm">
+              <p className="font-semibold">
+                {skin.name ?? "Outfit"}
+                {skin.default && <span className="ml-2 text-xs font-normal text-muted-foreground">Default</span>}
+              </p>
+              {skin.desc && <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-muted-foreground">{skin.desc}</p>}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CharacterHeader({
+  character,
+  game,
+  element,
+  elementClass,
+}: {
+  character: Character;
+  game: Game;
+  element?: string;
+  elementClass: string;
+}) {
+  const ui = gameUi(game);
+  const elementIcon = ui.elementIcon(character.subElement ?? element) ?? ui.elementIcon(element);
+  const weaponIcon = ui.weaponTypeIcon?.(character.weaponType);
+  const pathIcon = ui.showPath ? hsrPathIconUrl(character.path) : null;
+
+  const voices = character.cv
+    ? ([
+        ["EN", character.cv.english],
+        ["JP", character.cv.japanese],
+        ["CN", character.cv.chinese],
+        ["KR", character.cv.korean],
+      ] as const).filter(([, v]) => v)
+    : [];
+
+  return (
+    <section className="grid gap-6 md:grid-cols-[minmax(240px,340px)_minmax(0,1fr)] md:gap-8">
+      <SplashWithOutfits character={character} game={game} elementClass={elementClass} />
+
+      <div className="flex min-w-0 flex-col gap-5 md:pt-1">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-4xl font-extrabold tracking-tight">{character.name}</h1>
+            {element && element !== "None" && (
+              <Badge className={`${elementClass} flex items-center gap-1 border-0 text-white`}>
+                {elementIcon &&
+                  (game === "endfield" ? (
+                    // Endfield glyphs sit off-centre in their PNG: trim them
+                    <span className="inline-flex h-4 w-4 items-center justify-center">
+                      <TrimmedImage src={elementIcon} alt="" maxWidth={14} maxHeight={14} />
+                    </span>
+                  ) : (
+                    <img src={elementIcon} className="h-4 w-4" alt="" />
+                  ))}
+                {character.subElement ?? element}
+              </Badge>
+            )}
+            <RarityStars rarity={character.rarity} className="text-lg" badge />
+          </div>
+          {character.title && <p className="text-muted-foreground">{character.title}</p>}
+        </div>
+
+        {character.description && (
+          <p className="max-w-3xl text-[15px] leading-relaxed text-muted-foreground">{character.description}</p>
+        )}
+
+        {/* One panel: label / value rows in two columns, voice actors at the bottom */}
+        <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-card/70">
+          <dl className="-mb-px grid px-5 sm:grid-cols-2 sm:gap-x-10">
+            {ui.showPath && character.path && (
+              <InfoCell label="Path">
+                {pathIcon && <img src={pathIcon} className="h-4 w-4" alt="" />}
+                {character.path}
+              </InfoCell>
+            )}
+            {!ui.showPath && character.weaponType && (
+              <InfoCell label="Weapon">
+                {weaponIcon && (
+                  <img
+                    src={weaponIcon}
+                    className="h-4 w-4"
+                    alt=""
+                    onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+                  />
+                )}
+                {character.weaponType}
+              </InfoCell>
+            )}
+            {ui.showRegion && (
+              <InfoCell label="Region">
+                <InlineIcon src={registryGame(game)?.regionIcons?.[character.region ?? ""] ?? null} className="h-6 w-6" />
+                {resolveRegion(character.region, character.name)}
+              </InfoCell>
+            )}
+            {character.specialty && (
+              <InfoCell label={game === "endfield" ? "Class" : "Specialty"}>
+                {ui.specialtyIcon?.(character.specialty) && (
+                  <img src={ui.specialtyIcon(character.specialty)!} className="h-4 w-4" alt="" />
+                )}
+                {character.specialty}
+              </InfoCell>
+            )}
+            {character.subElement && (
+              <InfoCell label="Attribute">
+                <InlineIcon src={ui.elementIcon(character.subElement)} />
+                {`${character.subElement} (${character.element})`}
+              </InfoCell>
+            )}
+            {character.attackType && (
+              <InfoCell label="Attack type">
+                {character.attackType.split(" / ").map((a) => (
+                  <span key={a} className="inline-flex items-center gap-1">
+                    <InlineIcon src={ui.attackTypeIcon?.(a)} />
+                    {a}
+                  </span>
+                ))}
+              </InfoCell>
+            )}
+            {character.substatText && (
+              <InfoCell label="Ascension stat">
+                <StatIcon substatType={character.substatType} className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                {character.substatText}
+              </InfoCell>
+            )}
+            {character.affiliation && (
+              <InfoCell label={game === "zzz" || game === "endfield" ? "Faction" : "Affiliation"}>
+                <InlineIcon
+                  src={character.images?.faction ?? registryGame(game)?.regionIcons?.[character.affiliation] ?? null}
+                  className="h-6 w-6"
+                />
+                {character.affiliation}
+              </InfoCell>
+            )}
+            {character.constellation && <InfoCell label="Constellation">{character.constellation}</InfoCell>}
+            {character.birthday && <InfoCell label="Birthday">{character.birthday}</InfoCell>}
+            {character.signatureWeapon && (
+              <InfoCell label="Signature">
+                <Link
+                  to={`/${game}/${game === "hsr" ? "lightcones" : "weapons"}/${encodeURIComponent(character.signatureWeapon)}`}
+                  className="text-primary hover:underline"
+                >
+                  {character.signatureWeapon}
+                </Link>
+              </InfoCell>
+            )}
+            {character.gender && <InfoCell label="Gender">{character.gender}</InfoCell>}
+            {character.height && <InfoCell label="Height">{character.height}</InfoCell>}
+            {character.version && <InfoCell label="Release">Version {character.version}</InfoCell>}
+          </dl>
+
+          {voices.length > 0 && (
+            <div className="relative flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-white/[0.06] bg-white/[0.02] px-5 py-3 text-sm">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Voice</span>
+              {voices.map(([lang, name]) => (
+                <span key={lang} className="whitespace-nowrap">
+                  <span className="mr-1.5 text-xs font-semibold text-muted-foreground">{lang}</span>
+                  {name}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Small icon next to a value; hidden when missing or broken. */
+function InlineIcon({ src, className = "h-4 w-4" }: { src?: string | null; className?: string }) {
+  if (!src) return null;
+  return (
+    <img
+      src={viaCache(src) ?? src}
+      alt=""
+      className={`${className} shrink-0 object-contain`}
+      onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+    />
+  );
+}
+
+function InfoCell({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-baseline justify-between gap-4 border-b border-white/[0.06] py-3 text-sm">
+      <dt className="shrink-0 text-muted-foreground">{label}</dt>
+      <dd className="flex min-w-0 items-center justify-end gap-1.5 text-right font-semibold">{children}</dd>
+    </div>
+  );
+}
+
+// ── Level / ascension ─────────────────────────────────────────────────────────
+
+function AscensionPanel({
+  character,
+  game,
+  level,
+  onLevelChange,
+  phase,
+  materials,
+}: {
+  character: Character;
+  game: Game;
+  level: number;
+  onLevelChange: (level: number) => void;
+  phase: number;
+  materials: ReturnType<typeof mergeAllMaterials>;
+}) {
+  const ui = gameUi(game);
+  const inBreakthrough = level > ui.maxLevel;
+  const stats = character.stats?.[level];
+
+  const rows: Array<{ label: string; statType: string; value: string }> = [];
+  if (stats) {
+    rows.push(
+      { label: "HP",  statType: "FIGHT_PROP_HP",      value: Math.round(stats.hp).toLocaleString() },
+      { label: "ATK", statType: "FIGHT_PROP_ATTACK",  value: Math.round(stats.atk).toLocaleString() },
+      { label: "DEF", statType: "FIGHT_PROP_DEFENSE", value: Math.round(stats.def).toLocaleString() },
+    );
+    const spd = (stats as Record<string, number>).spd;
+    if (spd != null) {
+      rows.push({ label: "SPD", statType: "Speed", value: Math.round(spd).toString() });
+    } else if (character.substatText) {
+      rows.push({
+        label: character.substatText,
+        statType: character.substatType ?? "",
+        value: formatSpecialized(stats.specialized, character.substatType),
+      });
+    }
+    // Other stats that grow with level (Endfield: Strength, Agility, Intellect, Will)
+    for (const [label, v] of Object.entries((stats as { extra?: Record<string, number> }).extra ?? {})) {
+      rows.push({ label, statType: "", value: Math.round(v).toLocaleString() });
+    }
+    // Base stats that do not grow with level (ZZZ: Impact, CRIT, Anomaly…)
+    for (const x of character.extraStats ?? []) rows.push({ label: x.name, statType: "", value: x.value });
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">{ui.levelLabel}</h3>
+          <span className="text-sm text-muted-foreground">
+            Lv. {level}{inBreakthrough ? " (Breakthrough)" : ` (Phase ${phase})`}
+          </span>
+        </div>
+        <Slider
+          min={1}
+          max={ui.maxLevel}
+          step={1}
+          value={[Math.min(level, ui.maxLevel)]}
+          onValueChange={([v]) => onLevelChange(v)}
+          disabled={inBreakthrough}
+        />
+        <div className="flex justify-between text-xs text-muted-foreground">
+          {ui.ascensionLevels.map((l) => (
+            <button
+              key={l}
+              className={`px-1 ${level === l ? "text-primary font-bold" : ""}`}
+              onClick={() => onLevelChange(l)}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+        {ui.breakthroughLevels.length > 0 && (
+          <div className="flex items-center gap-2 pt-1 border-t">
+            <span className="text-xs text-muted-foreground shrink-0">Breakthrough</span>
+            {ui.breakthroughLevels.map((l) => (
+              <button
+                key={l}
+                onClick={() => onLevelChange(level === l ? ui.maxLevel : l)}
+                className={`px-3 py-0.5 rounded text-xs border transition-colors ${
+                  level === l
+                    ? "border-amber-400 text-amber-400 font-bold bg-amber-400/10"
+                    : "border-muted-foreground/30 text-muted-foreground hover:border-amber-400/60 hover:text-amber-400"
+                }`}
+              >
+                Lv. {l}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {rows.length > 0 && (
+          <div className="rounded-lg border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/30">
+                  <th className="px-3 py-2 text-left font-medium" colSpan={2}>Base Stats at Lv. {level}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(({ label, statType, value }) => (
+                  <tr key={label} className="border-b last:border-0">
+                    <td className="px-3 py-1.5 text-muted-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <StatIcon substatType={statType} className="h-4 w-4 opacity-70 shrink-0" />
+                        {label}
+                      </span>
+                    </td>
+                    <td className="px-3 py-1.5 text-right font-mono font-semibold">{value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <MaterialCostTable materials={materials} game={game} />
+      </CardContent>
+    </Card>
   );
 }

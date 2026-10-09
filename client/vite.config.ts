@@ -8,13 +8,16 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@shared": path.resolve(__dirname, "../shared"),
     },
   },
   server: {
     port: 3000,
+    // The game registry lives in ../shared (also read by the API)
+    fs: { allow: [".."] },
     proxy: {
       "/api": {
-        target: "http://localhost:5000",
+        target: "http://127.0.0.1:5000",
         changeOrigin: true,
       },
     },

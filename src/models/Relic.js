@@ -1,11 +1,12 @@
 const mongoose = require("mongoose");
+const { GAME_IDS } = require("../../shared/games");
 
 const relicSchema = new mongoose.Schema(
   {
     game: {
       type: String,
       required: true,
-      enum: ["genshin", "hsr", "zzz", "wuwa", "endfield"],
+      enum: GAME_IDS,
       index: true,
     },
     sourceId: Number, // numeric set ID (e.g. 101)
@@ -16,6 +17,11 @@ const relicSchema = new mongoose.Schema(
 
     twoPieceBonus: String,
     fourPieceBonus: String, // null for Planar Ornaments (2-piece only sets)
+    description: String, // set story (ZZZ Drive Discs)
+    // Endfield gear sets: one bonus for N pieces, and the pieces of every tier
+    setPieces: Number,
+    setBonus: String,
+    items: [mongoose.Schema.Types.Mixed], // [{ name, slot, rarity, icon, level }]
 
     version: String,
 

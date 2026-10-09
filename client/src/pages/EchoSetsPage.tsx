@@ -4,11 +4,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { ResourceGrid } from "@/components/shared/ResourceGrid";
+import { GearStatTable } from "@/components/shared/GearStatTable";
 import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { getEchoSets } from "@/lib/api";
 import { useInfiniteList } from "@/hooks/useInfiniteList";
+import { registryGame } from "@/lib/registry";
+import { renderMarkdownText } from "@/components/character/shared";
 import { wuwaEchoSetIconUrl } from "@/lib/images";
-import { WUWA_ELEMENTS, WUWA_ELEMENT_COLOR_MAP } from "@/lib/constants";
+import { WUWA_ELEMENT_COLOR_MAP } from "@/lib/constants";
 import type { Game, EchoSet } from "@/lib/types";
 import type { FilterGroup, SortOption } from "@/components/shared/FilterBar";
 
@@ -16,7 +19,7 @@ const ECHOSET_FILTERS: FilterGroup[] = [
   {
     key: "element",
     label: "Element",
-    options: WUWA_ELEMENTS.map((el) => ({ value: el, label: el })),
+    options: (registryGame("wuwa")?.elements ?? []).map((el) => ({ value: el, label: el })),
   },
 ];
 
@@ -32,31 +35,35 @@ function EchoSetCard({ echoSet, game }: { echoSet: EchoSet; game: string }) {
   return (
     <Link to={`/${game}/echosets/${encodeURIComponent(echoSet.name)}`} className="h-full">
       <Card className="group h-full flex flex-col overflow-hidden transition-colors hover:border-primary/40">
-        <div className="relative flex h-32 shrink-0 items-center justify-center bg-muted/10">
+        <div className="flex items-center gap-3 border-b bg-muted/10 p-3">
           <ImageWithFallback
             src={wuwaEchoSetIconUrl(echoSet.images)}
-            alt={echoSet.name}
-            className="h-full w-full object-contain p-2"
+            alt=""
+            className="h-12 w-12 shrink-0 rounded-full object-contain"
           />
-          {echoSet.element ? (
-            <Badge
-              className={`absolute top-2 right-2 ${elementClass} border-0 text-white text-xs`}
-            >
-              {echoSet.element}
-            </Badge>
-          ) : (
-            <Badge variant="secondary" className="absolute top-2 right-2 text-xs">
-              Universal
-            </Badge>
-          )}
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold leading-tight">{echoSet.name}</p>
+            {echoSet.element ? (
+              <Badge className={`mt-1 ${elementClass} border-0 text-white text-xs`}>{echoSet.element}</Badge>
+            ) : (
+              <Badge variant="secondary" className="mt-1 text-xs">Universal</Badge>
+            )}
+          </div>
         </div>
-        <CardContent className="flex flex-col p-3 flex-1">
-          <p className="font-semibold text-sm truncate">{echoSet.name}</p>
-          {echoSet.twoPieceBonus && (
-            <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-              {echoSet.twoPieceBonus}
-            </p>
-          )}
+        <CardContent className="flex flex-1 flex-col gap-2 p-3">
+          {([
+            [1, echoSet.onePieceBonus],
+            [2, echoSet.twoPieceBonus],
+            [3, echoSet.threePieceBonus],
+            [5, echoSet.fivePieceBonus],
+          ] as const)
+            .filter(([, text]) => text)
+            .map(([n, text]) => (
+              <div key={n} className="text-xs">
+                <span className="mr-1.5 inline-block rounded bg-primary/15 px-1.5 py-0.5 font-semibold text-primary">{n}pc</span>
+                <span className="text-muted-foreground whitespace-pre-line">{renderMarkdownText(text!)}</span>
+              </div>
+            ))}
         </CardContent>
       </Card>
     </Link>
@@ -111,6 +118,8 @@ export function EchoSetsPage() {
         defaultSortDir="asc"
       />
 
+      <GearStatTable game={game ?? "wuwa"} />
+
       {error && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
           {error}
@@ -121,6 +130,7 @@ export function EchoSetsPage() {
         loading={loading && items.length === 0}
         empty={items.length === 0 && !loading}
         emptyMessage="No sonata effects found"
+        columns="grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
       >
         {items.map((s) => (
           <EchoSetCard key={s._id} echoSet={s} game={game!} />

@@ -1,11 +1,23 @@
 import { Search, ArrowUp, ArrowDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { viaCache } from "@/components/shared/ImageWithFallback";
+import { TrimmedImage } from "@/components/shared/TrimmedImage";
+
+/** "New Federation" → "NF", "Ashinohara" → "A", "Others" → "?" (option without an emblem) */
+function monogram(label: string): string {
+  if (/^others?$/i.test(label)) return "?";
+  const words = label.replace(/^the\s+/i, "").split(/[\s-]+/).filter((w) => /^[A-Za-z]/.test(w) && !/^(of|and|the)$/i.test(w));
+  return words.slice(0, 2).map((w) => w[0].toUpperCase()).join("") || label.slice(0, 1);
+}
 
 export interface FilterGroup {
   key: string;
   label: string;
-  options: { value: string; label: string; icon?: string }[];
+  /** iconClass: coloured disc behind a white glyph icon; labelClass: label colour (e.g. rarity stars) */
+  options: { value: string; label: string; icon?: string; iconClass?: string; labelClass?: string }[];
+  /** Show the icons alone (name on hover) — for long lists of emblems */
+  iconOnly?: boolean;
 }
 
 export interface SortOption {
@@ -86,18 +98,50 @@ export function FilterBar({
       {filterGroups.map((group) => (
         <div key={group.key} className="flex flex-wrap gap-1.5">
           {group.options.map((opt) => (
-            <Button
-              key={opt.value}
-              variant={
-                searchParams.get(group.key) === opt.value ? "default" : "outline"
-              }
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => toggleFilter(group.key, opt.value)}
-            >
-              {opt.icon && <img src={opt.icon} className="h-3.5 w-3.5 shrink-0" alt="" />}
-              {opt.label}
-            </Button>
+            group.iconOnly ? (
+              // Emblem chip; the name shows on hover / keyboard focus. Without an emblem: a monogram.
+              <span key={opt.value} className="group/chip relative inline-flex">
+                <Button
+                  variant={searchParams.get(group.key) === opt.value ? "default" : "outline"}
+                  size="sm"
+                  className="h-9 w-9 p-1"
+                  aria-label={opt.label}
+                  onClick={() => toggleFilter(group.key, opt.value)}
+                >
+                  {opt.icon ? (
+                    <img src={viaCache(opt.icon) ?? opt.icon} className="h-full w-full object-contain" alt="" />
+                  ) : (
+                    <span className="text-[11px] font-bold leading-none tracking-tight">{monogram(opt.label)}</span>
+                  )}
+                </Button>
+                <span
+                  role="tooltip"
+                  className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 w-max max-w-[16rem] text-center rounded-md border bg-popover px-2 py-1 text-xs font-medium text-popover-foreground hidden shadow-md group-hover/chip:block group-focus-within/chip:block"
+                >
+                  {opt.label}
+                </span>
+              </span>
+            ) : (
+              <Button
+                key={opt.value}
+                variant={
+                  searchParams.get(group.key) === opt.value ? "default" : "outline"
+                }
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => toggleFilter(group.key, opt.value)}
+              >
+                {opt.icon && (opt.iconClass ? (
+                  <span className={`-ml-1 inline-flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full ${opt.iconClass}`}>
+                    {/* Trimmed: the game's glyphs sit off-centre in their PNG */}
+                    <TrimmedImage src={opt.icon} alt="" maxWidth={11} maxHeight={11} />
+                  </span>
+                ) : (
+                  <img src={viaCache(opt.icon) ?? opt.icon} className="h-3.5 w-3.5 shrink-0" alt="" />
+                ))}
+                <span className={opt.labelClass}>{opt.label}</span>
+              </Button>
+            )
           ))}
         </div>
       ))}

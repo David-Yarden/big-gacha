@@ -1,0 +1,7 @@
+{
+  "watch": ["src", "shared"],
+  "ext": "js,json,yaml,yml",
+  "ignore": ["backups/*", "node_modules/*", "client/*", "test/*"],
+  "legacyWatch": true,
+  "delay": 1500
+}

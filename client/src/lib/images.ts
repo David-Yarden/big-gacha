@@ -25,14 +25,6 @@ export function characterSplashUrl(images?: Record<string, string>): string | nu
   return images?.cover1 ?? images?.cover2 ?? images?.portrait ?? images?.preview ?? null;
 }
 
-/**
- * Side-facing icon used in team composition displays.
- */
-export function characterSideIconUrl(images?: Record<string, string>): string | null {
-  if (images?.filename_sideIcon) return enkaUrl(images.filename_sideIcon);
-  return images?.mihoyo_sideIcon ?? null;
-}
-
 // ── Talents / Abilities ──────────────────────────────────
 
 /**
@@ -71,6 +63,11 @@ export function weaponIconUrl(images?: Record<string, string>): string | null {
   if (images?.filename_awakenIcon) return enkaUrl(images.filename_awakenIcon);
   if (images?.filename_icon) return enkaUrl(images.filename_icon);
   return images?.mihoyo_icon ?? images?.icon ?? null;
+}
+
+/** Full weapon art (Genshin wish art, 512×1024), or null when the game has none. */
+export function weaponFullArtUrl(images?: Record<string, string>): string | null {
+  return images?.filename_gacha ? enkaUrl(images.filename_gacha) : null;
 }
 
 // ── Artifacts ────────────────────────────────────────────
@@ -229,6 +226,7 @@ const HSR_PATH_SLUG: Record<string, string> = {
   Preservation: "Preservation",
   Abundance:    "Abundance",
   Remembrance:  "Remembrance",
+  Elation:      "Elation",
 };
 
 export function hsrPathIconUrl(path?: string): string | null {
@@ -311,8 +309,9 @@ export function hsrStatIconUrl(type: string): string | null {
 
 // ── HSR Light Cones ──────────────────────────────────────────────────────────
 
-export function lightConeIconUrl(images?: Record<string, string>): string | null {
-  return images?.icon ?? null;
+/** The tilted in-game card (list view). */
+export function lightConePreviewUrl(images?: Record<string, string>): string | null {
+  return images?.preview ?? images?.icon ?? images?.portrait ?? null;
 }
 
 export function lightConeSplashUrl(images?: Record<string, string>): string | null {
@@ -326,13 +325,11 @@ export function relicIconUrl(images?: Record<string, string>): string | null {
 }
 
 // ── WuWa ─────────────────────────────────────────────────────────────────────
-// CDN: WorkSync/Wuthering-_Icon (GitHub raw, community-maintained)
-// https://github.com/WorkSync/Wuthering-_Icon
 // Character/weapon icons are stored in the `images` object populated by seedWuwa.js.
 // Element icons are constructed directly from the element display name.
 
-const WUWA_CDN =
-  "https://raw.githubusercontent.com/WorkSync/Wuthering-_Icon/main/UIResources/Common/Image";
+// Game UI assets, same Unreal paths as the data files, served as .webp by encore.moe
+const WUWA_GAME_UI = "https://api.encore.moe/resource/Data/Game/Aki/UI/UIResources";
 
 export function wuwaCharacterIconUrl(images?: Record<string, string>): string | null {
   return images?.icon ?? images?.thumbnail ?? null;
@@ -340,10 +337,6 @@ export function wuwaCharacterIconUrl(images?: Record<string, string>): string | 
 
 export function wuwaCharacterSplashUrl(images?: Record<string, string>): string | null {
   return images?.splash ?? images?.portrait ?? images?.preview ?? null;
-}
-
-export function wuwaCharacterSideIconUrl(images?: Record<string, string>): string | null {
-  return images?.sideIcon ?? images?.icon ?? null;
 }
 
 export function wuwaWeaponIconUrl(images?: Record<string, string>): string | null {
@@ -362,10 +355,6 @@ export function wuwaForteSkillIconUrl(icon?: string): string | null {
   return icon ?? null;
 }
 
-export function wuwaMaterialIconUrl(images?: Record<string, string>): string | null {
-  return images?.icon ?? null;
-}
-
 // WuWa element icons — display name → IconElement filename slug
 // Source: UIResources/Common/Image/IconElement/T_IconElement{slug}2_UI.png
 const WUWA_ELEMENT_ICON_SLUG: Record<string, string> = {
@@ -380,21 +369,22 @@ const WUWA_ELEMENT_ICON_SLUG: Record<string, string> = {
 export function wuwaElementIconUrl(element?: string): string | null {
   if (!element) return null;
   const slug = WUWA_ELEMENT_ICON_SLUG[element];
-  return slug ? `${WUWA_CDN}/IconElement/T_IconElement${slug}2_UI.png` : null;
+  return slug ? `${WUWA_GAME_UI}/Common/Image/IconElement/T_IconElement${slug}2.webp` : null;
 }
 
-// WuWa weapon type icons — reuse Genshin Sword icon for Sword, local files for others
-const WUWA_WEAPON_TYPE_ICON: Record<string, string> = {
-  Sword:      "/weapons/Icon_Sword.webp",        // shared with Genshin
-  Broadblade: "/weapons/Icon_WuWa_Broadblade.webp",
-  Pistols:    "/weapons/Icon_WuWa_Pistols.webp",
-  Gauntlets:  "/weapons/Icon_WuWa_Gauntlets.webp",
-  Rectifier:  "/weapons/Icon_WuWa_Rectifier.webp",
+// WuWa weapon type icons — the game's own skill-tab glyphs (served by encore.moe)
+const WUWA_WEAPON_TYPE_SLUG: Record<string, string> = {
+  Broadblade: "Sword",
+  Sword:      "Knife",
+  Pistols:    "Gun",
+  Gauntlets:  "Fist",
+  Rectifier:  "Magic",
 };
 
 export function wuwaWeaponTypeIconUrl(weaponType?: string): string | null {
   if (!weaponType) return null;
-  return WUWA_WEAPON_TYPE_ICON[weaponType] ?? null;
+  const slug = WUWA_WEAPON_TYPE_SLUG[weaponType];
+  return slug ? `${WUWA_GAME_UI}/Common/Atlas/SkillIcon/SkillIconNor/SP_IconNor${slug}.webp` : null;
 }
 
 // WuWa stat display names (mirrors HSR pattern; actual stat keys confirmed during WW-08)

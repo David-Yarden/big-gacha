@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { GAME_IDS } = require("../../shared/games");
 
 /**
  * HSR Eidolons — equivalent to Genshin Constellations.
@@ -11,7 +12,7 @@ const eidolonSchema = new mongoose.Schema(
     game: {
       type: String,
       required: true,
-      enum: ["genshin", "hsr", "zzz", "wuwa", "endfield"],
+      enum: GAME_IDS,
       index: true,
     },
 
@@ -27,10 +28,6 @@ const eidolonSchema = new mongoose.Schema(
 
     // Eidolon icon URLs keyed e1…e6
     images: mongoose.Schema.Types.Mixed,
-
-    // Novaflare: Character Enhancement (HSR) — only the changed eidolons stored here.
-    // Keys match changed slots: { e1: { name, description }, e4: { name, description }, … }
-    novaflare: mongoose.Schema.Types.Mixed,
 
     // Trailblazer support
     isTraveler: { type: Boolean, default: false },

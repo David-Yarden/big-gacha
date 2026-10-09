@@ -1,11 +1,12 @@
 const mongoose = require("mongoose");
+const { GAME_IDS } = require("../../shared/games");
 
 const constellationSchema = new mongoose.Schema(
   {
     game: {
       type: String,
       required: true,
-      enum: ["genshin", "hsr", "zzz", "wuwa", "endfield"],
+      enum: GAME_IDS,
       index: true,
     },
 
@@ -16,9 +17,6 @@ const constellationSchema = new mongoose.Schema(
     c4: { name: String, description: String },
     c5: { name: String, description: String },
     c6: { name: String, description: String },
-
-    // Hexerei: Secret Rite additions (v6.2) — keyed by slot (c1…c6)
-    hexerei: mongoose.Schema.Types.Mixed,
 
     images: mongoose.Schema.Types.Mixed,
 

@@ -4,11 +4,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { ResourceGrid } from "@/components/shared/ResourceGrid";
+import { GearStatTable } from "@/components/shared/GearStatTable";
 import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { getRelics } from "@/lib/api";
 import { useInfiniteList } from "@/hooks/useInfiniteList";
 import { relicIconUrl } from "@/lib/images";
 import type { Game, Relic } from "@/lib/types";
+import { registryGame } from "@/lib/registry";
+import { GameText } from "@/components/character/shared";
 import type { FilterGroup, SortOption } from "@/components/shared/FilterBar";
 
 const RELIC_FILTERS: FilterGroup[] = [
@@ -27,17 +30,23 @@ const SORT_OPTIONS: SortOption[] = [
   { value: "version", label: "Release" },
 ];
 
+// Endfield set logos are black on transparent: lightened to show on the dark theme
+const gearLogoClass = (game?: string) => (game === "endfield" ? "invert hue-rotate-180 opacity-85" : "");
+
 function RelicCard({ relic, game }: { relic: Relic; game: string }) {
+  const bonus = relic.setBonus?.replace(/^\d-piece set effect:\s*/i, "");
+  // Long effects are cut after 4 lines: the full text shows in a bubble on hover
+  const long = (bonus?.replace(/\[\[[^|\]]*\||\]\]|\*\*/g, "").length ?? 0) > 150;
   return (
-    <Link to={`/${game}/relics/${encodeURIComponent(relic.name)}`} className="h-full">
-      <Card className="group h-full flex flex-col overflow-hidden transition-colors hover:border-primary/40">
+    <Link to={`/${game}/relics/${encodeURIComponent(relic.name)}`} className="group/relic relative h-full">
+      <Card className="group h-full flex flex-col gap-0 overflow-hidden py-0 transition-colors hover:border-primary/40">
         <div className="relative flex h-32 shrink-0 items-center justify-center bg-muted/10">
           <ImageWithFallback
             src={relicIconUrl(relic.images)}
             alt={relic.name}
-            className="h-full w-full object-contain p-2"
+            className={`h-full w-full object-contain p-2 ${gearLogoClass(game)}`}
           />
-          {relic.type && (
+          {relic.type && relic.type !== "disc" && relic.type !== "gear" && (
             <Badge
               variant="secondary"
               className="absolute top-2 right-2 text-xs"
@@ -48,13 +57,44 @@ function RelicCard({ relic, game }: { relic: Relic; game: string }) {
         </div>
         <CardContent className="flex flex-col p-3 flex-1">
           <p className="font-semibold text-sm truncate">{relic.name}</p>
-          {relic.twoPieceBonus && (
+          {relic.type === "disc" ? (
+            // Drive Discs: both bonuses in full
+            <div className="mt-1.5 space-y-1.5 text-xs leading-relaxed text-muted-foreground">
+              {relic.twoPieceBonus && (
+                <p>
+                  <span className="mr-1 font-semibold text-foreground/80">2-Pc</span>
+                  <GameText text={relic.twoPieceBonus} />
+                </p>
+              )}
+              {relic.fourPieceBonus && (
+                <p>
+                  <span className="mr-1 font-semibold text-foreground/80">4-Pc</span>
+                  <GameText text={relic.fourPieceBonus} />
+                </p>
+              )}
+            </div>
+          ) : bonus ? (
+            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground line-clamp-4">
+              <span className="mr-1 font-semibold text-foreground/80">{relic.setPieces ?? 3}-Pc</span>
+              <GameText text={bonus} />
+            </p>
+          ) : relic.twoPieceBonus ? (
             <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
               {relic.twoPieceBonus}
             </p>
-          )}
+          ) : null}
         </CardContent>
       </Card>
+      {long && (
+        <div
+          role="tooltip"
+          className="pointer-events-none absolute inset-x-0 top-32 z-30 hidden rounded-xl border bg-popover p-3 text-xs leading-relaxed text-muted-foreground shadow-xl group-hover/relic:block"
+        >
+          <p className="mb-1 text-sm font-semibold text-foreground">{relic.name}</p>
+          <span className="mr-1 font-semibold text-foreground/80">{relic.setPieces ?? 3}-Pc</span>
+          <GameText text={bonus!} />
+        </div>
+      )}
     </Link>
   );
 }
@@ -68,6 +108,7 @@ function buildSort(sortBy: string, sortDir: string): string {
 
 export function RelicsPage() {
   const { game } = useParams<{ game: string }>();
+  const pageTitle = registryGame(game)?.resources.find((r) => r.path === "relics")?.label ?? "Relics";
   const [searchParams, setSearchParams] = useSearchParams();
 
   const search = searchParams.get("search") ?? undefined;
@@ -92,7 +133,7 @@ export function RelicsPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Relics</h1>
+        <h1 className="text-2xl font-bold">{pageTitle}</h1>
         {total > 0 && (
           <span className="text-sm text-muted-foreground">{total} total</span>
         )}
@@ -102,11 +143,13 @@ export function RelicsPage() {
         searchParams={searchParams}
         setSearchParams={setSearchParams}
         searchPlaceholder="Search relic sets..."
-        filterGroups={RELIC_FILTERS}
+        filterGroups={game === "hsr" ? RELIC_FILTERS : []}
         sortOptions={SORT_OPTIONS}
         defaultSortBy="version"
         defaultSortDir="desc"
       />
+
+      <GearStatTable game={game!} />
 
       {error && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
@@ -117,7 +160,8 @@ export function RelicsPage() {
       <ResourceGrid
         loading={loading && items.length === 0}
         empty={items.length === 0 && !loading}
-        emptyMessage="No relic sets found"
+        emptyMessage="No sets found"
+        columns={game === "zzz" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : undefined}
       >
         {items.map((r) => (
           <RelicCard key={r._id} relic={r} game={game!} />

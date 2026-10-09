@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
+import { renderMarkdownText } from "@/components/character/shared";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { getEcho } from "@/lib/api";
 import { wuwaEchoIconUrl } from "@/lib/images";
@@ -91,13 +92,13 @@ export function EchoDetailPage() {
             {echo.cost != null && (
               <Badge variant="outline">{COST_LABEL[echo.cost] ?? `${echo.cost}✦`}</Badge>
             )}
-            {echo.sonataSet && (
-              <Link to={`/${game}/echosets/${encodeURIComponent(echo.sonataSet)}`}>
+            {(echo.sonataSets?.length ? echo.sonataSets : echo.sonataSet ? [echo.sonataSet] : []).map((set) => (
+              <Link key={set} to={`/${game}/echosets/${encodeURIComponent(set)}`}>
                 <Badge variant="outline" className="hover:border-primary/50 cursor-pointer">
-                  {echo.sonataSet}
+                  {set}
                 </Badge>
               </Link>
-            )}
+            ))}
           </div>
 
           {echo.description && (
@@ -130,7 +131,7 @@ export function EchoDetailPage() {
               )}
             </div>
             {echo.skill.desc && (
-              <p className="text-sm text-muted-foreground">{echo.skill.desc}</p>
+              <p className="text-sm text-muted-foreground whitespace-pre-line">{renderMarkdownText(echo.skill.desc)}</p>
             )}
           </CardContent>
         </Card>

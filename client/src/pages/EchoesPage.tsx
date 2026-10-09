@@ -7,8 +7,9 @@ import { ResourceGrid } from "@/components/shared/ResourceGrid";
 import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { getEchoes } from "@/lib/api";
 import { useInfiniteList } from "@/hooks/useInfiniteList";
+import { registryGame } from "@/lib/registry";
 import { wuwaEchoIconUrl } from "@/lib/images";
-import { WUWA_ELEMENTS, WUWA_ELEMENT_COLOR_MAP, WUWA_ECHO_CLASSES } from "@/lib/constants";
+import { WUWA_ELEMENT_COLOR_MAP, WUWA_ECHO_CLASSES } from "@/lib/constants";
 import type { Game, Echo } from "@/lib/types";
 import type { FilterGroup, SortOption } from "@/components/shared/FilterBar";
 
@@ -24,7 +25,7 @@ const ECHO_FILTERS: FilterGroup[] = [
   {
     key: "element",
     label: "Element",
-    options: WUWA_ELEMENTS.map((el) => ({ value: el, label: el })),
+    options: (registryGame("wuwa")?.elements ?? []).map((el) => ({ value: el, label: el })),
   },
 ];
 

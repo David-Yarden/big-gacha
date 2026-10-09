@@ -1,11 +1,12 @@
 const mongoose = require("mongoose");
+const { GAME_IDS } = require("../../shared/games");
 
 const materialSchema = new mongoose.Schema(
   {
     game: {
       type: String,
       required: true,
-      enum: ["genshin", "hsr", "zzz", "wuwa", "endfield"],
+      enum: GAME_IDS,
       index: true,
     },
     sourceId: Number,

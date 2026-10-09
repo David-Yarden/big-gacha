@@ -10,6 +10,9 @@ require("dotenv").config();
 const mongoose = require("mongoose");
 const genshindb = require("genshin-db");
 const connectDB = require("../config/db");
+const sink = require("../sync/sink");
+delete require.cache[require.resolve("./signatures")]; // edits to the table apply on the next sync
+const { signatureOf, signatureWeapon } = require("./signatures");
 const {
   Character,
   Weapon,
@@ -17,11 +20,11 @@ const {
   Material,
   Talent,
   Constellation,
+  Reference,
 } = require("../models");
 
 const GAME = "genshin";
 const forceOverwrite = process.argv.includes("--force");
-const syncMode      = process.argv.includes("--sync");
 
 const TRAVELER_NAMES    = ["Aether", "Lumine"];  // element-variant Travelers
 const MANEKIN_NAMES     = ["Manekin", "Manekina"]; // Natlan Travelers with their own flat kit
@@ -31,6 +34,27 @@ const TRAVELER_ELEMENTS = ["Anemo", "Geo", "Electro", "Dendro", "Hydro", "Pyro"]
 const CHARACTER_REGION_OVERRIDES = {
   Zibai: "Liyue",
 };
+
+// When genshin-db leaves region empty, derive it from the association
+// (e.g. ASSOC_SNEZHNAYA / ASSOC_SNEZHNAYA_STAR for Alyosha, Odette, Sandrone).
+// Associations that are not a nation (Traveler, Hexenzirkel, Omni-Scourge…) stay empty.
+const ASSOCIATION_REGIONS = [
+  [/^ASSOC_(MONDSTADT)/, "Mondstadt"],
+  [/^ASSOC_(LIYUE)/, "Liyue"],
+  [/^ASSOC_(INAZUMA)/, "Inazuma"],
+  [/^ASSOC_(SUMERU)/, "Sumeru"],
+  [/^ASSOC_(FONTAINE)/, "Fontaine"],
+  [/^ASSOC_(NATLAN)/, "Natlan"],
+  [/^ASSOC_(NODKRAI|NOD_KRAI)/, "Nod-Krai"],
+  [/^ASSOC_(SNEZHNAYA|FATUI)/, "Snezhnaya"],
+];
+
+function resolveRegion(data) {
+  if (CHARACTER_REGION_OVERRIDES[data.name]) return CHARACTER_REGION_OVERRIDES[data.name];
+  if (data.region) return data.region;
+  const hit = ASSOCIATION_REGIONS.find(([re]) => re.test(data.associationType || ""));
+  return hit ? hit[1] : undefined;
+}
 
 // ─── Helpers ─────────────────────────────────────────────
 
@@ -43,11 +67,42 @@ function getData(folder, name) {
 }
 
 async function upsert(Model, filter, data) {
-  return Model.findOneAndUpdate(filter, data, {
-    upsert: true,
-    new: true,
-    setDefaultsOnInsert: true,
-  });
+  return sink.upsert(Model, filter, data);
+}
+
+// ─── Outfits ─────────────────────────────────────────────
+const ENKA_UI = "https://enka.network/ui";
+let OUTFITS = null; // character name → outfits
+
+/**
+ * Outfits of a character (only when it has more than its default one). The default keeps
+ * the character's own splash; the others use their costume art (UI_Costume_*).
+ */
+function characterSkins(name, charImages) {
+  if (!OUTFITS) {
+    OUTFITS = new Map();
+    const names = genshindb.outfits("names", { matchCategories: true }) || [];
+    for (const n of names) {
+      const o = genshindb.outfits(n);
+      if (!o?.characterName) continue;
+      (OUTFITS.get(o.characterName) ?? OUTFITS.set(o.characterName, []).get(o.characterName)).push(o);
+    }
+  }
+  const list = OUTFITS.get(name) || [];
+  if (!list.some((o) => !o.isDefault)) return undefined;
+  const png = (f) => (f ? `${ENKA_UI}/${f}.png` : undefined);
+  const hasDefault = list.some((o) => o.isDefault);
+  const out = list
+    .sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0) || a.id - b.id)
+    .map((o) => ({
+      name: o.name,
+      desc: o.description || undefined,
+      default: o.isDefault || undefined,
+      splash: o.isDefault ? undefined : png(o.images?.filename_splash),
+      icon: png(o.images?.filename_icon) ?? (o.isDefault ? png(charImages?.filename_icon) : undefined),
+    }));
+  if (!hasDefault) out.unshift({ name, default: true, icon: png(charImages?.filename_icon) });
+  return out;
 }
 
 // ─── Seed Characters ─────────────────────────────────────
@@ -55,6 +110,18 @@ async function upsert(Model, filter, data) {
 async function seedCharacters() {
   const names = getAllNames("characters");
   console.log(`  Found ${names.length} characters`);
+
+  // Hover glossary per character (Project Amber), fetched in parallel beforehand
+  const { genshinGlossary, mapLimit } = require("../sync/glossary");
+  const all = names.map((n) => getData("characters", n)).filter(Boolean);
+  const glossaries = new Map();
+  await mapLimit(all, 6, async (data) => {
+    const ids = TRAVELER_NAMES.includes(data.name)
+      ? TRAVELER_ELEMENTS.map((el) => `${data.id}-${el.toLowerCase()}`)
+      : [data.id];
+    glossaries.set(data.name, await genshinGlossary(ids));
+  });
+  console.log(`  ✓ Glossaries for ${[...glossaries.values()].filter(Boolean).length} characters`);
 
   let count = 0;
   for (const name of names) {
@@ -86,7 +153,7 @@ async function seedCharacters() {
       weaponTypeRaw: data.weaponType,
       bodyType: data.bodyType,
       gender: data.gender,
-      region: CHARACTER_REGION_OVERRIDES[data.name] ?? data.region,
+      region: resolveRegion(data),
       stats: statsPerLevel,
       affiliation: data.affiliation,
       associationType: data.associationType,
@@ -96,11 +163,14 @@ async function seedCharacters() {
       substatType: data.substatType,
       substatText: data.substatText,
       version: data.version,
+      signatureWeapon: signatureWeapon(GAME, data.name),
       cv: data.cv,
       costs: data.costs,
       images: data.images,
       url: data.url,
+      skins: characterSkins(data.name, data.images),
       availableElements,
+      glossary: glossaries.get(data.name),
     });
     count++;
   }
@@ -140,6 +210,7 @@ async function seedWeapons() {
       effectName: data.effectName,
       effectTemplateRaw: data.effectTemplateRaw,
       version: data.version,
+      signatureOf: signatureOf(GAME, data.name),
       stats: statsPerLevel,
       refinements: [data.r1, data.r2, data.r3, data.r4, data.r5].filter(Boolean),
       costs: data.costs,
@@ -153,7 +224,51 @@ async function seedWeapons() {
 
 // ─── Seed Artifacts ──────────────────────────────────────
 
+/**
+ * Reference table for the Artifacts page: 5★ main stats per piece (+0 → +20) and the four
+ * possible values of a substat roll. genshin-db has no such table; these values have not
+ * changed since the game's release (1.0).
+ */
+const ARTIFACT_MAIN = {
+  "HP": ["717", "4,780"], "ATK": ["47", "311"],
+  "HP%": ["7.0%", "46.6%"], "ATK%": ["7.0%", "46.6%"], "DEF%": ["8.7%", "58.3%"],
+  "Elemental Mastery": ["28.0", "186.5"], "Energy Recharge": ["7.8%", "51.8%"],
+  "Elemental DMG Bonus": ["7.0%", "46.6%"], "Physical DMG Bonus": ["8.7%", "58.3%"],
+  "CRIT Rate": ["4.7%", "31.1%"], "CRIT DMG": ["9.3%", "62.2%"], "Healing Bonus": ["5.4%", "35.9%"],
+};
+const ARTIFACT_SLOTS = [
+  ["Flower of Life", ["HP"]],
+  ["Plume of Death", ["ATK"]],
+  ["Sands of Eon", ["HP%", "ATK%", "DEF%", "Elemental Mastery", "Energy Recharge"]],
+  ["Goblet of Eonothem", ["HP%", "ATK%", "DEF%", "Elemental Mastery", "Elemental DMG Bonus", "Physical DMG Bonus"]],
+  ["Circlet of Logos", ["HP%", "ATK%", "DEF%", "Elemental Mastery", "CRIT Rate", "CRIT DMG", "Healing Bonus"]],
+];
+const ARTIFACT_SUBS = [
+  ["HP", "209 / 239 / 269 / 299"], ["ATK", "13.6 / 15.6 / 17.5 / 19.5"], ["DEF", "16.2 / 18.5 / 20.8 / 23.1"],
+  ["HP%", "4.1% / 4.7% / 5.2% / 5.8%"], ["ATK%", "4.1% / 4.7% / 5.2% / 5.8%"], ["DEF%", "5.1% / 5.8% / 6.6% / 7.3%"],
+  ["Elemental Mastery", "16.3 / 18.7 / 21.0 / 23.3"], ["Energy Recharge", "4.5% / 5.2% / 5.8% / 6.5%"],
+  ["CRIT Rate", "2.7% / 3.1% / 3.5% / 3.9%"], ["CRIT DMG", "5.4% / 6.2% / 7.0% / 7.8%"],
+];
+
+async function seedArtifactStats() {
+  await upsert(Reference, { game: GAME, name: "Artifact stats" }, {
+    game: GAME,
+    name: "Artifact stats",
+    data: {
+      rank: "5★",
+      slots: ARTIFACT_SLOTS.map(([slot, stats]) => ({
+        slot,
+        maxLevel: 20,
+        mainStats: stats.map((name) => ({ name, base: ARTIFACT_MAIN[name][0], max: ARTIFACT_MAIN[name][1] })),
+      })),
+      substats: ARTIFACT_SUBS.map(([name, value]) => ({ name, value })),
+      substatNote: "The four possible values of one roll",
+    },
+  });
+}
+
 async function seedArtifacts() {
+  await seedArtifactStats();
   const names = getAllNames("artifacts");
   console.log(`  Found ${names.length} artifact sets`);
 
@@ -277,7 +392,8 @@ async function seedTalents() {
   for (const manekinName of MANEKIN_NAMES) {
     const data = getData("talents", manekinName);
     if (!data) continue;
-    await Talent.findOneAndUpdate(
+    await sink.update(
+      Talent,
       { game: GAME, name: manekinName },
       {
         $set: {
@@ -291,8 +407,7 @@ async function seedTalents() {
           images: data.images,
         },
         $unset: { isTraveler: "", elementVariants: "", combat2: "", combat3: "", combatsp: "", passive4: "" },
-      },
-      { upsert: true, new: true }
+      }
     );
     count++;
   }
@@ -355,26 +470,10 @@ async function seedConstellations() {
   }
 
   // Manekin/Manekina have no constellation data — remove any stale documents from previous seeds
-  const deleted = await Constellation.deleteMany({ game: GAME, name: { $in: MANEKIN_NAMES } });
+  const deleted = await sink.deleteMany(Constellation, { game: GAME, name: { $in: MANEKIN_NAMES } });
   if (deleted.deletedCount) console.log(`  Removed ${deleted.deletedCount} stale Manekin constellation doc(s)`);
 
   console.log(`  ✓ Seeded ${count} constellation sets (incl. ${TRAVELER_NAMES.length} Travelers)`);
-}
-
-// ─── Sync: detect new content ────────────────────────────
-
-async function reportNewContent() {
-  const dbNames = (await Character.distinct("name", { game: GAME })).map((n) => n.toLowerCase());
-  const allNames = getAllNames("characters");
-  const newChars = allNames.filter((n) => !dbNames.includes(n.toLowerCase()));
-
-  if (newChars.length === 0) {
-    console.log("  Characters: already up to date");
-  } else {
-    console.log(`  Characters: ${newChars.length} new → ${newChars.join(", ")}`);
-  }
-
-  return newChars.length;
 }
 
 // ─── Main ────────────────────────────────────────────────
@@ -383,23 +482,14 @@ async function main() {
   console.log("╔══════════════════════════════════════╗");
   console.log("║   Genshin Impact Database Seeder     ║");
   console.log("╚══════════════════════════════════════╝");
-  const modeLabel = forceOverwrite ? "FORCE OVERWRITE" : syncMode ? "SYNC (new content only)" : "UPSERT (safe)";
+  const modeLabel = forceOverwrite ? "FORCE OVERWRITE (backup first)" : "UPSERT (safe)";
   console.log(`Mode: ${modeLabel}\n`);
 
   await connectDB();
 
-  if (syncMode) {
-    console.log("Detecting new content...");
-    const newCount = await reportNewContent();
-    console.log();
-    if (newCount === 0) {
-      console.log("✅ Database is already up to date.");
-      await mongoose.connection.close();
-      process.exit(0);
-    }
-  }
-
   if (forceOverwrite) {
+    const backup = await require("./backup").backupGame(GAME, "before-force-genshin");
+    console.log(`💾 Sauvegarde avant effacement : backups/${backup}`);
     console.log("⚠  Dropping existing Genshin data...");
     await Character.deleteMany({ game: GAME });
     await Weapon.deleteMany({ game: GAME });
@@ -437,7 +527,21 @@ async function main() {
   process.exit(0);
 }
 
-main().catch((err) => {
-  console.error("Seed failed:", err);
-  process.exit(1);
-});
+/** Run every Genshin seeder (used by the sync engine in recording mode). */
+async function seedAll() {
+  await seedCharacters();
+  await seedWeapons();
+  await seedArtifacts();
+  await seedMaterials();
+  await seedTalents();
+  await seedConstellations();
+}
+
+module.exports = { seedAll, GAME };
+
+if (require.main === module) {
+  main().catch((err) => {
+    console.error("Seed failed:", err);
+    process.exit(1);
+  });
+}

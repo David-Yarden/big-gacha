@@ -42,6 +42,28 @@ export interface Character {
   birthday?: string;
   birthdaymmdd?: string;
   path?: string;
+  /** ZZZ */
+  specialty?: string;
+  attackType?: string;
+  subElement?: string;
+  height?: string;
+  extraStats?: Array<{ name: string; value: string }>;
+  /** Outfits (art switcher under the splash) */
+  /** fit "contain": art that is not a character portrait (HSR weapon-only outfit) */
+  skins?: Array<{ name?: string; desc?: string; splash?: string; icon?: string; default?: boolean; fit?: "contain" }>;
+  /** The game's recommended build (ZZZ) */
+  build?: {
+    fourPiece?: string;
+    twoPiece?: string[];
+    mainStats?: Record<string, string>;
+    substats?: string[];
+    alternatives?: Array<{ sets: string[]; substats: string[] }>;
+    /** HSR / WuWa: set groups in priority order ("4-Piece", "Planar Ornament"…) */
+    sets?: Array<{ label: string; names: string[] }>;
+    /** HSR / WuWa: main stats per slot ("Body", "4-Cost"…) */
+    slots?: Array<{ slot: string; stats: string[] }>;
+  };
+  signatureWeapon?: string;
   constellation?: string;
   substatType?: string;
   substatText?: string;
@@ -54,9 +76,20 @@ export interface Character {
   };
   costs?: Record<string, MaterialCostEntry[]>;
   stats?: Record<string, { hp: number; atk: number; def: number; specialized: number }>;
+  /** Hover glossary for kit texts */
+  glossary?: Array<{ name: string; desc: string }>;
+  /** WuWa: cumulative EXP per level and the EXP potions */
+  levelExp?: { exp: number[]; items: Array<{ id: number; name: string; exp: number; icon?: string }> };
   images?: Record<string, string>;
   url?: Record<string, string>;
   availableElements?: string[];
+  /** Per-element data of multi-element characters (Trailblazer paths, Rover) */
+  elementVariants?: Record<
+    string,
+    Partial<Pick<Character, "path" | "stats" | "costs" | "images" | "sourceId">>
+  >;
+  /** Kit enhancement ids (Hexerei, Novaflare, …) */
+  enhancements?: string[];
 }
 
 export interface Weapon {
@@ -76,6 +109,10 @@ export interface Weapon {
   version?: string;
   refinements?: Array<{ description: string; values?: string[] }>;
   stats?: Record<string, { atk: number; specialized: number }>;
+  /** EXP curve and EXP items (ZZZ) */
+  levelExp?: { exp: number[]; items: Array<{ id: number; name: string; exp: number; icon?: string }> };
+  /** Agent whose signature this is (ZZZ) */
+  signatureOf?: string;
   costs?: Record<string, MaterialCostEntry[]>;
   images?: Record<string, string>;
   url?: Record<string, string>;
@@ -143,7 +180,6 @@ export interface Talent extends TalentVariant {
   name: string;
   isTraveler?: boolean;
   elementVariants?: Record<string, TalentVariant>;
-  hexerei?: Record<string, string>;
 }
 
 export interface ConstellationLevel {
@@ -167,7 +203,6 @@ export interface Constellation extends ConstellationVariant {
   name: string;
   isTraveler?: boolean;
   elementVariants?: Record<string, ConstellationVariant>;
-  hexerei?: Record<string, string>;
 }
 
 export interface LightCone {
@@ -181,6 +216,7 @@ export interface LightCone {
   effectName?: string;
   effectTemplateRaw?: string;
   version?: string;
+  signatureOf?: string;
   superimpositions?: Array<{ description: string; values: number[] }>;
   stats?: Record<string, { hp: number; atk: number; def: number }>;
   costs?: Record<string, MaterialCostEntry[]>;
@@ -199,7 +235,13 @@ export interface Relic {
   game: Game;
   sourceId?: number;
   name: string;
-  type?: "cavern" | "planar";
+  /** Set story (ZZZ Drive Discs) */
+  description?: string;
+  type?: "cavern" | "planar" | "disc" | "gear";
+  /** Endfield gear sets: one bonus for N pieces, and every piece of every tier */
+  setPieces?: number;
+  setBonus?: string;
+  items?: Array<{ name: string; slot?: string; rarity?: number; icon?: string; level?: number }>;
   rarity?: number[];
   twoPieceBonus?: string;
   fourPieceBonus?: string;
@@ -236,14 +278,6 @@ export interface MajorTrace {
   unlockPhase?: number;
 }
 
-export interface TraceNovaflare {
-  basicAtk?: TraceSkill;
-  skill?: TraceSkill;
-  ultimate?: TraceSkill;
-  talent?: TraceSkill;
-  technique?: TraceSkill;
-}
-
 export interface Trace {
   _id: string;
   game: Game;
@@ -259,7 +293,6 @@ export interface Trace {
   statBonuses?: Array<{ stat: string; value: number; unlockPhase?: number }>;
   costs?: Record<string, Record<string, MaterialCostEntry[]>>;
   images?: Record<string, string>;
-  novaflare?: TraceNovaflare;
   isTraveler?: boolean;
   elementVariants?: Record<string, Partial<Trace>>;
 }
@@ -280,7 +313,6 @@ export interface Eidolon {
   e5?: EidolonLevel;
   e6?: EidolonLevel;
   images?: Record<string, string>;
-  novaflare?: Partial<Record<"e1" | "e2" | "e3" | "e4" | "e5" | "e6", EidolonLevel>>;
   isTraveler?: boolean;
   elementVariants?: Record<string, Partial<Eidolon>>;
 }
@@ -293,6 +325,10 @@ export interface ForteSkill {
   desc?: string;
   params?: number[][];
   icon?: string;
+  /** Short in-game summary (simple view) */
+  resume?: string;
+  /** Multipliers per level: [{ name: "Stage 1 DMG", values: ["33.43%", …] }] */
+  attributes?: Array<{ name: string; values: string[] }>;
 }
 
 export interface ForteInherentSkill {
@@ -311,6 +347,14 @@ export interface Forte {
   resonanceLiberation?: ForteSkill;
   forteCircuit?: ForteSkill;
   introSkill?: ForteSkill;
+  outroSkill?: ForteSkill;
+  /** In-game Skill Input guide; texts use **bold** and [[key:Name|iconUrl]] tokens */
+  guide?: {
+    features?: string[];
+    forteGauge?: string[];
+    instructions?: string[];
+    modes?: Array<{ name: string; desc?: string; icon?: string }>;
+  };
   inherentSkill1?: ForteInherentSkill;
   inherentSkill2?: ForteInherentSkill;
   statBonuses?: Array<{ stat: string; value: number; unlockPhase?: number }>;
@@ -343,8 +387,9 @@ export interface ResonanceChain {
 export type EchoClass = "Common" | "Elite" | "Overlord" | "Calamity";
 
 export interface EchoSkill {
-  name: string;
+  name?: string;
   desc?: string;
+  levels?: string[][];
   params?: number[][];
   cooldown?: number;
 }
@@ -359,6 +404,7 @@ export interface Echo {
   echoClass?: EchoClass;
   cost?: 1 | 3 | 4;
   sonataSet?: string;
+  sonataSets?: string[];
   skill?: EchoSkill;
   mainStatOptions?: string[];
   images?: Record<string, string>;
@@ -370,7 +416,9 @@ export interface EchoSet {
   sourceId?: string;
   name: string;
   description?: string;
+  onePieceBonus?: string;
   twoPieceBonus?: string;
+  threePieceBonus?: string;
   fivePieceBonus?: string;
   element?: string;
   images?: Record<string, string>;
@@ -393,4 +441,137 @@ export interface GameStats {
   resonanceChains?: number;
   echoes?: number;
   echoSets?: number;
+}
+
+// ── Kit enhancements (shared/games/<game>/enhancements/*.yaml) ────────────────
+
+export type EnhancementColor = "violet" | "amber" | "sky" | "emerald" | "rose" | "orange";
+
+export interface EnhancementType {
+  id: string;
+  name: string;
+  version?: string;
+  kind: "addition" | "rework";
+  color?: EnhancementColor;
+  condition?: string;
+  description?: string;
+  verified?: boolean;
+  characters?: string[];
+}
+
+export interface EnhancementText {
+  name?: string;
+  description?: string;
+}
+
+export interface Enhancement {
+  type: string;
+  character: string;
+  /** e.g. "talent.combat1", "constellation.c2", "eidolon.e1", "talent.extra" */
+  target: string;
+  text?: string;
+  original?: EnhancementText;
+  enhanced?: EnhancementText;
+  sources?: string[];
+}
+
+export interface EnhancementBundle {
+  types: EnhancementType[];
+  entries: Enhancement[];
+}
+
+// ── Synchronisation ───────────────────────────────────────────────────────────
+
+export interface SyncGameStatus {
+  game: Game;
+  name: string;
+  syncable: boolean;
+  source: string | null;
+  upstreamVersion?: string;
+  gameVersion?: string;
+  lastCheckAt?: string;
+  lastSyncAt?: string;
+  lastStatus?: "up-to-date" | "applied" | "failed" | "dry-run" | "running";
+  lastError?: string;
+  unseen?: boolean;
+}
+
+export interface SyncStatus {
+  running: string | null;
+  unseen: boolean;
+  scheduler?: { enabled: boolean; intervalHours: number; nextRunAt: string | null };
+  data: SyncGameStatus[];
+}
+
+export interface ChangelogItem {
+  model: string;
+  name: string;
+  fields?: string[];
+}
+
+export interface ChangelogEntry {
+  _id: string;
+  game: Game;
+  status: "applied" | "failed" | "dry-run" | "rolled-back";
+  upstreamBefore?: string;
+  upstreamAfter?: string;
+  gameVersion?: string;
+  added: ChangelogItem[];
+  changed: ChangelogItem[];
+  missing: ChangelogItem[];
+  problems?: string[];
+  warnings?: string[];
+  backup?: string;
+  durationMs?: number;
+  createdAt: string;
+}
+
+export interface SyncReport {
+  game: Game;
+  status: string;
+  added?: ChangelogItem[];
+  changed?: ChangelogItem[];
+  errors?: string[];
+  notes?: string[];
+}
+
+export interface EnhancementLoadStatus {
+  loadedAt: string | null;
+  files: Array<{ file: string; status: "loaded" | "rejected"; id?: string; entries?: number; errors?: number }>;
+  errors: string[];
+}
+
+// ── ZZZ ───────────────────────────────────────────────────────────────────────
+
+export interface AgentSkill {
+  name: string;
+  entries: Array<{ name: string; desc?: string }>;
+  params: Array<{ group?: string; name: string; values: string[] }>;
+  maxLevel: number;
+}
+
+export interface AgentKit {
+  _id: string;
+  game: Game;
+  name: string;
+  skills?: Partial<Record<"basic" | "dodge" | "assist" | "special" | "chain", AgentSkill>>;
+  core?: {
+    name: string;
+    levels: Array<{ level: number; label: string; desc?: string; unlockLevel?: number; stats?: Array<{ name: string; value: string }> }>;
+    additional?: { name: string; desc: string };
+  };
+  mindscapes?: Array<{ index: number; name: string; desc: string; flavor?: string }>;
+  costs?: Record<string, Record<string, MaterialCostEntry[]>>;
+}
+
+export interface Bangboo {
+  _id: string;
+  game: Game;
+  sourceId?: number;
+  name: string;
+  rarity: number;
+  description?: string;
+  version?: string;
+  skills?: Array<{ kind: string; name?: string; desc?: string; descs?: string[]; params: Array<{ name: string; values: string[] }>; maxLevel: number }>;
+  images?: Record<string, string>;
 }

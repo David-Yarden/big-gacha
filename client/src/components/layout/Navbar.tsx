@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, Menu, X } from "lucide-react";
+import { ChevronDown, Menu, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,12 +11,16 @@ import {
 import { GAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { linksFor, equivalentPath } from "@/lib/navigation";
+import { useSyncStatus } from "@/hooks/useSyncStatus";
+import { GlobalSearch } from "@/components/layout/GlobalSearch";
 
 export function Navbar() {
   const { game } = useParams<{ game: string }>();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { status: sync } = useSyncStatus();
+  const syncFailed = sync?.data.some((g) => g.lastStatus === "failed");
 
   const currentGame = GAMES.find((g) => g.id === game);
   const navLinks = linksFor(game);
@@ -38,6 +42,31 @@ export function Navbar() {
         </Link>
 
         <div className="flex items-center gap-2 md:gap-4">
+          <GlobalSearch />
+          <Link
+            to="/updates"
+            className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            title={
+              sync?.running
+                ? `Sync in progress (${sync.running})`
+                : syncFailed
+                ? "Last sync failed — open Updates"
+                : sync?.unseen
+                ? "New data — open Updates"
+                : "Updates"
+            }
+            aria-label="Updates"
+          >
+            <RefreshCw className={cn("h-4 w-4", sync?.running && "animate-spin")} />
+            {(sync?.unseen || syncFailed) && (
+              <span
+                className={cn(
+                  "absolute right-1 top-1 h-2 w-2 rounded-full ring-2 ring-background",
+                  syncFailed ? "bg-destructive" : "bg-amber-400"
+                )}
+              />
+            )}
+          </Link>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1">
@@ -65,7 +94,7 @@ export function Navbar() {
 
           {game && (
             <>
-              <div className="hidden md:flex items-center gap-1">
+              <div className="hidden lg:flex items-center gap-1">
                 {navLinks.map((link) => (
                   <Button
                     key={link.path}
@@ -84,7 +113,7 @@ export function Navbar() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="md:hidden"
+                className="lg:hidden"
                 aria-label={mobileOpen ? "Close menu" : "Open menu"}
                 aria-expanded={mobileOpen}
                 onClick={() => setMobileOpen((o) => !o)}
@@ -97,7 +126,7 @@ export function Navbar() {
       </div>
 
       {game && mobileOpen && (
-        <div className="md:hidden border-t border-border bg-background/95 px-4 py-2">
+        <div className="lg:hidden border-t border-border bg-background/95 px-4 py-2">
           {navLinks.map((link) => (
             <Link
               key={link.path}

@@ -17,3 +17,6 @@ HSR_Implementation_Roadmap.md
 
 # Local database backups
 backups/
+
+# Download caches (sync)
+cache/
