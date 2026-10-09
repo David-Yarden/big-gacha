@@ -7,31 +7,16 @@ import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { RarityStars } from "@/components/shared/RarityStars";
 import { getWeapons } from "@/lib/api";
 import { useInfiniteList } from "@/hooks/useInfiniteList";
-import { weaponIconUrl } from "@/lib/images";
+import { weaponIconUrl, wuwaWeaponIconUrl } from "@/lib/images";
 import { formatBaseAtk } from "@/lib/formatters";
 import {
   GENSHIN_WEAPON_TYPES,
+  WUWA_WEAPON_TYPES,
   WEAPON_RARITIES,
   RARITY_COLOR_MAP,
 } from "@/lib/constants";
 import type { Game, Weapon } from "@/lib/types";
 import type { FilterGroup, SortOption } from "@/components/shared/FilterBar";
-
-const WEAPON_FILTERS: FilterGroup[] = [
-  {
-    key: "weaponType",
-    label: "Type",
-    options: GENSHIN_WEAPON_TYPES.map((wt) => ({ value: wt, label: wt })),
-  },
-  {
-    key: "rarity",
-    label: "Rarity",
-    options: WEAPON_RARITIES.map((r) => ({
-      value: String(r),
-      label: "★".repeat(r),
-    })),
-  },
-];
 
 const SORT_OPTIONS: SortOption[] = [
   { value: "name", label: "Name" },
@@ -40,15 +25,16 @@ const SORT_OPTIONS: SortOption[] = [
 
 function WeaponCard({ weapon, game }: { weapon: Weapon; game: string }) {
   const rarityClass = RARITY_COLOR_MAP[weapon.rarity] ?? "bg-muted";
+  const iconUrl = game === "wuwa" ? wuwaWeaponIconUrl(weapon.images) : weaponIconUrl(weapon.images);
 
   return (
-    <Link to={`/${game}/weapons/${weapon.name}`}>
+    <Link to={`/${game}/weapons/${encodeURIComponent(weapon.name)}`}>
       <Card className="group overflow-hidden transition-colors hover:border-primary/40">
         <div
           className={`relative flex h-40 items-center justify-center ${rarityClass}/20`}
         >
           <ImageWithFallback
-            src={weaponIconUrl(weapon.images)}
+            src={iconUrl}
             alt={weapon.name}
             className="h-full w-full object-contain p-3"
           />
@@ -81,6 +67,8 @@ export function WeaponsPage() {
   const { game } = useParams<{ game: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const isWuwa = game === "wuwa";
+
   const search = searchParams.get("search") ?? undefined;
   const weaponType = searchParams.get("weaponType") ?? undefined;
   const rarity = searchParams.get("rarity") ?? undefined;
@@ -88,6 +76,19 @@ export function WeaponsPage() {
   const sortDir = searchParams.get("sortDir") ?? "desc";
 
   const sort = buildSort(sortBy, sortDir);
+
+  const weaponTypeOptions = isWuwa
+    ? WUWA_WEAPON_TYPES.map((wt) => ({ value: wt, label: wt }))
+    : GENSHIN_WEAPON_TYPES.map((wt) => ({ value: wt, label: wt }));
+
+  const filterGroups: FilterGroup[] = [
+    { key: "weaponType", label: "Type", options: weaponTypeOptions },
+    {
+      key: "rarity",
+      label: "Rarity",
+      options: WEAPON_RARITIES.map((r) => ({ value: String(r), label: "★".repeat(r) })),
+    },
+  ];
 
   const { items, total, loading, error, hasMore, sentinelRef } = useInfiniteList(
     (page) =>
@@ -115,7 +116,7 @@ export function WeaponsPage() {
         searchParams={searchParams}
         setSearchParams={setSearchParams}
         searchPlaceholder="Search weapons..."
-        filterGroups={WEAPON_FILTERS}
+        filterGroups={filterGroups}
         sortOptions={SORT_OPTIONS}
         defaultSortBy="version"
         defaultSortDir="desc"

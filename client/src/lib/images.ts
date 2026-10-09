@@ -324,3 +324,99 @@ export function lightConeSplashUrl(images?: Record<string, string>): string | nu
 export function relicIconUrl(images?: Record<string, string>): string | null {
   return images?.icon ?? null;
 }
+
+// ── WuWa ─────────────────────────────────────────────────────────────────────
+// CDN: WorkSync/Wuthering-_Icon (GitHub raw, community-maintained)
+// https://github.com/WorkSync/Wuthering-_Icon
+// Character/weapon icons are stored in the `images` object populated by seedWuwa.js.
+// Element icons are constructed directly from the element display name.
+
+const WUWA_CDN =
+  "https://raw.githubusercontent.com/WorkSync/Wuthering-_Icon/main/UIResources/Common/Image";
+
+export function wuwaCharacterIconUrl(images?: Record<string, string>): string | null {
+  return images?.icon ?? images?.thumbnail ?? null;
+}
+
+export function wuwaCharacterSplashUrl(images?: Record<string, string>): string | null {
+  return images?.splash ?? images?.portrait ?? images?.preview ?? null;
+}
+
+export function wuwaCharacterSideIconUrl(images?: Record<string, string>): string | null {
+  return images?.sideIcon ?? images?.icon ?? null;
+}
+
+export function wuwaWeaponIconUrl(images?: Record<string, string>): string | null {
+  return images?.icon ?? null;
+}
+
+export function wuwaEchoIconUrl(images?: Record<string, string>): string | null {
+  return images?.icon ?? null;
+}
+
+export function wuwaEchoSetIconUrl(images?: Record<string, string>): string | null {
+  return images?.icon ?? null;
+}
+
+export function wuwaForteSkillIconUrl(icon?: string): string | null {
+  return icon ?? null;
+}
+
+export function wuwaMaterialIconUrl(images?: Record<string, string>): string | null {
+  return images?.icon ?? null;
+}
+
+// WuWa element icons — display name → IconElement filename slug
+// Source: UIResources/Common/Image/IconElement/T_IconElement{slug}2_UI.png
+const WUWA_ELEMENT_ICON_SLUG: Record<string, string> = {
+  Glacio:  "Ice",
+  Fusion:  "Fire",
+  Electro: "Thunder",
+  Aero:    "Wind",
+  Spectro: "Light",
+  Havoc:   "Dark",
+};
+
+export function wuwaElementIconUrl(element?: string): string | null {
+  if (!element) return null;
+  const slug = WUWA_ELEMENT_ICON_SLUG[element];
+  return slug ? `${WUWA_CDN}/IconElement/T_IconElement${slug}2_UI.png` : null;
+}
+
+// WuWa weapon type icons — reuse Genshin Sword icon for Sword, local files for others
+const WUWA_WEAPON_TYPE_ICON: Record<string, string> = {
+  Sword:      "/weapons/Icon_Sword.webp",        // shared with Genshin
+  Broadblade: "/weapons/Icon_WuWa_Broadblade.webp",
+  Pistols:    "/weapons/Icon_WuWa_Pistols.webp",
+  Gauntlets:  "/weapons/Icon_WuWa_Gauntlets.webp",
+  Rectifier:  "/weapons/Icon_WuWa_Rectifier.webp",
+};
+
+export function wuwaWeaponTypeIconUrl(weaponType?: string): string | null {
+  if (!weaponType) return null;
+  return WUWA_WEAPON_TYPE_ICON[weaponType] ?? null;
+}
+
+// WuWa stat display names (mirrors HSR pattern; actual stat keys confirmed during WW-08)
+const WUWA_STAT_DISPLAY: Record<string, string> = {
+  HP:           "HP",
+  ATK:          "ATK",
+  DEF:          "DEF",
+  "HP%":        "HP",
+  "ATK%":       "ATK",
+  "DEF%":       "DEF",
+  CritRate:     "CRIT Rate",
+  CritDMG:      "CRIT DMG",
+  EnergyRegen:  "Energy Regen",
+  HealingBonus: "Healing Bonus",
+  "Glacio DMG": "Glacio DMG Bonus",
+  "Fusion DMG": "Fusion DMG Bonus",
+  "Electro DMG":"Electro DMG Bonus",
+  "Aero DMG":   "Aero DMG Bonus",
+  "Spectro DMG":"Spectro DMG Bonus",
+  "Havoc DMG":  "Havoc DMG Bonus",
+};
+
+export function wuwaStatName(type: string): string {
+  return WUWA_STAT_DISPLAY[type] ?? type;
+}

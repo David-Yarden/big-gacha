@@ -8,7 +8,7 @@ import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { RarityStars } from "@/components/shared/RarityStars";
 import { getCharacters } from "@/lib/api";
 import { useInfiniteList } from "@/hooks/useInfiniteList";
-import { characterIconUrl, elementIconUrl, weaponTypeIconUrl, hsrElementIconUrl, hsrPathIconUrl } from "@/lib/images";
+import { characterIconUrl, elementIconUrl, weaponTypeIconUrl, hsrElementIconUrl, hsrPathIconUrl, wuwaCharacterIconUrl, wuwaElementIconUrl, wuwaWeaponTypeIconUrl } from "@/lib/images";
 import {
   GENSHIN_ELEMENTS,
   GENSHIN_WEAPON_TYPES,
@@ -19,6 +19,10 @@ import {
   HSR_ELEMENTS,
   HSR_PATHS,
   HSR_ELEMENT_COLOR_MAP,
+  WUWA_ELEMENTS,
+  WUWA_WEAPON_TYPES,
+  WUWA_REGIONS,
+  WUWA_ELEMENT_COLOR_MAP,
   resolveRegion,
 } from "@/lib/constants";
 import type { Game, Character } from "@/lib/types";
@@ -65,6 +69,29 @@ const HSR_FILTERS: FilterGroup[] = [
   },
 ];
 
+const WUWA_FILTERS: FilterGroup[] = [
+  {
+    key: "element",
+    label: "Element",
+    options: WUWA_ELEMENTS.map((el) => ({ value: el, label: el, icon: wuwaElementIconUrl(el) ?? undefined })),
+  },
+  {
+    key: "weaponType",
+    label: "Weapon",
+    options: WUWA_WEAPON_TYPES.map((wt) => ({ value: wt, label: wt, icon: wuwaWeaponTypeIconUrl(wt) ?? undefined })),
+  },
+  {
+    key: "rarity",
+    label: "Rarity",
+    options: CHARACTER_RARITIES.map((r) => ({ value: String(r), label: "★".repeat(r) })),
+  },
+  {
+    key: "region",
+    label: "Region",
+    options: WUWA_REGIONS.map((r) => ({ value: r, label: r })),
+  },
+];
+
 const SORT_OPTIONS: SortOption[] = [
   { value: "name", label: "Name" },
   { value: "version", label: "Release" },
@@ -75,7 +102,7 @@ function GenshinCharacterCard({ character, game }: { character: Character; game:
   const rarityClass = RARITY_COLOR_MAP[character.rarity] ?? "bg-muted";
 
   return (
-    <Link to={`/${game}/characters/${character.name}`}>
+    <Link to={`/${game}/characters/${encodeURIComponent(character.name)}`}>
       <Card className="group overflow-hidden transition-colors hover:border-primary/40">
         <div className={`relative flex h-32 items-center justify-center ${rarityClass}/20`}>
           <ImageWithFallback
@@ -83,14 +110,16 @@ function GenshinCharacterCard({ character, game }: { character: Character; game:
             alt={character.name}
             className="h-full w-full object-contain"
           />
-          <Badge
-            className={`absolute top-2 right-2 ${elementClass} border-0 text-white text-xs flex items-center gap-1`}
-          >
-            {elementIconUrl(character.element) && (
-              <img src={elementIconUrl(character.element)!} className="h-3.5 w-3.5" alt="" />
-            )}
-            {character.element}
-          </Badge>
+          {character.element && character.element !== "None" && (
+            <Badge
+              className={`absolute top-2 right-2 ${elementClass} border-0 text-white text-xs flex items-center gap-1`}
+            >
+              {elementIconUrl(character.element) && (
+                <img src={elementIconUrl(character.element)!} className="h-3.5 w-3.5" alt="" />
+              )}
+              {character.element}
+            </Badge>
+          )}
         </div>
         <CardContent className="p-3">
           <p className="font-semibold text-sm truncate">{character.name}</p>
@@ -112,12 +141,56 @@ function GenshinCharacterCard({ character, game }: { character: Character; game:
   );
 }
 
+function WuwaCharacterCard({ character, game }: { character: Character; game: string }) {
+  const elementClass = WUWA_ELEMENT_COLOR_MAP[character.element ?? ""] ?? "bg-muted";
+  const rarityClass = RARITY_COLOR_MAP[character.rarity] ?? "bg-muted";
+
+  return (
+    <Link to={`/${game}/characters/${encodeURIComponent(character.name)}`}>
+      <Card className="group overflow-hidden transition-colors hover:border-primary/40">
+        <div className={`relative flex h-32 items-center justify-center ${rarityClass}/20`}>
+          <ImageWithFallback
+            src={wuwaCharacterIconUrl(character.images)}
+            alt={character.name}
+            className="h-full w-full object-contain"
+          />
+          {character.element && (
+            <Badge
+              className={`absolute top-2 right-2 ${elementClass} border-0 text-white text-xs flex items-center gap-1`}
+            >
+              {wuwaElementIconUrl(character.element) && (
+                <img src={wuwaElementIconUrl(character.element)!} className="h-3.5 w-3.5" alt="" />
+              )}
+              {character.element}
+            </Badge>
+          )}
+        </div>
+        <CardContent className="p-3">
+          <p className="font-semibold text-sm truncate">{character.name}</p>
+          <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              {wuwaWeaponTypeIconUrl(character.weaponType) && (
+                <img src={wuwaWeaponTypeIconUrl(character.weaponType)!} className="h-3 w-3" alt="" />
+              )}
+              {character.weaponType}
+            </span>
+            <RarityStars rarity={character.rarity} className="text-xs" />
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground truncate">
+            {character.region ?? "Others"}
+          </p>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
 function HsrCharacterCard({ character, game }: { character: Character; game: string }) {
   const elementClass = HSR_ELEMENT_COLOR_MAP[character.element ?? ""] ?? "bg-muted";
   const rarityClass = RARITY_COLOR_MAP[character.rarity] ?? "bg-muted";
 
   return (
-    <Link to={`/${game}/characters/${character.name}`}>
+    <Link to={`/${game}/characters/${encodeURIComponent(character.name)}`}>
       <Card className="group overflow-hidden transition-colors hover:border-primary/40">
         <div className={`relative flex h-32 items-center justify-center ${rarityClass}/20`}>
           <ImageWithFallback
@@ -163,6 +236,7 @@ export function CharactersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const isHsr = game === "hsr";
+  const isWuwa = game === "wuwa";
 
   const search = searchParams.get("search") ?? undefined;
   const element = searchParams.get("element") ?? undefined;
@@ -191,7 +265,7 @@ export function CharactersPage() {
     [game, search, element, weaponType, path, rarity, region, sort]
   );
 
-  const filterGroups = isHsr ? HSR_FILTERS : GENSHIN_FILTERS;
+  const filterGroups = isWuwa ? WUWA_FILTERS : isHsr ? HSR_FILTERS : GENSHIN_FILTERS;
 
   return (
     <div className="space-y-4">
@@ -224,7 +298,9 @@ export function CharactersPage() {
         emptyMessage="No characters found"
       >
         {items.map((c) =>
-          isHsr ? (
+          isWuwa ? (
+            <WuwaCharacterCard key={c._id} character={c} game={game!} />
+          ) : isHsr ? (
             <HsrCharacterCard key={c._id} character={c} game={game!} />
           ) : (
             <GenshinCharacterCard key={c._id} character={c} game={game!} />

@@ -34,7 +34,7 @@ function MaterialCard({ material, game }: { material: Material; game: string }) 
   const rarityClass = RARITY_COLOR_MAP[material.rarity ?? 1] ?? "bg-muted";
 
   return (
-    <Link to={`/${game}/materials/${material.name}`}>
+    <Link to={`/${game}/materials/${encodeURIComponent(material.name)}`}>
       <Card className="group overflow-hidden transition-colors hover:border-primary/40">
         <div
           className={`relative flex h-32 items-center justify-center ${rarityClass}/20`}

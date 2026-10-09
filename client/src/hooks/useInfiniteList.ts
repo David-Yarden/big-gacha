@@ -13,6 +13,10 @@ interface UseInfiniteListResult<T> {
 /**
  * Infinite-scroll list hook. Fetches pages and appends results.
  * Resets automatically when resetDeps change (e.g. search/filter params).
+ *
+ * Each filter state gets a "generation" number: responses that belong to an
+ * older generation are dropped, so fast typing or filter clicks can never
+ * show results for a previous search.
  */
 export function useInfiniteList<T>(
   fetcher: (page: number) => Promise<PaginatedResponse<T>>,
@@ -28,40 +32,49 @@ export function useInfiniteList<T>(
   const sentinelRef = useRef<HTMLDivElement>(null!);
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
-  const isFetching = useRef(false);
+  const generation = useRef(0);
+  const inFlight = useRef(false);
+  const fetchedKey = useRef<string | null>(null);
 
-  // Stringify deps for stable comparison
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const resetKey = JSON.stringify([...resetDeps, limit]);
 
   // Reset when filters/search change
   useEffect(() => {
+    generation.current++;
+    inFlight.current = false;
     setItems([]);
     setTotal(0);
     setPage(1);
     setTotalPages(1);
     setError(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
 
   // Fetch whenever page or resetKey changes
   useEffect(() => {
-    if (isFetching.current) return;
-    isFetching.current = true;
+    // Filters just changed but `page` still holds the old value: wait for the
+    // reset to page 1 instead of fetching a later page of the new results.
+    if (fetchedKey.current !== resetKey && page !== 1) return;
+    fetchedKey.current = resetKey;
+    const gen = generation.current;
+    inFlight.current = true;
     setLoading(true);
     fetcherRef.current(page)
       .then((r) => {
+        if (gen !== generation.current) return;
         setItems((prev) => (page === 1 ? r.data : [...prev, ...r.data]));
         setTotal(r.total);
         setTotalPages(r.totalPages);
         setError(null);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Error loading data"))
+      .catch((e) => {
+        if (gen !== generation.current) return;
+        setError(e instanceof Error ? e.message : "Error loading data");
+      })
       .finally(() => {
+        if (gen !== generation.current) return;
         setLoading(false);
-        isFetching.current = false;
+        inFlight.current = false;
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, resetKey]);
 
   const hasMore = page < totalPages;
@@ -72,7 +85,7 @@ export function useInfiniteList<T>(
     if (!el || !hasMore) return;
     const obs = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !isFetching.current) {
+        if (entry.isIntersecting && !inFlight.current) {
           setPage((p) => p + 1);
         }
       },
@@ -80,7 +93,7 @@ export function useInfiniteList<T>(
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [hasMore]);
+  }, [hasMore, items.length]);
 
   return { items, total, loading, error, hasMore, sentinelRef };
 }

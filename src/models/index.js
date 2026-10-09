@@ -10,4 +10,9 @@ module.exports = {
   Relic: require("./Relic"),
   Trace: require("./Trace"),
   Eidolon: require("./Eidolon"),
+  // WuWa
+  Forte: require("./Forte"),
+  ResonanceChain: require("./ResonanceChain"),
+  Echo: require("./Echo"),
+  EchoSet: require("./EchoSet"),
 };

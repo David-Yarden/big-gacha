@@ -6,66 +6,80 @@
  * The result is attached to res.queryResult
  *
  * Query params:
- *   ?game=genshin              — filter by game
- *   ?element=Pyro              — filter by field
- *   ?rarity=5                  — filter by rarity (auto-cast to number)
- *   ?search=hu                 — text search on name (case-insensitive)
+ *   ?element=Pyro              — filter by any scalar schema field
+ *   ?rarity=5                  — numeric fields are cast to numbers
+ *   ?region=Others             — characters with no region
+ *   ?search=hu                 — case-insensitive, literal search on name
  *   ?sort=name,-rarity         — sort fields (prefix - for descending)
- *   ?fields=name,element,rarity — select specific fields
+ *   ?fields=name,element       — select specific fields
  *   ?page=1&limit=20           — pagination
+ *
+ * Only fields that exist on the schema are honoured; anything else
+ * (unknown keys, operator objects like ?name[$ne]=x) is ignored.
  */
 
-const NUMERIC_FIELDS = ["rarity", "sourceId", "baseAtkValue"];
-const RESERVED_PARAMS = ["sort", "fields", "page", "limit", "search"];
+const {
+  escapeRegex,
+  filterableFields,
+  selectableFields,
+  cleanFieldList,
+} = require("../utils/query");
+
+const RESERVED_PARAMS = new Set(["sort", "fields", "page", "limit", "search"]);
+
+function buildFilter(Model, query) {
+  const allowed = filterableFields(Model);
+  const filter = {};
+
+  for (const [key, value] of Object.entries(query)) {
+    if (RESERVED_PARAMS.has(key)) continue;
+    if (!allowed.has(key)) continue;
+    if (typeof value !== "string") continue; // rejects ?a[$ne]=x and ?a=1&a=2
+
+    const type = Model.schema.path(key)?.instance;
+    if (type === "Number" || (type === "Array" && Model.schema.path(key).caster?.instance === "Number")) {
+      const n = Number(value);
+      if (Number.isNaN(n)) continue;
+      filter[key] = n;
+    } else if (type === "Boolean") {
+      filter[key] = value === "true";
+    } else if (key === "region" && value === "Others") {
+      filter.$or = [{ region: null }, { region: "" }, { region: { $exists: false } }];
+    } else {
+      filter[key] = value;
+    }
+  }
+
+  if (typeof query.search === "string" && query.search.trim()) {
+    filter.name = { $regex: escapeRegex(query.search.trim()), $options: "i" };
+  }
+
+  return filter;
+}
 
 function queryBuilder(Model) {
   return async (req, res, next) => {
     try {
-      // --- Build filter ---
-      const filter = {};
-      for (const [key, value] of Object.entries(req.query)) {
-        if (RESERVED_PARAMS.includes(key)) continue;
-
-        if (NUMERIC_FIELDS.includes(key)) {
-          filter[key] = Number(value);
-        } else if (key === "region" && value === "Others") {
-          // "Others" means characters with no assigned region
-          filter.$or = [{ region: null }, { region: "" }];
-        } else {
-          filter[key] = value;
-        }
-      }
-
-      // --- Text search on name ---
-      if (req.query.search) {
-        filter.name = { $regex: req.query.search, $options: "i" };
-      }
-
+      const filter = buildFilter(Model, req.query);
       let query = Model.find(filter);
 
       // --- Sort ---
-      if (req.query.sort) {
-        const sortStr = req.query.sort.split(",").join(" ");
-        query = query.sort(sortStr);
-      } else {
-        query = query.sort("name");
-      }
+      const sortFields = cleanFieldList(req.query.sort, filterableFields(Model), { allowDesc: true });
+      query = query.sort(sortFields.length ? sortFields.join(" ") : "name");
 
       // --- Field selection ---
-      if (req.query.fields) {
-        const fieldsStr = req.query.fields.split(",").join(" ");
-        query = query.select(fieldsStr);
-      }
+      const selected = cleanFieldList(req.query.fields, selectableFields(Model));
+      if (selected.length) query = query.select(selected.join(" "));
 
       // --- Pagination ---
       const page = Math.max(1, parseInt(req.query.page) || 1);
       const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 25));
       const skip = (page - 1) * limit;
 
-      const total = await Model.countDocuments(filter);
-      query = query.skip(skip).limit(limit);
-
-      const results = await query.lean();
+      const [total, results] = await Promise.all([
+        Model.countDocuments(filter),
+        query.skip(skip).limit(limit).lean(),
+      ]);
 
       res.queryResult = {
         success: true,
@@ -84,3 +98,4 @@ function queryBuilder(Model) {
 }
 
 module.exports = queryBuilder;
+module.exports.buildFilter = buildFilter;

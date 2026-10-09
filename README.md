@@ -1,6 +1,6 @@
 # Big Gacha
 
-A multi-game gacha database with a REST API and React frontend. Currently supports **Genshin Impact** and **Honkai: Star Rail**, with more games planned.
+Personal multi-game gacha database with a REST API and React frontend. Supports **Genshin Impact**, **Honkai: Star Rail** and **Wuthering Waves** (partial). Zenless Zone Zero and Arknights: Endfield are planned.
 
 ## Prerequisites
 
@@ -71,7 +71,7 @@ npm run seed:genshin
 npm run seed:hsr
 ```
 
-You should see `MongoDB connected: 127.0.0.1` (not "in-memory") — that confirms data will persist.
+You should see `MongoDB connected: 127.0.0.1/gacha-db`. If MongoDB is not running the server now stops with an explicit error instead of silently using a temporary in-memory database (set `ALLOW_MEMORY_DB=true` in `.env` if you really want that).
 
 ### 4. Start the app
 
@@ -93,6 +93,16 @@ This starts both servers concurrently:
 | `npm run seed:genshin:force` | Drop and re-import all Genshin data |
 | `npm run seed:hsr` | Upsert HSR data (safe) |
 | `npm run seed:hsr:force` | Drop and re-import all HSR data |
+| `npm run seed:wuwa` | Upsert Wuthering Waves data (safe) |
+| `npm run seed:wuwa:force` | Drop and re-import all WuWa data |
+
+## Maintenance Commands
+
+| Command | Description |
+|---------|-------------|
+| `npm test` | Unit tests + smoke tests of the API (smoke tests are skipped if the server is not running) |
+| `npm run backup` | Export every collection to `backups/<date>/` |
+| `npm run restore -- <folder>` | Replace the database with a backup (`npm run restore` lists them) |
 
 ## Updating Data
 
@@ -136,20 +146,22 @@ Base URL: `http://localhost:5000/api`
 | GET | `/api/:game/materials` | List materials |
 | GET | `/api/:game/talents` | List talent sets (Genshin) |
 | GET | `/api/:game/constellations` | List constellations (Genshin) |
-| GET | `/api/:game/light-cones` | List light cones (HSR) |
+| GET | `/api/:game/lightcones` | List light cones (HSR) |
 | GET | `/api/:game/relics` | List relic sets (HSR) |
 | GET | `/api/:game/traces` | List traces (HSR) |
 | GET | `/api/:game/eidolons` | List eidolons (HSR) |
+| GET | `/api/:game/fortes` · `resonancechains` · `echoes` · `echosets` | WuWa resources |
 | GET | `/api/:game/stats` | Collection counts for a game |
+| GET | `/api/health` | Server and database status |
 
-Replace `:game` with: `genshin` or `hsr`
+Replace `:game` with: `genshin`, `hsr` or `wuwa`
 
 ### Query Parameters
 
 | Param | Example | Description |
 |-------|---------|-------------|
 | `search` | `?search=hu` | Case-insensitive name search |
-| `element` | `?element=Pyro` | Filter by element |
+| `element` | `?element=Pyro` | Filter by element (any scalar field of the resource works; unknown fields are ignored) |
 | `rarity` | `?rarity=5` | Filter by rarity |
 | `sort` | `?sort=-rarity,name` | Sort (prefix `-` for descending) |
 | `fields` | `?fields=name,element,rarity` | Select specific fields |
@@ -221,7 +233,7 @@ big-gacha/
 | Genshin Impact | [genshin-db](https://github.com/theBowja/genshin-db) (npm) | Ready |
 | Honkai: Star Rail | [Mar-7th/StarRailRes](https://github.com/Mar-7th/StarRailRes) (GitHub) | Ready |
 | Zenless Zone Zero | — | Planned |
-| Wuthering Waves | — | Planned |
+| Wuthering Waves | [Dimbreath/WutheringData](https://github.com/Dimbreath/WutheringData) (GitHub) | Partial |
 | Arknights: Endfield | — | Planned |
 
 ## Tech Stack

@@ -32,7 +32,7 @@ function ArtifactCard({ artifact, game }: { artifact: Artifact; game: string }) 
   const maxRarity = artifact.rarity ? Math.max(...artifact.rarity) : 0;
 
   return (
-    <Link to={`/${game}/artifacts/${artifact.name}`}>
+    <Link to={`/${game}/artifacts/${encodeURIComponent(artifact.name)}`}>
       <Card className="group overflow-hidden transition-colors hover:border-primary/40">
         <div className="relative flex h-32 items-center justify-center">
           <ImageWithFallback

@@ -13,6 +13,10 @@ import type {
   Eidolon,
   LightCone,
   Relic,
+  Forte,
+  ResonanceChain,
+  Echo,
+  EchoSet,
   GameStats,
 } from "./types";
 
@@ -187,6 +191,62 @@ export async function getRelic(
   name: string
 ): Promise<ApiResponse<Relic>> {
   const { data } = await client.get(`/${game}/relics/${encodeURIComponent(name)}`);
+  return data;
+}
+
+// WuWa Fortes
+export async function getForte(
+  game: Game,
+  name: string
+): Promise<ApiResponse<Forte>> {
+  const { data } = await client.get(`/${game}/fortes/${encodeURIComponent(name)}`);
+  return data;
+}
+
+// WuWa Resonance Chains
+export async function getResonanceChain(
+  game: Game,
+  name: string
+): Promise<ApiResponse<ResonanceChain>> {
+  const { data } = await client.get(`/${game}/resonancechains/${encodeURIComponent(name)}`);
+  return data;
+}
+
+// WuWa Echoes
+export async function getEchoes(
+  game: Game,
+  params?: QueryParams
+): Promise<PaginatedResponse<Echo>> {
+  const { data } = await client.get(`/${game}/echoes`, {
+    params: buildParams(params),
+  });
+  return data;
+}
+
+export async function getEcho(
+  game: Game,
+  name: string
+): Promise<ApiResponse<Echo>> {
+  const { data } = await client.get(`/${game}/echoes/${encodeURIComponent(name)}`);
+  return data;
+}
+
+// WuWa Echo Sets (Sonata Effects)
+export async function getEchoSets(
+  game: Game,
+  params?: QueryParams
+): Promise<PaginatedResponse<EchoSet>> {
+  const { data } = await client.get(`/${game}/echosets`, {
+    params: buildParams(params),
+  });
+  return data;
+}
+
+export async function getEchoSet(
+  game: Game,
+  name: string
+): Promise<ApiResponse<EchoSet>> {
+  const { data } = await client.get(`/${game}/echosets/${encodeURIComponent(name)}`);
   return data;
 }
 

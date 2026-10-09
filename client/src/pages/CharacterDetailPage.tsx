@@ -16,6 +16,8 @@ import {
   getConstellation,
   getTrace,
   getEidolon,
+  getForte,
+  getResonanceChain,
 } from "@/lib/api";
 import {
   characterSplashUrl,
@@ -32,6 +34,12 @@ import {
   hsrPathIconUrl,
   hsrStatIconUrl,
   hsrStatName,
+  wuwaCharacterIconUrl,
+  wuwaCharacterSplashUrl,
+  wuwaElementIconUrl,
+  wuwaWeaponTypeIconUrl,
+  wuwaForteSkillIconUrl,
+  wuwaMaterialIconUrl,
 } from "@/lib/images";
 import { parseLabel, formatSpecialized } from "@/lib/formatters";
 import {
@@ -46,9 +54,13 @@ import {
 import {
   ELEMENT_COLOR_MAP,
   HSR_ELEMENT_COLOR_MAP,
+  WUWA_ELEMENT_COLOR_MAP,
+  WUWA_FORTE_SKILLS,
+  WUWA_FORTE_SKILL_LABELS,
+  WUWA_ASCENSION_LEVELS,
   resolveRegion,
 } from "@/lib/constants";
-import type { Game, TalentCombat, Talent, Constellation, Trace, Eidolon } from "@/lib/types";
+import type { Game, TalentCombat, Talent, Constellation, Trace, TraceNovaflare, Eidolon, Forte, ResonanceChain } from "@/lib/types";
 import type { MaterialCostEntry } from "@/lib/materials";
 import { TotalCostCalculator } from "@/components/character/TotalCostCalculator";
 
@@ -330,9 +342,41 @@ function MaterialCostTable({ materials, isHsr }: { materials: MaterialCostEntry[
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
+/**
+ * Keep one major trace per ascension phase (A2/A4/A6).
+ * When a phase appears several times, the source lists the original node first
+ * and the reworked (Novaflare) node last.
+ */
+function dedupeByPhase<T extends { unlockPhase?: number | null }>(
+  list: T[] | undefined,
+  preferOriginal: boolean
+): T[] | undefined {
+  if (!list || list.length < 2) return list;
+  const byPhase = new Map<string, T>();
+  list.forEach((item, i) => {
+    const key = item.unlockPhase != null ? `p${item.unlockPhase}` : `i${i}`;
+    if (!byPhase.has(key) || !preferOriginal) byPhase.set(key, item);
+  });
+  return [...byPhase.values()];
+}
+
+/**
+ * Reworked characters list their minor stat nodes twice (old tree + new tree),
+ * which doubles the totals. If the second half repeats the first half exactly,
+ * keep a single copy.
+ */
+function dedupeRepeatedHalf<T extends { stat: string; value: number }>(list: T[] | undefined): T[] | undefined {
+  if (!list || list.length < 2 || list.length % 2 !== 0) return list;
+  const half = list.length / 2;
+  const sig = (x: T) => `${x.stat}:${x.value}`;
+  const same = list.slice(0, half).every((x, i) => sig(x) === sig(list[i + half]));
+  return same ? list.slice(0, half) : list;
+}
+
 export function CharacterDetailPage() {
   const { game, name } = useParams<{ game: string; name: string }>();
   const isHsr = game === "hsr";
+  const isWuwa = game === "wuwa";
 
   const defaultLevel = isHsr ? 80 : 90;
   const [charLevel, setCharLevel] = useState(defaultLevel);
@@ -340,6 +384,7 @@ export function CharacterDetailPage() {
   const [talent2Level, setTalent2Level] = useState(10);
   const [talent3Level, setTalent3Level] = useState(10);
   const [activeElement, setActiveElement] = useState<string | null>(null);
+  const [novaflareMode, setNovaflareMode] = useState(true);
   const [hsrBasicLevel, setHsrBasicLevel] = useState(6);
   const [hsrSkillLevel, setHsrSkillLevel] = useState(10);
   const [hsrUltLevel, setHsrUltLevel] = useState(10);
@@ -348,30 +393,41 @@ export function CharacterDetailPage() {
   const [elationLevel, setElationLevel] = useState(10);
   const [memospriteGroupLevels, setMemospriteGroupLevels] = useState<number[]>([]);
 
+  // WuWa forte skill levels (5 skills, all 1–10)
+  const [wuwaBasicLevel,     setWuwaBasicLevel]     = useState(10);
+  const [wuwaSkillLevel,     setWuwaSkillLevel]     = useState(10);
+  const [wuwaLibLevel,       setWuwaLibLevel]       = useState(10);
+  const [wuwaForteLevel,     setWuwaForteLevel]     = useState(10);
+  const [wuwaIntroLevel,     setWuwaIntroLevel]     = useState(10);
+
   const { data: charData, loading: charLoading, error: charError } = useApiQuery(
     () => getCharacter(game as Game, name!),
     [game, name]
   );
 
   const { data: talentData } = useApiQuery(
-    () => isHsr ? getTrace(game as Game, name!) : getTalent(game as Game, name!),
+    () => isHsr ? getTrace(game as Game, name!) : isWuwa ? getForte(game as Game, name!) : getTalent(game as Game, name!),
     [game, name]
   );
 
   const { data: constellationData } = useApiQuery(
-    () => isHsr ? getEidolon(game as Game, name!) : getConstellation(game as Game, name!),
+    () => isHsr ? getEidolon(game as Game, name!) : isWuwa ? getResonanceChain(game as Game, name!) : getConstellation(game as Game, name!),
     [game, name]
   );
 
   const character = charData?.data;
 
   // Genshin-only: talent / constellation
-  const talent = !isHsr ? (talentData?.data as Talent | undefined) : undefined;
-  const constellation = !isHsr ? (constellationData?.data as Constellation | undefined) : undefined;
+  const talent = (!isHsr && !isWuwa) ? (talentData?.data as Talent | undefined) : undefined;
+  const constellation = (!isHsr && !isWuwa) ? (constellationData?.data as Constellation | undefined) : undefined;
 
   // HSR-only: trace / eidolon
   const trace = isHsr ? (talentData?.data as Trace | undefined) : undefined;
   const eidolon = isHsr ? (constellationData?.data as Eidolon | undefined) : undefined;
+
+  // WuWa-only: forte / resonancechain
+  const forte = isWuwa ? (talentData?.data as Forte | undefined) : undefined;
+  const resonanceChain = isWuwa ? (constellationData?.data as ResonanceChain | undefined) : undefined;
 
   useEffect(() => {
     if (character?.availableElements?.length && !activeElement) {
@@ -409,8 +465,44 @@ export function CharacterDetailPage() {
     : null;
   const activeEidolon = activeEidolonVariant ?? eidolon;
 
+  // Novaflare: merge enhanced active skills over base trace data when in Novaflare mode.
+  // For reworked characters the source lists BOTH the original and the new major traces
+  // (two A2, two A4, two A6, original first). Keep one per ascension phase: the original
+  // in "Original" mode, the newest otherwise.
+  const hasNovaflare = !!(activeTrace?.novaflare || activeEidolon?.novaflare);
+  const displayTrace = useMemo((): Trace | null | undefined => {
+    if (!activeTrace) return activeTrace;
+    const preferOriginal = hasNovaflare && !novaflareMode;
+    const majorTraces = dedupeByPhase(activeTrace.majorTraces, preferOriginal);
+    const statBonuses = dedupeRepeatedHalf(activeTrace.statBonuses);
+    if (!novaflareMode || !activeTrace.novaflare) return { ...activeTrace, majorTraces, statBonuses } as Trace;
+    const nf: TraceNovaflare = activeTrace.novaflare;
+    return {
+      ...activeTrace,
+      majorTraces,
+      statBonuses,
+      basicAtk:  nf.basicAtk  ?? activeTrace.basicAtk,
+      skill:     nf.skill     ?? activeTrace.skill,
+      ultimate:  nf.ultimate  ?? activeTrace.ultimate,
+      talent:    nf.talent    ?? activeTrace.talent,
+      technique: nf.technique ?? activeTrace.technique,
+    };
+  }, [activeTrace, novaflareMode, hasNovaflare]);
+
+  // WuWa Rover variant handling (mirrors Trailblazer pattern)
+  const isRover = !!forte?.isTraveler;
+  const activeForteVariant = isRover && activeElement
+    ? (forte?.elementVariants?.[activeElement] as Partial<Forte> | undefined)
+    : null;
+  const activeForte = activeForteVariant ?? forte;
+
+  const activeRcVariant = resonanceChain?.isTraveler && activeElement
+    ? (resonanceChain?.elementVariants?.[activeElement] as Partial<ResonanceChain> | undefined)
+    : null;
+  const activeResonanceChain = activeRcVariant ?? resonanceChain;
+
   // Level/ascension calculations
-  const ascLevels = isHsr ? HSR_ASCENSION_LEVELS : ASCENSION_LEVELS;
+  const ascLevels = isHsr ? HSR_ASCENSION_LEVELS : WUWA_ASCENSION_LEVELS;
   const toPhase = isHsr ? hsrLevelToAscensionPhase : levelToAscensionPhase;
   const ascensionPhase = toPhase(charLevel);
 
@@ -481,6 +573,19 @@ export function CharacterDetailPage() {
     );
   }, [isHsr, activeTrace, memospriteGroupLevels]);
 
+  // WuWa forte materials — compute per skill from activeForte.costs
+  const wuwaForteMaterials = useMemo(() => {
+    if (!isWuwa || !activeForte?.costs) return [];
+    const costs = activeForte.costs as Record<string, Record<string, import("@/lib/materials").MaterialCostEntry[]>>;
+    return mergeAllMaterials(
+      calculateTalentMaterials(costs.basicAtk,            wuwaBasicLevel),
+      calculateTalentMaterials(costs.resonanceSkill,       wuwaSkillLevel),
+      calculateTalentMaterials(costs.resonanceLiberation,  wuwaLibLevel),
+      calculateTalentMaterials(costs.forteCircuit,         wuwaForteLevel),
+      calculateTalentMaterials(costs.introSkill,           wuwaIntroLevel),
+    );
+  }, [isWuwa, activeForte, wuwaBasicLevel, wuwaSkillLevel, wuwaLibLevel, wuwaForteLevel, wuwaIntroLevel]);
+
   const totalMaterials = useMemo(
     () => isHsr
       ? mergeAllMaterials(
@@ -493,6 +598,8 @@ export function CharacterDetailPage() {
           elationMaterials,
           ...memospriteGroupMaterials,
         )
+      : isWuwa
+      ? mergeAllMaterials(ascensionMaterials, wuwaForteMaterials)
       : mergeAllMaterials(
           ascensionMaterials,
           expMaterials,
@@ -501,10 +608,10 @@ export function CharacterDetailPage() {
           talent2Materials,
           talent3Materials,
         ),
-    [isHsr, ascensionMaterials, expMaterials, breakthroughMaterials,
+    [isHsr, isWuwa, ascensionMaterials, expMaterials, breakthroughMaterials,
      talent1Materials, talent2Materials, talent3Materials,
      hsrBasicMaterials, hsrSkillMaterials, hsrUltMaterials, hsrTalentMaterials, hsrTechMaterials,
-     elationMaterials, memospriteGroupMaterials]
+     elationMaterials, memospriteGroupMaterials, wuwaForteMaterials]
   );
 
   if (charLoading) {
@@ -532,12 +639,12 @@ export function CharacterDetailPage() {
     );
   }
 
-  const displayElement = (isTraveler || isTrailblazer) ? (activeElement ?? character.element) : character.element;
-  const elementColorMap = isHsr ? HSR_ELEMENT_COLOR_MAP : ELEMENT_COLOR_MAP;
+  const displayElement = (isTraveler || isTrailblazer || isRover) ? (activeElement ?? character.element) : character.element;
+  const elementColorMap = isHsr ? HSR_ELEMENT_COLOR_MAP : isWuwa ? WUWA_ELEMENT_COLOR_MAP : ELEMENT_COLOR_MAP;
   const elementClass = elementColorMap[displayElement ?? ""] ?? "bg-muted";
 
-  const tabTraces = isHsr ? "traces" : "talents";
-  const tabEidolons = isHsr ? "eidolons" : "constellations";
+  const tabTraces = isHsr ? "traces" : isWuwa ? "forte" : "talents";
+  const tabEidolons = isHsr ? "eidolons" : isWuwa ? "resonancechain" : "constellations";
 
   return (
     <div className="space-y-6">
@@ -552,7 +659,10 @@ export function CharacterDetailPage() {
       <div className="relative">
         <Card className={`overflow-hidden aspect-[2/1] ${elementClass}/20`}>
           <ImageWithFallback
-            src={characterSplashUrl(character.images) ?? characterIconUrl(character.images)}
+            src={isWuwa
+              ? (wuwaCharacterSplashUrl(character.images) ?? wuwaCharacterIconUrl(character.images))
+              : (characterSplashUrl(character.images) ?? characterIconUrl(character.images))
+            }
             alt={character.name}
             className="w-full h-full object-contain"
           />
@@ -567,6 +677,8 @@ export function CharacterDetailPage() {
               <Badge className={`${elementClass} border-0 text-white flex items-center gap-1`}>
                 {isHsr
                   ? hsrElementIconUrl(displayElement) && <img src={hsrElementIconUrl(displayElement)!} className="h-4 w-4" alt="" />
+                  : isWuwa
+                  ? wuwaElementIconUrl(displayElement) && <img src={wuwaElementIconUrl(displayElement)!} className="h-4 w-4" alt="" />
                   : elementIconUrl(displayElement) && <img src={elementIconUrl(displayElement)!} className="h-4 w-4" alt="" />
                 }
                 {displayElement}
@@ -595,8 +707,12 @@ export function CharacterDetailPage() {
                 {character.weaponType && (
                   <div className="flex items-center gap-1">
                     <span className="text-muted-foreground">Weapon: </span>
-                    {weaponTypeIconUrl(character.weaponType) && (
-                      <img src={weaponTypeIconUrl(character.weaponType)!} className="h-4 w-4" alt="" />
+                    {(isWuwa ? wuwaWeaponTypeIconUrl(character.weaponType) : weaponTypeIconUrl(character.weaponType)) && (
+                      <img
+                        src={(isWuwa ? wuwaWeaponTypeIconUrl(character.weaponType) : weaponTypeIconUrl(character.weaponType))!}
+                        className="h-4 w-4"
+                        alt=""
+                      />
                     )}
                     {character.weaponType}
                   </div>
@@ -682,9 +798,34 @@ export function CharacterDetailPage() {
               >
                 {isHsr
                   ? hsrElementIconUrl(el) && <img src={hsrElementIconUrl(el)!} className="h-4 w-4" alt="" />
+                  : isWuwa
+                  ? wuwaElementIconUrl(el) && <img src={wuwaElementIconUrl(el)!} className="h-4 w-4" alt="" />
                   : elementIconUrl(el) && <img src={elementIconUrl(el)!} className="h-4 w-4" alt="" />
                 }
                 {el}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Novaflare version toggle — shown for any Novaflare character (affects all tabs) */}
+      {isHsr && (activeTrace?.novaflare || activeEidolon?.novaflare) && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Version:</span>
+          {(["Original", "Novaflare"] as const).map((label) => {
+            const isActive = label === "Novaflare" ? novaflareMode : !novaflareMode;
+            return (
+              <button
+                key={label}
+                onClick={() => setNovaflareMode(label === "Novaflare")}
+                className={`rounded-full px-3 py-1 text-sm font-medium transition-all
+                  ${isActive
+                    ? "bg-amber-500 text-white ring-2 ring-white/60 ring-offset-2 ring-offset-background"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+              >
+                {label}
               </button>
             );
           })}
@@ -695,16 +836,16 @@ export function CharacterDetailPage() {
       <Tabs defaultValue={tabTraces}>
         <TabsList>
           <TabsTrigger value={tabTraces}>
-            {isHsr ? "Traces" : "Talents"}
+            {isHsr ? "Traces" : isWuwa ? "Forte" : "Talents"}
           </TabsTrigger>
           <TabsTrigger value={tabEidolons}>
-            {isHsr ? "Eidolons" : "Constellations"}
+            {isHsr ? "Eidolons" : isWuwa ? "Resonance Chain" : "Constellations"}
           </TabsTrigger>
           <TabsTrigger value="ascension">Ascension</TabsTrigger>
         </TabsList>
 
         {/* Talents tab (Genshin) */}
-        {!isHsr && (
+        {!isHsr && !isWuwa && (
           <TabsContent value="talents">
             <div className="space-y-6">
               {activeTalent?.combat1 && (
@@ -792,14 +933,14 @@ export function CharacterDetailPage() {
         {isHsr && (
           <TabsContent value="traces">
             <div className="space-y-4">
-              {activeTrace && (
+              {displayTrace && (
                 (
                   [
-                    { skill: activeTrace.basicAtk,  label: "Basic ATK", level: hsrBasicLevel, onLevelChange: setHsrBasicLevel, defaultMax: 10 },
-                    { skill: activeTrace.skill,     label: "Skill",     level: hsrSkillLevel, onLevelChange: setHsrSkillLevel, defaultMax: 15 },
-                    { skill: activeTrace.ultimate,  label: "Ultimate",  level: hsrUltLevel,   onLevelChange: setHsrUltLevel,   defaultMax: 15 },
-                    { skill: activeTrace.talent,    label: "Talent",    level: hsrTalentLevel,onLevelChange: setHsrTalentLevel,defaultMax: 15 },
-                    { skill: activeTrace.technique, label: "Technique", level: hsrTechLevel,  onLevelChange: setHsrTechLevel,  defaultMax: 15 },
+                    { skill: displayTrace.basicAtk,  label: "Basic ATK", level: hsrBasicLevel, onLevelChange: setHsrBasicLevel, defaultMax: 10 },
+                    { skill: displayTrace.skill,     label: "Skill",     level: hsrSkillLevel, onLevelChange: setHsrSkillLevel, defaultMax: 15 },
+                    { skill: displayTrace.ultimate,  label: "Ultimate",  level: hsrUltLevel,   onLevelChange: setHsrUltLevel,   defaultMax: 15 },
+                    { skill: displayTrace.talent,    label: "Talent",    level: hsrTalentLevel,onLevelChange: setHsrTalentLevel,defaultMax: 15 },
+                    { skill: displayTrace.technique, label: "Technique", level: hsrTechLevel,  onLevelChange: setHsrTechLevel,  defaultMax: 15 },
                   ] as Array<{ skill: { name: string; maxLevel?: number; desc?: string; params?: number[][]; icon?: string } | null | undefined; label: string; level: number; onLevelChange: (v: number) => void; defaultMax: number }>
                 )
                   .filter((e) => e.skill != null)
@@ -873,9 +1014,9 @@ export function CharacterDetailPage() {
                 );
               })}
 
-              {activeTrace?.majorTraces && activeTrace.majorTraces.length > 0 && (
+              {displayTrace?.majorTraces && displayTrace.majorTraces.length > 0 && (
                 <div className="space-y-3">
-                  {activeTrace.majorTraces.map((trace, i) => (
+                  {displayTrace.majorTraces.map((trace, i) => (
                     <Card key={i}>
                       <CardContent className="p-4">
                         <div className="flex gap-3">
@@ -904,9 +1045,9 @@ export function CharacterDetailPage() {
                 </div>
               )}
 
-              {activeTrace?.statBonuses && activeTrace.statBonuses.length > 0 && (() => {
+              {displayTrace?.statBonuses && displayTrace.statBonuses.length > 0 && (() => {
                 const grouped = new Map<string, number>();
-                for (const bonus of activeTrace.statBonuses) {
+                for (const bonus of displayTrace.statBonuses) {
                   grouped.set(bonus.stat, (grouped.get(bonus.stat) ?? 0) + bonus.value);
                 }
                 return (
@@ -944,8 +1085,158 @@ export function CharacterDetailPage() {
           </TabsContent>
         )}
 
+        {/* Forte tab (WuWa) */}
+        {isWuwa && (
+          <TabsContent value="forte">
+            <div className="space-y-4">
+              {activeForte && (
+                <>
+                  {/* Five leveled active skills */}
+                  {(
+                    [
+                      { key: "basicAtk",            skill: activeForte.basicAtk,            level: wuwaBasicLevel,  onLevelChange: setWuwaBasicLevel  },
+                      { key: "resonanceSkill",       skill: activeForte.resonanceSkill,       level: wuwaSkillLevel,  onLevelChange: setWuwaSkillLevel  },
+                      { key: "resonanceLiberation",  skill: activeForte.resonanceLiberation,  level: wuwaLibLevel,    onLevelChange: setWuwaLibLevel    },
+                      { key: "forteCircuit",         skill: activeForte.forteCircuit,         level: wuwaForteLevel,  onLevelChange: setWuwaForteLevel  },
+                      { key: "introSkill",           skill: activeForte.introSkill,           level: wuwaIntroLevel,  onLevelChange: setWuwaIntroLevel  },
+                    ] as Array<{ key: string; skill: { name: string; maxLevel?: number; desc?: string; params?: number[][]; icon?: string } | null | undefined; level: number; onLevelChange: (v: number) => void }>
+                  )
+                    .filter((e) => e.skill != null)
+                    .map((e) => (
+                      <Card key={e.key}>
+                        <CardContent className="p-4">
+                          <HsrSkillSection
+                            skill={e.skill!}
+                            label={WUWA_FORTE_SKILL_LABELS[e.key]}
+                            level={e.level}
+                            onLevelChange={e.onLevelChange}
+                            defaultMax={10}
+                          />
+                        </CardContent>
+                      </Card>
+                    ))
+                  }
+
+                  {/* Inherent Skills (passive, milestone-unlocked) */}
+                  {(activeForte.inherentSkill1 || activeForte.inherentSkill2) && (
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold">Inherent Skills</h3>
+                      {[activeForte.inherentSkill1, activeForte.inherentSkill2]
+                        .filter(Boolean)
+                        .map((skill, i) => (
+                          <Card key={i}>
+                            <CardContent className="p-4">
+                              <div className="flex gap-3">
+                                {skill!.icon && (
+                                  <img
+                                    src={wuwaForteSkillIconUrl(skill!.icon) ?? skill!.icon}
+                                    alt={skill!.name}
+                                    className="h-10 w-10 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0 mt-0.5"
+                                  />
+                                )}
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    {skill!.unlockPhase != null && (
+                                      <Badge variant="outline" className="text-xs">A{skill!.unlockPhase}</Badge>
+                                    )}
+                                    <h4 className="font-semibold">{skill!.name}</h4>
+                                  </div>
+                                  {skill!.desc && (
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                      {parseHsrDesc(skill!.desc, undefined, 1)}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                    </div>
+                  )}
+
+                  {/* Stat Bonus Nodes */}
+                  {activeForte.statBonuses && activeForte.statBonuses.length > 0 && (() => {
+                    const grouped = new Map<string, number>();
+                    for (const bonus of activeForte.statBonuses) {
+                      grouped.set(bonus.stat, (grouped.get(bonus.stat) ?? 0) + bonus.value);
+                    }
+                    return (
+                      <Card>
+                        <CardContent className="p-4">
+                          <h4 className="font-semibold mb-3">Stat Bonuses</h4>
+                          <div className="rounded-lg border">
+                            <table className="w-full text-sm">
+                              <tbody>
+                                {Array.from(grouped.entries()).map(([stat, total]) => (
+                                  <tr key={stat} className="border-b last:border-0">
+                                    <td className="px-3 py-1.5 text-muted-foreground">{stat}</td>
+                                    <td className="px-3 py-1.5 text-right font-mono font-semibold text-amber-400">
+                                      {total < 1
+                                        ? `+${(total * 100).toFixed(1)}%`
+                                        : `+${Number.isInteger(total) ? total : total.toFixed(1)}`}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })()}
+                </>
+              )}
+            </div>
+          </TabsContent>
+        )}
+
+        {/* Resonance Chain tab (WuWa) */}
+        {isWuwa && (
+          <TabsContent value="resonancechain">
+            <div className="space-y-3">
+              {activeResonanceChain && (
+                (
+                  [
+                    ["s1", activeResonanceChain.s1],
+                    ["s2", activeResonanceChain.s2],
+                    ["s3", activeResonanceChain.s3],
+                    ["s4", activeResonanceChain.s4],
+                    ["s5", activeResonanceChain.s5],
+                    ["s6", activeResonanceChain.s6],
+                  ] as const
+                ).map(([key, s]) =>
+                  s ? (
+                    <Card key={key}>
+                      <CardContent className="p-4">
+                        <div className="flex gap-3">
+                          {activeResonanceChain.images?.[key] && (
+                            <img
+                              src={activeResonanceChain.images[key]}
+                              alt={s.name}
+                              className="h-10 w-10 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0"
+                            />
+                          )}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline">{key.toUpperCase()}</Badge>
+                              <h4 className="font-semibold">{s.name}</h4>
+                            </div>
+                            <p className="mt-2 text-sm text-muted-foreground">
+                              {renderMarkdownText(s.description)}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : null
+                )
+              )}
+            </div>
+          </TabsContent>
+        )}
+
         {/* Constellations tab (Genshin) */}
-        {!isHsr && (
+        {!isHsr && !isWuwa && (
           <TabsContent value="constellations">
             <div className="space-y-3">
               {activeConstellation &&
@@ -1008,32 +1299,39 @@ export function CharacterDetailPage() {
                     ["e5", activeEidolon.e5],
                     ["e6", activeEidolon.e6],
                   ] as const
-                ).map(([key, e]) =>
-                  e ? (
-                    <Card key={key}>
+                ).map(([key, e]) => {
+                  if (!e) return null;
+                  const novaflareEntry = novaflareMode ? activeEidolon.novaflare?.[key] : undefined;
+                  const displayE = novaflareEntry ? { ...e, ...novaflareEntry } : e;
+                  const isEnhanced = !!novaflareEntry;
+                  return (
+                    <Card key={key} className={isEnhanced ? "border-amber-500/40" : ""}>
                       <CardContent className="p-4">
                         <div className="flex gap-3">
                           {activeEidolon.images?.[key] && (
                             <img
                               src={activeEidolon.images![key]}
-                              alt={e.name}
+                              alt={displayE.name}
                               className="h-10 w-10 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0"
                             />
                           )}
-                          <div>
+                          <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <Badge variant="outline">{key.toUpperCase()}</Badge>
-                              <h4 className="font-semibold">{e.name}</h4>
+                              <h4 className="font-semibold">{displayE.name}</h4>
+                              {isEnhanced && (
+                                <span className="text-xs font-medium text-amber-400 ml-auto">Novaflare</span>
+                              )}
                             </div>
                             <p className="mt-2 text-sm text-muted-foreground">
-                              {renderMarkdownText(e.description)}
+                              {renderMarkdownText(displayE.description)}
                             </p>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
-                  ) : null
-                )}
+                  );
+                })}
             </div>
           </TabsContent>
         )}
@@ -1043,7 +1341,7 @@ export function CharacterDetailPage() {
           <Card>
             <CardContent className="p-4 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold">Character Level</h3>
+                <h3 className="font-semibold">{isWuwa ? "Resonator Level" : "Character Level"}</h3>
                 <span className="text-sm text-muted-foreground">
                   Lv. {charLevel}{charLevel <= (isHsr ? 80 : 90) ? ` (Phase ${ascensionPhase})` : " (Breakthrough)"}
                 </span>
@@ -1068,8 +1366,8 @@ export function CharacterDetailPage() {
                   </button>
                 ))}
               </div>
-              {/* Breakthrough levels — Genshin only */}
-              {!isHsr && (
+              {/* Breakthrough levels — Genshin only (WuWa has no breakthrough) */}
+              {!isHsr && !isWuwa && (
                 <div className="flex items-center gap-2 pt-1 border-t">
                   <span className="text-xs text-muted-foreground shrink-0">Breakthrough</span>
                   {([95, 100] as const).map((l) => (
@@ -1156,13 +1454,30 @@ export function CharacterDetailPage() {
                 level: memospriteGroupLevels[i] ?? 10,
               })),
             ]
+          : isWuwa
+          ? (WUWA_FORTE_SKILLS.map((key) => ({
+              label: WUWA_FORTE_SKILL_LABELS[key],
+              materials: calculateTalentMaterials(
+                (activeForte?.costs as Record<string, Record<string, import("@/lib/materials").MaterialCostEntry[]>> | undefined)?.[key],
+                key === "basicAtk" ? wuwaBasicLevel
+                  : key === "resonanceSkill" ? wuwaSkillLevel
+                  : key === "resonanceLiberation" ? wuwaLibLevel
+                  : key === "forteCircuit" ? wuwaForteLevel
+                  : wuwaIntroLevel
+              ),
+              level: key === "basicAtk" ? wuwaBasicLevel
+                : key === "resonanceSkill" ? wuwaSkillLevel
+                : key === "resonanceLiberation" ? wuwaLibLevel
+                : key === "forteCircuit" ? wuwaForteLevel
+                : wuwaIntroLevel,
+            })))
           : [
               { label: "Combat 1", materials: talent1Materials, level: talent1Level },
               { label: "Combat 2", materials: talent2Materials, level: talent2Level },
               { label: "Combat 3", materials: talent3Materials, level: talent3Level },
             ]
         }
-        skillsLabel={isHsr ? "Traces" : "Talents"}
+        skillsLabel={isHsr ? "Traces" : isWuwa ? "Forte" : "Talents"}
         totalMaterials={totalMaterials}
         charLevel={charLevel}
         isHsr={isHsr}

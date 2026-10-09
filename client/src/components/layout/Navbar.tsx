@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { Link, useParams, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,64 +10,34 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { GAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-
-// Per-game nav links
-const GAME_NAV_LINKS: Record<string, Array<{ label: string; path: string }>> = {
-  genshin: [
-    { label: "Characters", path: "characters" },
-    { label: "Weapons",    path: "weapons" },
-    { label: "Artifacts",  path: "artifacts" },
-    { label: "Materials",  path: "materials" },
-  ],
-  hsr: [
-    { label: "Characters", path: "characters" },
-    { label: "Light Cones",path: "lightcones" },
-    { label: "Relics",     path: "relics" },
-    { label: "Materials",  path: "materials" },
-  ],
-};
-
-const DEFAULT_NAV_LINKS = [
-  { label: "Characters", path: "characters" },
-  { label: "Materials",  path: "materials" },
-];
-
-// When switching games, map resource types that have different names
-const RESOURCE_EQUIVALENTS: Record<string, Record<string, string>> = {
-  // coming from genshin → switching to hsr
-  genshin: { weapons: "lightcones", artifacts: "relics" },
-  // coming from hsr → switching to genshin
-  hsr:     { lightcones: "weapons", relics: "artifacts" },
-};
+import { linksFor, equivalentPath } from "@/lib/navigation";
 
 export function Navbar() {
   const { game } = useParams<{ game: string }>();
   const location = useLocation();
   const navigate = useNavigate();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const currentGame = GAMES.find((g) => g.id === game);
-  const navLinks = (game && GAME_NAV_LINKS[game]) ?? DEFAULT_NAV_LINKS;
-
-  // Determine which resource type is active from the current path
+  const navLinks = linksFor(game);
   const currentResource = location.pathname.split("/")[2] ?? "";
 
+  // Close the mobile menu on navigation
+  useEffect(() => setMobileOpen(false), [location.pathname]);
+
   function switchGame(gameId: string) {
-    // Preserve current resource type when switching games,
-    // mapping equivalent resources when they have different names
-    const equivalents = game ? (RESOURCE_EQUIVALENTS[game] ?? {}) : {};
-    const resource = (equivalents[currentResource] ?? currentResource) || "characters";
-    navigate(`/${gameId}/${resource}`);
+    navigate(`/${gameId}/${equivalentPath(game, currentResource, gameId)}`);
   }
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-        <Link to="/" className="flex items-center gap-2 font-bold text-lg">
-          <img src="/BIG_GACHA_LOGO.png" alt="Big Gacha" className="h-10 w-10 object-contain" />
-          <span>Big Gacha</span>
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-2 px-4">
+        <Link to="/" className="flex shrink-0 items-center gap-2 font-bold text-lg">
+          <img src="/BIG_GACHA_LOGO.png" alt="" className="h-10 w-10 object-contain" />
+          <span className="hidden sm:inline">Big Gacha</span>
         </Link>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1">
@@ -93,26 +64,54 @@ export function Navbar() {
           </DropdownMenu>
 
           {game && (
-            <div className="hidden sm:flex items-center gap-1">
-              {navLinks.map((link) => (
-                <Link key={link.path} to={`/${game}/${link.path}`}>
+            <>
+              <div className="hidden md:flex items-center gap-1">
+                {navLinks.map((link) => (
                   <Button
+                    key={link.path}
+                    asChild
                     variant="ghost"
                     size="sm"
                     className={cn(
                       "text-muted-foreground hover:text-foreground",
-                      currentResource === link.path &&
-                        "text-foreground bg-accent"
+                      currentResource === link.path && "text-foreground bg-accent"
                     )}
                   >
-                    {link.label}
+                    <Link to={`/${game}/${link.path}`}>{link.label}</Link>
                   </Button>
-                </Link>
-              ))}
-            </div>
+                ))}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="md:hidden"
+                aria-label={mobileOpen ? "Close menu" : "Open menu"}
+                aria-expanded={mobileOpen}
+                onClick={() => setMobileOpen((o) => !o)}
+              >
+                {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </Button>
+            </>
           )}
         </div>
       </div>
+
+      {game && mobileOpen && (
+        <div className="md:hidden border-t border-border bg-background/95 px-4 py-2">
+          {navLinks.map((link) => (
+            <Link
+              key={link.path}
+              to={`/${game}/${link.path}`}
+              className={cn(
+                "block rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground",
+                currentResource === link.path && "bg-accent text-foreground"
+              )}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      )}
     </nav>
   );
 }

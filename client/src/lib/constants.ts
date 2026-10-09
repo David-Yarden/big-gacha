@@ -6,6 +6,10 @@ export interface GameInfo {
   shortName: string;
   description: string;
   available: boolean;
+  /** Title artwork in /public */
+  logo: string;
+  /** Extra classes for the logo (e.g. invert a dark logo on the dark theme) */
+  logoClassName?: string;
 }
 
 export const GAMES: GameInfo[] = [
@@ -15,6 +19,8 @@ export const GAMES: GameInfo[] = [
     shortName: "Genshin",
     description: "Open-world action RPG by HoYoverse",
     available: true,
+    logo: "/Genshin_title.svg",
+    logoClassName: "invert",
   },
   {
     id: "hsr",
@@ -22,6 +28,7 @@ export const GAMES: GameInfo[] = [
     shortName: "HSR",
     description: "Space fantasy RPG by HoYoverse",
     available: true,
+    logo: "/HSR_title.png",
   },
   {
     id: "zzz",
@@ -29,13 +36,15 @@ export const GAMES: GameInfo[] = [
     shortName: "ZZZ",
     description: "Urban fantasy ARPG by HoYoverse",
     available: false,
+    logo: "/ZZZ_title.png",
   },
   {
     id: "wuwa",
     name: "Wuthering Waves",
     shortName: "WuWa",
     description: "Open-world action RPG by Kuro Games",
-    available: false,
+    available: true,
+    logo: "/WuWa_title.png",
   },
   {
     id: "endfield",
@@ -43,6 +52,7 @@ export const GAMES: GameInfo[] = [
     shortName: "Endfield",
     description: "Open-world RPG by Hypergryph",
     available: false,
+    logo: "/Endfield_title.png",
   },
 ];
 
@@ -157,3 +167,66 @@ export const RARITY_COLOR_MAP: Record<number, string> = {
   2: "bg-rarity-2",
   1: "bg-rarity-1",
 };
+
+// ── WuWa ─────────────────────────────────────────────────────────────────────
+
+export const WUWA_ELEMENTS = [
+  "Glacio",
+  "Fusion",
+  "Electro",
+  "Aero",
+  "Spectro",
+  "Havoc",
+] as const;
+
+export const WUWA_WEAPON_TYPES = [
+  "Sword",
+  "Broadblade",
+  "Pistols",
+  "Gauntlets",
+  "Rectifier",
+] as const;
+
+export const WUWA_REGIONS = [
+  "Jinzhou",
+  "Huanglong",
+  "Mt. Firmament",
+  "Ragunna",
+  "Others",
+] as const;
+
+export const WUWA_ELEMENT_COLOR_MAP: Record<string, string> = {
+  Glacio:  "bg-wuwa-glacio",
+  Fusion:  "bg-wuwa-fusion",
+  Electro: "bg-wuwa-electro",
+  Aero:    "bg-wuwa-aero",
+  Spectro: "bg-wuwa-spectro",
+  Havoc:   "bg-wuwa-havoc",
+};
+
+// All five Forte skill keys (order matches in-game Forte tree display)
+export const WUWA_FORTE_SKILLS = [
+  "basicAtk",
+  "resonanceSkill",
+  "resonanceLiberation",
+  "forteCircuit",
+  "introSkill",
+] as const;
+
+export const WUWA_FORTE_SKILL_LABELS: Record<string, string> = {
+  basicAtk:            "Basic Attack",
+  resonanceSkill:      "Resonance Skill",
+  resonanceLiberation: "Resonance Liberation",
+  forteCircuit:        "Forte Circuit",
+  introSkill:          "Intro Skill",
+};
+
+export const WUWA_ECHO_CLASSES: Record<string, { label: string; cost: number }> = {
+  Common:   { label: "Common",   cost: 1 },
+  Elite:    { label: "Elite",    cost: 3 },
+  Overlord: { label: "Overlord", cost: 4 },
+  Calamity: { label: "Calamity", cost: 4 },
+};
+
+// Ascending level breakpoints (same as Genshin: 20/40/50/60/70/80/90)
+export const WUWA_ASCENSION_LEVELS = [1, 20, 40, 50, 60, 70, 80, 90] as const;

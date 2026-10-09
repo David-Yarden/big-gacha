@@ -56,9 +56,43 @@ const HEXEREI_TALENTS = {
 };
 
 // ── Hexerei constellation additions ──────────────────────────────────────────
-// Populated when exact per-constellation text is confirmed.
 // Structure: { [characterName]: { c1: "...", c2: "...", … } }
-const HEXEREI_CONSTELLATIONS = {};
+// Values contain only the text that is new/changed in the Hexerei buffed state.
+const HEXEREI_CONSTELLATIONS = {
+  Venti: {
+    c1: "2 extra arrows that track opponents will be fired per Windsunder Arrow, each dealing 20% of the original arrow's DMG. This effect can be triggered once every 0.25s.",
+    c2: "Skyward Sonnet's Anemo and Physical RES reduction is increased to 24% for 10s. After unleashing Wind's Grand Ode, Venti gains the Wherever a Breeze Blows effect and the cooldown for Skyward Sonnet is reset. After a Windsunder Arrow hits an opponent, there is also a 25% chance for Venti to gain the Wherever a Breeze Blows effect.",
+    c4: "After unleashing Skyward Sonnet or Wind's Grand Ode, Venti and his own active party members gain a 25% Anemo DMG Bonus for 10s.",
+    c6: "The DMG Venti deals to affected opponents gains a CRIT DMG Bonus of 100%.",
+  },
+  Klee: {
+    c1: "For 12s after triggering the above effect, Klee's ATK is increased by 60%.",
+    c2: "When Klee's Elemental Skill hits an opponent, that opponent's DEF will be decreased by 23% for 10s.",
+    c4: "The explosion also triggers when Sparks 'n' Splash ends. If Klee is on-field when the explosion occurs, its DMG will be increased by 100%.",
+    c6: "Klee also gains a 50% Pyro DMG Bonus for 25s after using Sparks 'n' Splash. When Klee uses an Explosive Spark, there is a 50% chance it will not be consumed. While Sparks 'n' Splash is active, Klee's Normal Attacks have a 40% chance on the first and second hits to consume an Explosive Spark, dealing an additional attack equivalent to Boom-Boom Strike to her opponent(s).",
+  },
+  Albedo: {
+    c1: "Using Abiogenesis: Solar Isotoma increases Albedo's DEF by 50% for the next 20s.",
+    c2: "When Albedo is not on the field and Fatal Reckoning reaches 4 stacks, all stacks are consumed and 3 Fatal Blossoms are generated near the active character, dealing AoE Geo DMG equal to 300% of Albedo's DEF.",
+    c4: "When a nearby active party member jumps near a Silver Isotoma, the Silver Isotoma will be destroyed while greatly increasing the height of that jump, and for the next 3s, said character will deal 30% more Plunging Attack ground impact DMG.",
+    c6: "Use of Rite of Progeniture: Tectonic Tide destroys all Silver Isotomas present on the field. Each Silver Isotoma destroyed this way is treated as clearing 4 stacks of Fatal Reckoning.",
+  },
+  Mona: {
+    c1: "When your off-field party members trigger the above effect, the DMG Bonus to the above Hydro-related Elemental Reactions is enhanced to 160% of its original effect.",
+    c2: "Within 5s after Mona unleashes her Elemental Burst Stellaris Phantasm, her next Normal Attack that hits an enemy will automatically trigger a Charged Attack. The aforementioned Charged Attack effect can only occur once every 5s. When Mona's Charged Attack hits an opponent, all nearby party members will have their Elemental Mastery increased by 80 for 12s.",
+    c4: "When any Hexerei party member attacks an opponent affected by an Omen, their CRIT DMG is increased by 15%.",
+    c6: "While Mona is the active character, while she is in the Illusory Torrent state or there are opponents affected by an Omen nearby, she gains a 60% increase to the DMG of her next Charged Attack per second of movement. A maximum DMG Bonus of 180% can be achieved in this manner. The effect lasts for no more than 8s. Additionally, the DMG Mona's Charged Attacks deal to opponents affected by an Omen will be increased to 200% of the original DMG.",
+  },
+  Fischl: {
+    c6: "After Oz performs a coordinated attack, the ATK and Elemental Mastery bonuses from Witch's Eve Rite: Phantasmal Nocturne are further increased by 100% for 10s.",
+  },
+  Razor: {
+    c6: "When Razor gains Electro Sigils through Claw and Thunder, he will gain 3 Sigils instead. For 15s after consuming Electro Sigils, Razor's CRIT Rate is increased by 10% and CRIT DMG by 50%.",
+  },
+  Sucrose: {
+    c6: "Nearby Hexerei characters in the party gain an additional 8.57142% Elemental DMG Bonus for the corresponding absorbed element during the skill's duration.",
+  },
+};
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 

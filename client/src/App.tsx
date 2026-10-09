@@ -13,6 +13,10 @@ import { LightConesPage } from "@/pages/LightConesPage";
 import { LightConeDetailPage } from "@/pages/LightConeDetailPage";
 import { RelicsPage } from "@/pages/RelicsPage";
 import { RelicDetailPage } from "@/pages/RelicDetailPage";
+import { EchoesPage } from "@/pages/EchoesPage";
+import { EchoDetailPage } from "@/pages/EchoDetailPage";
+import { EchoSetsPage } from "@/pages/EchoSetsPage";
+import { EchoSetDetailPage } from "@/pages/EchoSetDetailPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
 export default function App() {
@@ -33,6 +37,10 @@ export default function App() {
           <Route path="/:game/lightcones/:name" element={<LightConeDetailPage />} />
           <Route path="/:game/relics" element={<RelicsPage />} />
           <Route path="/:game/relics/:name" element={<RelicDetailPage />} />
+          <Route path="/:game/echoes" element={<EchoesPage />} />
+          <Route path="/:game/echoes/:name" element={<EchoDetailPage />} />
+          <Route path="/:game/echosets" element={<EchoSetsPage />} />
+          <Route path="/:game/echosets/:name" element={<EchoSetDetailPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

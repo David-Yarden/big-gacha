@@ -5,30 +5,26 @@
 
 const express = require("express");
 const queryBuilder = require("../middleware/queryBuilder");
+const { escapeRegex } = require("../utils/query");
 
 function createResourceRouter(Model, resourceName) {
   const router = express.Router();
 
   // GET /api/:game/characters            — list with filters + pagination
-  // GET /api/:game/characters/:name      — single by name
-  // GET /api/:game/characters/id/:id     — single by sourceId
+  // GET /api/:game/characters/:name      — single by name (case-insensitive, exact)
 
-  // List all (with query params)
   router.get("/", (req, res, next) => {
-    // Inject game from URL param into query filters
-    if (req.gameParam) {
-      req.query.game = req.gameParam;
-    }
+    // The game always comes from the URL, never from the query string
+    if (req.gameParam) req.query.game = req.gameParam;
     next();
   }, queryBuilder(Model), (req, res) => {
     res.json(res.queryResult);
   });
 
-  // Get single by name
   router.get("/:name", async (req, res, next) => {
     try {
       const filter = {
-        name: { $regex: `^${req.params.name}$`, $options: "i" },
+        name: { $regex: `^${escapeRegex(req.params.name)}$`, $options: "i" },
       };
       if (req.gameParam) filter.game = req.gameParam;
 

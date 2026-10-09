@@ -12,6 +12,10 @@ const {
   Relic,
   Trace,
   Eidolon,
+  Forte,
+  ResonanceChain,
+  Echo,
+  EchoSet,
 } = require("../models");
 
 // Valid games
@@ -48,6 +52,12 @@ router.use("/:game/relics", createResourceRouter(Relic, "Relic"));
 router.use("/:game/traces", createResourceRouter(Trace, "Trace"));
 router.use("/:game/eidolons", createResourceRouter(Eidolon, "Eidolon"));
 
+// WuWa
+router.use("/:game/fortes", createResourceRouter(Forte, "Forte"));
+router.use("/:game/resonancechains", createResourceRouter(ResonanceChain, "Resonance Chain"));
+router.use("/:game/echoes", createResourceRouter(Echo, "Echo"));
+router.use("/:game/echosets", createResourceRouter(EchoSet, "Echo Set"));
+
 // ─── Stats endpoint ──────────────────────────────────────
 // Returns counts per collection for a given game
 
@@ -65,6 +75,10 @@ router.get("/:game/stats", async (req, res, next) => {
       relics,
       traces,
       eidolons,
+      fortes,
+      resonanceChains,
+      echoes,
+      echoSets,
     ] = await Promise.all([
       Character.countDocuments({ game }),
       Weapon.countDocuments({ game }),
@@ -76,6 +90,10 @@ router.get("/:game/stats", async (req, res, next) => {
       Relic.countDocuments({ game }),
       Trace.countDocuments({ game }),
       Eidolon.countDocuments({ game }),
+      Forte.countDocuments({ game }),
+      ResonanceChain.countDocuments({ game }),
+      Echo.countDocuments({ game }),
+      EchoSet.countDocuments({ game }),
     ]);
 
     res.json({
@@ -92,6 +110,10 @@ router.get("/:game/stats", async (req, res, next) => {
         relics,
         traces,
         eidolons,
+        fortes,
+        resonanceChains,
+        echoes,
+        echoSets,
       },
     });
   } catch (error) {
@@ -127,6 +149,14 @@ router.get("/", (req, res) => {
         `GET /api/${g}/relics/:name`,
         `GET /api/${g}/traces/:name`,
         `GET /api/${g}/eidolons/:name`,
+        `GET /api/${g}/fortes`,
+        `GET /api/${g}/fortes/:name`,
+        `GET /api/${g}/resonancechains`,
+        `GET /api/${g}/resonancechains/:name`,
+        `GET /api/${g}/echoes`,
+        `GET /api/${g}/echoes/:name`,
+        `GET /api/${g}/echosets`,
+        `GET /api/${g}/echosets/:name`,
         `GET /api/${g}/stats`,
       ],
     })),

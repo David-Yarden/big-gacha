@@ -1,135 +1,99 @@
 import { Link } from "react-router-dom";
-import { Database, ArrowRight } from "lucide-react";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { GAMES } from "@/lib/constants";
+import { linksFor } from "@/lib/navigation";
+import { cn } from "@/lib/utils";
 
 export function HomePage() {
+  const live = GAMES.filter((g) => g.available);
+  const upcoming = GAMES.filter((g) => !g.available);
+
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 pb-10">
       {/* Hero */}
-      <section className="flex flex-col items-center gap-4 pt-10 pb-4 text-center">
-        <img src="/BIG_GACHA_LOGO.png" alt="Big Gacha" className="h-32 w-32 object-contain" />
-        <h1 className="text-4xl font-bold tracking-tight">Big Gacha</h1>
-        <p className="max-w-md text-muted-foreground">
-          A multi-game gacha database. Browse characters, weapons, artifacts,
-          and more across your favorite gacha games.
+      <section className="flex flex-col items-center gap-3 pt-8 text-center">
+        <img src="/BIG_GACHA_LOGO.png" alt="" className="h-24 w-24 object-contain" />
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Big Gacha</h1>
+        <p className="max-w-md text-sm text-muted-foreground">
+          Characters, weapons, gear and materials of your gacha games, in one place.
         </p>
       </section>
 
-      {/* Game cards */}
+      {/* Live games */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {GAMES.map((game) => (
-          <Card
+        {live.map((game) => (
+          <div
             key={game.id}
-            className={`relative flex flex-col overflow-hidden transition-colors ${
-              game.available
-                ? "hover:border-primary/50"
-                : "opacity-50"
-            }`}
+            className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50"
           >
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">{game.name}</CardTitle>
-                {game.available ? (
-                  <Badge variant="default">Live</Badge>
-                ) : (
-                  <Badge variant="secondary">Coming Soon</Badge>
-                )}
+            <Link
+              to={`/${game.id}/characters`}
+              className="flex flex-1 flex-col"
+              aria-label={`Browse ${game.name}`}
+            >
+              <div className="flex h-40 items-center justify-center bg-gradient-to-b from-muted/40 to-transparent px-6">
+                <img
+                  src={game.logo}
+                  alt={game.name}
+                  className={cn(
+                    "max-h-28 w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]",
+                    game.logoClassName
+                  )}
+                />
               </div>
-              <CardDescription>{game.description}</CardDescription>
-            </CardHeader>
-
-            {game.id === "genshin" && (
-              <CardContent>
-                <img
-                  src="/Genshin_title.svg"
-                  alt="Genshin Impact"
-                  className="w-full h-40 object-contain"
-                />
-              </CardContent>
-            )}
-
-            {game.id === "hsr" && (
-              <CardContent>
-                <img
-                  src="/HSR_title.png"
-                  alt="Honkai: Star Rail"
-                  className="w-full h-40 object-contain"
-                />
-              </CardContent>
-            )}
-
-            {game.id === "zzz" && (
-              <CardContent>
-                <img
-                  src="/ZZZ_title.png"
-                  alt="Zenless Zone Zero"
-                  className="w-full h-40 object-contain"
-                />
-              </CardContent>
-            )}
-
-            {game.id === "wuwa" && (
-              <CardContent>
-                <img
-                  src="/WuWa_title.png"
-                  alt="Wuthering Waves"
-                  className="w-full h-40 object-contain"
-                />
-              </CardContent>
-            )}
-
-            {game.id === "endfield" && (
-              <CardContent>
-                <img
-                  src="/Endfield_title.png"
-                  alt="Arknights: Endfield"
-                  className="w-full h-40 object-contain"
-                />
-              </CardContent>
-            )}
-
-            <CardFooter className="mt-auto">
-              {game.available ? (
-                <Link to={`/${game.id}/characters`} className="w-full">
-                  <Button className="w-full gap-2" variant="outline">
-                    Browse
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
+              <div className="flex items-center justify-between px-4 pt-3">
+                <h2 className="font-semibold">{game.name}</h2>
+                <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+              </div>
+              <p className="px-4 text-xs text-muted-foreground">{game.description}</p>
+            </Link>
+            <div className="flex flex-wrap gap-1.5 p-4 pt-3">
+              {linksFor(game.id).map((link) => (
+                <Link
+                  key={link.path}
+                  to={`/${game.id}/${link.path}`}
+                  className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                >
+                  {link.label}
                 </Link>
-              ) : (
-                <Button className="w-full" variant="outline" disabled>
-                  Coming Soon
-                </Button>
-              )}
-            </CardFooter>
-          </Card>
+              ))}
+            </div>
+          </div>
         ))}
       </section>
 
-      {/* API info */}
-      <section className="flex flex-col items-center gap-2 text-center text-sm text-muted-foreground pb-8">
-        <Database className="h-4 w-4" />
-        <p>
-          Powered by the Big Gacha REST API.{" "}
-          <a
-            href="/api"
-            target="_blank"
-            className="underline hover:text-foreground"
-          >
-            View API docs
-          </a>
-        </p>
-      </section>
+      {/* Upcoming games */}
+      {upcoming.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-medium text-muted-foreground">Coming later</h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {upcoming.map((game) => (
+              <div
+                key={game.id}
+                className="flex items-center gap-4 rounded-xl border border-dashed border-border p-3 opacity-70"
+              >
+                <img
+                  src={game.logo}
+                  alt=""
+                  className={cn("h-10 w-24 object-contain grayscale", game.logoClassName)}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{game.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{game.description}</p>
+                </div>
+                <Badge variant="secondary" className="shrink-0">Soon</Badge>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <p className="text-center text-xs text-muted-foreground">
+        <a href="/api" target="_blank" rel="noreferrer" className="underline hover:text-foreground">
+          API
+        </a>
+      </p>
     </div>
   );
 }

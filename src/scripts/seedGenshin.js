@@ -21,6 +21,7 @@ const {
 
 const GAME = "genshin";
 const forceOverwrite = process.argv.includes("--force");
+const syncMode      = process.argv.includes("--sync");
 
 const TRAVELER_NAMES    = ["Aether", "Lumine"];  // element-variant Travelers
 const MANEKIN_NAMES     = ["Manekin", "Manekina"]; // Natlan Travelers with their own flat kit
@@ -360,15 +361,43 @@ async function seedConstellations() {
   console.log(`  ✓ Seeded ${count} constellation sets (incl. ${TRAVELER_NAMES.length} Travelers)`);
 }
 
+// ─── Sync: detect new content ────────────────────────────
+
+async function reportNewContent() {
+  const dbNames = (await Character.distinct("name", { game: GAME })).map((n) => n.toLowerCase());
+  const allNames = getAllNames("characters");
+  const newChars = allNames.filter((n) => !dbNames.includes(n.toLowerCase()));
+
+  if (newChars.length === 0) {
+    console.log("  Characters: already up to date");
+  } else {
+    console.log(`  Characters: ${newChars.length} new → ${newChars.join(", ")}`);
+  }
+
+  return newChars.length;
+}
+
 // ─── Main ────────────────────────────────────────────────
 
 async function main() {
   console.log("╔══════════════════════════════════════╗");
   console.log("║   Genshin Impact Database Seeder     ║");
   console.log("╚══════════════════════════════════════╝");
-  console.log(`Mode: ${forceOverwrite ? "FORCE OVERWRITE" : "UPSERT (safe)"}\n`);
+  const modeLabel = forceOverwrite ? "FORCE OVERWRITE" : syncMode ? "SYNC (new content only)" : "UPSERT (safe)";
+  console.log(`Mode: ${modeLabel}\n`);
 
   await connectDB();
+
+  if (syncMode) {
+    console.log("Detecting new content...");
+    const newCount = await reportNewContent();
+    console.log();
+    if (newCount === 0) {
+      console.log("✅ Database is already up to date.");
+      await mongoose.connection.close();
+      process.exit(0);
+    }
+  }
 
   if (forceOverwrite) {
     console.log("⚠  Dropping existing Genshin data...");

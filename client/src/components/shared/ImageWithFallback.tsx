@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface ImageWithFallbackProps {
@@ -20,6 +20,14 @@ export function ImageWithFallback({
 }: ImageWithFallbackProps) {
   const [currentSrc, setCurrentSrc] = useState(src);
   const [errored, setErrored] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  // A reused component (list re-render, element switch) must follow its new src
+  useEffect(() => {
+    setCurrentSrc(src);
+    setErrored(false);
+    setLoaded(false);
+  }, [src]);
 
   function handleError() {
     if (fallbackSrc && currentSrc !== fallbackSrc) {
@@ -48,9 +56,16 @@ export function ImageWithFallback({
     <img
       src={currentSrc}
       alt={alt}
-      className={cn(imgClassName, className)}
+      className={cn(
+        "transition-opacity duration-300",
+        loaded ? "opacity-100" : "opacity-0",
+        imgClassName,
+        className
+      )}
+      onLoad={() => setLoaded(true)}
       onError={handleError}
       loading="lazy"
+      decoding="async"
     />
   );
 }

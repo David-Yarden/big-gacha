@@ -236,6 +236,14 @@ export interface MajorTrace {
   unlockPhase?: number;
 }
 
+export interface TraceNovaflare {
+  basicAtk?: TraceSkill;
+  skill?: TraceSkill;
+  ultimate?: TraceSkill;
+  talent?: TraceSkill;
+  technique?: TraceSkill;
+}
+
 export interface Trace {
   _id: string;
   game: Game;
@@ -251,6 +259,7 @@ export interface Trace {
   statBonuses?: Array<{ stat: string; value: number; unlockPhase?: number }>;
   costs?: Record<string, Record<string, MaterialCostEntry[]>>;
   images?: Record<string, string>;
+  novaflare?: TraceNovaflare;
   isTraveler?: boolean;
   elementVariants?: Record<string, Partial<Trace>>;
 }
@@ -271,9 +280,103 @@ export interface Eidolon {
   e5?: EidolonLevel;
   e6?: EidolonLevel;
   images?: Record<string, string>;
+  novaflare?: Partial<Record<"e1" | "e2" | "e3" | "e4" | "e5" | "e6", EidolonLevel>>;
   isTraveler?: boolean;
   elementVariants?: Record<string, Partial<Eidolon>>;
 }
+
+// ── WuWa Types ────────────────────────────────────────────────────────────────
+
+export interface ForteSkill {
+  name: string;
+  maxLevel?: number;
+  desc?: string;
+  params?: number[][];
+  icon?: string;
+}
+
+export interface ForteInherentSkill {
+  name: string;
+  desc?: string;
+  icon?: string;
+  unlockPhase?: number;
+}
+
+export interface Forte {
+  _id: string;
+  game: "wuwa";
+  name: string;
+  basicAtk?: ForteSkill;
+  resonanceSkill?: ForteSkill;
+  resonanceLiberation?: ForteSkill;
+  forteCircuit?: ForteSkill;
+  introSkill?: ForteSkill;
+  inherentSkill1?: ForteInherentSkill;
+  inherentSkill2?: ForteInherentSkill;
+  statBonuses?: Array<{ stat: string; value: number; unlockPhase?: number }>;
+  costs?: Record<string, Record<string, MaterialCostEntry[]>>;
+  images?: Record<string, string>;
+  isTraveler?: boolean;
+  elementVariants?: Record<string, Partial<Forte>>;
+}
+
+export interface ResonanceChainSequence {
+  name: string;
+  description: string;
+}
+
+export interface ResonanceChain {
+  _id: string;
+  game: "wuwa";
+  name: string;
+  s1?: ResonanceChainSequence;
+  s2?: ResonanceChainSequence;
+  s3?: ResonanceChainSequence;
+  s4?: ResonanceChainSequence;
+  s5?: ResonanceChainSequence;
+  s6?: ResonanceChainSequence;
+  images?: Record<string, string>;
+  isTraveler?: boolean;
+  elementVariants?: Record<string, Partial<ResonanceChain>>;
+}
+
+export type EchoClass = "Common" | "Elite" | "Overlord" | "Calamity";
+
+export interface EchoSkill {
+  name: string;
+  desc?: string;
+  params?: number[][];
+  cooldown?: number;
+}
+
+export interface Echo {
+  _id: string;
+  game: "wuwa";
+  sourceId?: string;
+  name: string;
+  description?: string;
+  element?: string;
+  echoClass?: EchoClass;
+  cost?: 1 | 3 | 4;
+  sonataSet?: string;
+  skill?: EchoSkill;
+  mainStatOptions?: string[];
+  images?: Record<string, string>;
+}
+
+export interface EchoSet {
+  _id: string;
+  game: "wuwa";
+  sourceId?: string;
+  name: string;
+  description?: string;
+  twoPieceBonus?: string;
+  fivePieceBonus?: string;
+  element?: string;
+  images?: Record<string, string>;
+}
+
+// ── Shared ────────────────────────────────────────────────────────────────────
 
 export interface GameStats {
   characters: number;
@@ -286,4 +389,8 @@ export interface GameStats {
   relics?: number;
   traces?: number;
   eidolons?: number;
+  fortes?: number;
+  resonanceChains?: number;
+  echoes?: number;
+  echoSets?: number;
 }

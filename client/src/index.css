@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Colour classes built at runtime (e.g. `${rarityClass}/20`) are invisible to
+   Tailwind's scanner, so they are listed here explicitly. */
+@source inline("bg-rarity-{1,2,3,4,5}/20");
+@source inline("bg-{pyro,hydro,anemo,electro,dendro,cryo,geo}/20");
+@source inline("bg-hsr-{physical,fire,ice,lightning,wind,quantum,imaginary}/20");
+@source inline("bg-wuwa-{glacio,fusion,electro,aero,spectro,havoc}/20");
+
 @theme {
   --color-background: oklch(0.145 0.02 270);
   --color-foreground: oklch(0.95 0.01 270);
@@ -48,6 +55,14 @@
   --color-hsr-preservation: oklch(0.70 0.15 74);
   --color-hsr-abundance:    oklch(0.65 0.18 148);
   --color-hsr-remembrance:  oklch(0.72 0.10 213);
+
+  /* WuWa element colors */
+  --color-wuwa-glacio:  oklch(0.72 0.13 218);
+  --color-wuwa-fusion:  oklch(0.65 0.18 30);
+  --color-wuwa-electro: oklch(0.58 0.20 295);
+  --color-wuwa-aero:    oklch(0.68 0.14 175);
+  --color-wuwa-spectro: oklch(0.75 0.16 88);
+  --color-wuwa-havoc:   oklch(0.50 0.20 320);
 
   /* Rarity colors */
   --color-rarity-5: oklch(0.75 0.16 70);
