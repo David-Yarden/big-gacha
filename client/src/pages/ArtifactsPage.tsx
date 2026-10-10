@@ -90,7 +90,7 @@ export function ArtifactsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Artifacts</h1>
         {total > 0 && (
-          <span className="text-sm text-muted-foreground">{total} total</span>
+          <span className="text-sm text-muted-foreground">{`${total} total`}</span>
         )}
       </div>
 
@@ -132,7 +132,7 @@ export function ArtifactsPage() {
 
       {!hasMore && items.length > 0 && (
         <p className="text-center text-xs text-muted-foreground py-2">
-          All {total} artifact sets loaded
+          {`All ${total} artifact sets loaded`}
         </p>
       )}
     </div>

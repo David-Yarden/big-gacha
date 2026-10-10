@@ -25,7 +25,7 @@ const {
   cleanFieldList,
 } = require("../utils/query");
 
-const RESERVED_PARAMS = new Set(["sort", "fields", "page", "limit", "search"]);
+const RESERVED_PARAMS = new Set(["sort", "fields", "page", "limit", "search", "lang"]);
 
 function buildFilter(Model, query) {
   const allowed = filterableFields(Model);
@@ -51,7 +51,15 @@ function buildFilter(Model, query) {
   }
 
   if (typeof query.search === "string" && query.search.trim()) {
-    filter.name = { $regex: escapeRegex(query.search.trim()), $options: "i" };
+    // English or translated (French) name
+    const re = { $regex: escapeRegex(query.search.trim()), $options: "i" };
+    const byName = { $or: [{ name: re }, { "i18n.fr.name": re }] };
+    if (filter.$or) {
+      filter.$and = [{ $or: filter.$or }, byName];
+      delete filter.$or;
+    } else {
+      Object.assign(filter, byName);
+    }
   }
 
   return filter;
@@ -74,6 +82,8 @@ function queryBuilder(Model) {
       // --- Field selection ---
       const selected = cleanFieldList(req.query.fields, selectableFields(Model));
       if (selected.length) query = query.select(selected.join(" "));
+      // Translations only for a French page (?lang=fr): English lists stay light
+      else if (req.query.lang !== "fr") query = query.select("-i18n");
 
       // --- Pagination ---
       const page = Math.max(1, parseInt(req.query.page) || 1);

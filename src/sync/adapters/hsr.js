@@ -13,6 +13,8 @@ module.exports = {
   game: "hsr",
   source: REPO,
   // Contract: every collection the seeders must produce, with a floor (~70 % of Oct 2026)
+  // Official translations also imported (second run of the seeders, see sync/i18n.js)
+  languages: ["fr"],
   expect: { Character: 60, LightCone: 120, Relic: 40, Material: 2400, Trace: 60, Eidolon: 60 },
 
   async check(previous) {
@@ -39,6 +41,7 @@ module.exports = {
     delete require.cache[require.resolve("../../scripts/seedHsr")];
     delete require.cache[require.resolve("../../scripts/hsrData")];
     require("../../scripts/hsrData").setDataRef(check?.ref);
+    require("../../scripts/hsrData").setLang(check?.lang);
     const seeder = require("../../scripts/seedHsr");
     await seeder.seedAll();
   },

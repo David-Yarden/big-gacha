@@ -64,7 +64,9 @@ test("buildFilter ignores operator injection and unknown keys", () => {
 
 test("buildFilter escapes the search string", () => {
   const filter = buildFilter(Character, { search: "What Is Real?" });
-  assert.equal(filter.name.$regex, "What Is Real\\?");
+  // English or French name
+  assert.equal(filter.$or[0].name.$regex, "What Is Real\\?");
+  assert.equal(filter.$or[1]["i18n.fr.name"].$regex, "What Is Real\\?");
 });
 
 test("buildFilter maps region=Others to empty regions", () => {

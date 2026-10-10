@@ -58,12 +58,20 @@ function resolveRegion(data) {
 
 // ─── Helpers ─────────────────────────────────────────────
 
+// Language of the texts: "en" (the documents) or "fr" (official translation, see sync/i18n.js).
+// Entities are always looked up by their English name, so both runs see the same list.
+let LANG = "en";
+function setLang(lang) {
+  LANG = lang === "fr" ? "fr" : "en";
+}
+const resultLanguage = () => (LANG === "fr" ? "French" : "English");
+
 function getAllNames(folder) {
   return genshindb[folder]("names", { matchCategories: true }) || [];
 }
 
 function getData(folder, name) {
-  return genshindb[folder](name);
+  return genshindb[folder](name, { resultLanguage: resultLanguage() });
 }
 
 async function upsert(Model, filter, data) {
@@ -83,7 +91,7 @@ function characterSkins(name, charImages) {
     OUTFITS = new Map();
     const names = genshindb.outfits("names", { matchCategories: true }) || [];
     for (const n of names) {
-      const o = genshindb.outfits(n);
+      const o = genshindb.outfits(n, { resultLanguage: resultLanguage() });
       if (!o?.characterName) continue;
       (OUTFITS.get(o.characterName) ?? OUTFITS.set(o.characterName, []).get(o.characterName)).push(o);
     }
@@ -119,7 +127,7 @@ async function seedCharacters() {
     const ids = TRAVELER_NAMES.includes(data.name)
       ? TRAVELER_ELEMENTS.map((el) => `${data.id}-${el.toLowerCase()}`)
       : [data.id];
-    glossaries.set(data.name, await genshinGlossary(ids));
+    glossaries.set(data.name, await genshinGlossary(ids, LANG));
   });
   console.log(`  ✓ Glossaries for ${[...glossaries.values()].filter(Boolean).length} characters`);
 
@@ -179,9 +187,41 @@ async function seedCharacters() {
 
 // ─── Seed Weapons ────────────────────────────────────────
 
+// Weapon EXP to the next level per rarity (game table WeaponLevelExcelConfigData)
+const WEAPON_LEVELS_URL =
+  "https://raw.githubusercontent.com/DimbreathBot/AnimeGameData/main/ExcelBinOutput/WeaponLevelExcelConfigData.json";
+// Enhancement Ores: EXP given; using them costs 1 Mora per 10 EXP
+const ORES = [
+  [104013, "Mystic Enhancement Ore", 10000],
+  [104012, "Fine Enhancement Ore", 2000],
+  [104011, "Enhancement Ore", 400],
+];
+
+/** Cumulative weapon EXP per level (index = level) for each rarity, with the ores. */
+async function weaponLevelExp() {
+  const { tryFetch } = require("../sync/http");
+  const rows = await tryFetch(WEAPON_LEVELS_URL, { timeout: 60_000 });
+  if (!Array.isArray(rows)) {
+    console.warn("  ⚠ WeaponLevelExcelConfigData unavailable: weapon EXP not counted");
+    return {};
+  }
+  const name = (en) => getData("materials", en)?.name ?? en;
+  const items = ORES.map(([id, en, exp]) => ({ id, name: name(en), exp, coin: exp / 10 }));
+  const coin = { id: 202, name: name("Mora") };
+  const perLevel = new Map(rows.map((r) => [r.level, r.requiredExps ?? []]));
+  const byRarity = {};
+  for (let r = 1; r <= 5; r++) {
+    const exp = [0, 0];
+    for (let lv = 1; lv < 90; lv++) exp[lv + 1] = exp[lv] + (perLevel.get(lv)?.[r - 1] ?? 0);
+    byRarity[r] = { exp, items, coin };
+  }
+  return byRarity;
+}
+
 async function seedWeapons() {
   const names = getAllNames("weapons");
   console.log(`  Found ${names.length} weapons`);
+  const levelExp = await weaponLevelExp();
 
   let count = 0;
   for (const name of names) {
@@ -214,6 +254,7 @@ async function seedWeapons() {
       stats: statsPerLevel,
       refinements: [data.r1, data.r2, data.r3, data.r4, data.r5].filter(Boolean),
       costs: data.costs,
+      levelExp: levelExp[data.rarity],
       images: data.images,
       url: data.url,
     });
@@ -301,6 +342,12 @@ async function seedArtifacts() {
 
 // ─── Seed Materials ──────────────────────────────────────
 
+// Weekday names of genshin-db (English and French runs) → 1 = Monday … 7 = Sunday
+const WEEKDAYS = {
+  monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6, sunday: 7,
+  lundi: 1, mardi: 2, mercredi: 3, jeudi: 4, vendredi: 5, samedi: 6, dimanche: 7,
+};
+
 async function seedMaterials() {
   const names = getAllNames("materials");
   console.log(`  Found ${names.length} materials`);
@@ -310,6 +357,9 @@ async function seedMaterials() {
     const data = getData("materials", name);
     if (!data) continue;
 
+    // genshin-db lists "Placeholder - Craftable Amount" for domain drops: the domain is the source
+    const sources = (data.sources || []).filter((x) => !/^Placeholder\b/i.test(x));
+    const days = [...new Set((data.daysOfWeek || []).map((d) => WEEKDAYS[String(d).toLowerCase()]).filter(Boolean))].sort();
     await upsert(Material, { game: GAME, name: data.name }, {
       game: GAME,
       sourceId: data.id,
@@ -318,7 +368,9 @@ async function seedMaterials() {
       category: data.category,
       materialType: data.materialType,
       rarity: data.rarity,
-      source: data.sources,
+      source: sources.length ? sources : data.dropDomainName ? [data.dropDomainName] : data.sources,
+      domain: data.dropDomainName || undefined,
+      days: days.length ? days : undefined,
       version: data.version,
       images: data.images,
     });
@@ -537,7 +589,7 @@ async function seedAll() {
   await seedConstellations();
 }
 
-module.exports = { seedAll, GAME };
+module.exports = { seedAll, setLang, GAME };
 
 if (require.main === module) {
   main().catch((err) => {

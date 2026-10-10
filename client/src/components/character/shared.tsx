@@ -13,6 +13,7 @@ import { parseLabel } from "@/lib/formatters";
 import { gameUi } from "@/lib/gameUi";
 import type { TalentCombat } from "@/lib/types";
 import type { MaterialCostEntry } from "@/lib/materials";
+import { LANG } from "@/lib/i18n";
 
 // ── Text rendering helpers ────────────────────────────────────────────────────
 
@@ -175,7 +176,13 @@ export function GameText({ text }: { text: string }) {
   };
 
   // genshin-db leaves empty bold pairs ("Name******"): keep only an odd closing pair
-  const cleaned = text.replace(/\*{3,}/g, (m) => (m.length % 4 === 2 ? "**" : ""));
+  const cleaned = text
+    .replace(/\*{3,}/g, (m) => (m.length % 4 === 2 ? "**" : ""))
+    // HSR player placeholders: gendered forms {M#…}{F#…} → "him/her", {NICKNAME} → the Trailblazer
+    .replace(/\{M#([^}]*)\}\{F#([^}]*)\}/g, (_, m, f) => (m === f ? m : `${m}/${f}`))
+    .replace(/\{F#([^}]*)\}\{M#([^}]*)\}/g, (_, f, m) => (m === f ? m : `${m}/${f}`))
+    .replace(/\{[MF]#([^}]*)\}/g, "$1")
+    .replace(/\{NICKNAME\}/g, LANG === "fr" ? "le Pionnier" : "the Trailblazer");
   // [[#RRGGBB|text]]: text in the game's own colour (ZZZ elements…)
   // [[key:Label|iconUrl]]: an in-game button icon (ZZZ "Press [Basic Attack]")
   const coloured = cleaned.split(/\[\[(#[0-9A-Fa-f]{6}|key:[^|\]]*)\|([^\]]+)\]\]/);
@@ -612,3 +619,6 @@ export function dedupeRepeatedHalf<T extends { stat: string; value: number }>(li
   const same = list.slice(0, half).every((x, i) => sig(x) === sig(list[i + half]));
   return same ? list.slice(0, half) : list;
 }
+
+
+export { nodeCosts } from "@/lib/materials";

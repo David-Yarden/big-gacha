@@ -32,14 +32,14 @@ const CHAR_EXP_CUMULATIVE: Record<number, number> = {
 };
 
 /**
- * Calculate EXP books and their Mora cost to reach `targetLevel` from level 1.
+ * Calculate EXP books and their Mora cost to go from `fromLevel` (default 1) to `targetLevel`.
  * Caps at level 90 — levels 95 and 100 don't cost additional EXP.
  * Uses greedy fill: Hero's Wit → Adventurer's Experience → Wanderer's Advice.
  * Mora cost is always totalEXPUsed / 5 (all books share the 1:5 ratio).
  */
-export function calculateExpMaterials(targetLevel: number): MaterialCostEntry[] {
-  const cappedLevel = Math.min(targetLevel, 90);
-  const totalExp = CHAR_EXP_CUMULATIVE[cappedLevel] ?? 0;
+export function calculateExpMaterials(targetLevel: number, fromLevel = 1): MaterialCostEntry[] {
+  const at = (l: number) => CHAR_EXP_CUMULATIVE[Math.max(1, Math.min(l, 90))] ?? 0;
+  const totalExp = at(targetLevel) - at(fromLevel);
   if (totalExp <= 0) return [];
 
   let remaining = totalExp;
@@ -60,29 +60,54 @@ export function calculateExpMaterials(targetLevel: number): MaterialCostEntry[] 
   return entries;
 }
 
+/** EXP curve of a character or weapon, from the game data (see the seeders). */
+export interface LevelExp {
+  /** Cumulative EXP to reach each level from level 1 (index = level) */
+  exp: number[];
+  /** EXP items; `coin` = currency spent per item when used */
+  items: Array<{ id: number; name: string; exp: number; icon?: string; coin?: number }>;
+  /** The currency spent (Mora, Credits, Shell Credits, T-Creds) */
+  coin?: { id: number; name: string; icon?: string };
+  /** Currency charged per level instead of per item (Endfield): cumulative, index = level */
+  coinByLevel?: number[];
+}
+
 /**
- * EXP items needed to reach `targetLevel` from level 1, using the character's own
- * EXP curve (WuWa). Greedy: biggest potion first, the smallest one rounds up.
+ * EXP items needed to go from `fromLevel` (default 1) to `targetLevel`, using the unit's
+ * own EXP curve. Greedy: biggest item first, the smallest one rounds up. Adds the
+ * currency the items cost, when the game charges for them.
  */
 export function expPotions(
   targetLevel: number,
-  character?: { levelExp?: { exp: number[]; items: Array<{ id: number; name: string; exp: number; icon?: string }> } }
+  unit?: { levelExp?: LevelExp },
+  fromLevel = 1
 ): MaterialCostEntry[] {
-  const curve = character?.levelExp;
+  const curve = unit?.levelExp;
   if (!curve?.exp?.length || !curve.items?.length) return [];
-  let remaining = curve.exp[Math.min(targetLevel, curve.exp.length - 1)] ?? 0;
+  const at = (l: number) => curve.exp[Math.max(0, Math.min(l, curve.exp.length - 1))] ?? 0;
+  let remaining = at(targetLevel) - at(fromLevel);
   if (remaining <= 0) return [];
   const items = [...curve.items].sort((a, b) => b.exp - a.exp);
   const out: MaterialCostEntry[] = [];
+  let coins = 0;
   items.forEach((it, i) => {
     const last = i === items.length - 1;
     const n = last ? Math.ceil(remaining / it.exp) : Math.floor(remaining / it.exp);
     if (n > 0) {
       out.push({ id: it.id, name: it.name, count: n, icon: it.icon });
       remaining -= n * it.exp;
+      coins += n * (it.coin ?? 0);
     }
   });
+  if (curve.coinByLevel?.length) coins += coinsBetween(curve.coinByLevel, fromLevel, targetLevel);
+  if (coins > 0 && curve.coin) out.push({ id: curve.coin.id, name: curve.coin.name, count: Math.round(coins), icon: curve.coin.icon });
   return out;
+}
+
+/** Currency spent between two levels on a cumulative per-level table. */
+export function coinsBetween(byLevel: number[], fromLevel: number, targetLevel: number): number {
+  const at = (l: number) => byLevel[Math.max(0, Math.min(l, byLevel.length - 1))] ?? 0;
+  return Math.max(0, at(targetLevel) - at(fromLevel));
 }
 
 export function levelToAscensionPhase(level: number): number {
@@ -167,10 +192,10 @@ export const MASTERLESS_STELLA_FORTUNA: MaterialCostEntry & { id: 0 } = {
  * Returns Masterless Stella Fortuna needed to reach the given breakthrough level.
  * 90 → 95: 1 copy  |  95 → 100: 2 more (3 total from 90)
  */
-export function calculateBreakthroughMaterials(targetLevel: number): MaterialCostEntry[] {
-  if (targetLevel < 95) return [];
-  const count = targetLevel >= 100 ? 3 : 1;
-  return [{ ...MASTERLESS_STELLA_FORTUNA, count }];
+export function calculateBreakthroughMaterials(targetLevel: number, fromLevel = 1): MaterialCostEntry[] {
+  const copies = (l: number) => (l >= 100 ? 3 : l >= 95 ? 1 : 0);
+  const count = copies(targetLevel) - copies(fromLevel);
+  return count > 0 ? [{ ...MASTERLESS_STELLA_FORTUNA, count }] : [];
 }
 
 /**
@@ -194,4 +219,9 @@ export function mergeAllMaterials(
   }
 
   return Array.from(merged.values());
+}
+
+/** Total one-time unlock cost of trace / forte nodes (`cost` on each node, see the seeders). */
+export function nodeCosts(...lists: Array<Array<{ cost?: MaterialCostEntry[] } | null | undefined> | undefined>): MaterialCostEntry[] {
+  return mergeAllMaterials(...lists.flatMap((list) => (list ?? []).map((node) => node?.cost ?? [])));
 }

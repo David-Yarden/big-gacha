@@ -33,6 +33,12 @@ const ENKA_UI = "https://enka.network/ui/zzz";
 // nanoka.cc mirrors the game's UI sprites by file name (agent busts, items, factions, Bangboos)
 const NANOKA_UI = "https://static.nanoka.cc/assets/zzz";
 let REF = "HEAD";
+// Language of the texts: "en" (the documents) or "fr" (official translation, see sync/i18n.js)
+let LANG = "en";
+function setLang(lang) {
+  LANG = lang === "fr" ? "fr" : "en";
+}
+
 function setRef(ref) {
   REF = ref || "HEAD";
 }
@@ -125,7 +131,7 @@ function check(cond, message) {
 /** [{a, b}] → [[a, b]] (cost and property pairs) */
 const pairs = (list) => (Array.isArray(list) ? list.map((o) => Object.values(o)) : []);
 
-const TEXT_FILE = "TextMap/TextMap_ENTemplateTb.json";
+const textFile = () => `TextMap/TextMap_${LANG.toUpperCase()}TemplateTb.json`;
 // Text keys built from a code instead of read from a table
 const TEXT_FAMILIES =
   /^(Avatar_|Partner_|PartnerBg_|Camp|ElementType_|HitType_|Profession|Common_Property|Item_|Weapon_|EquipmentSuit_|Bangboo_|[A-Za-z0-9]+_(Skill|UniqueSkill|Talent|MathSkill|Property|NounPrompts))/;
@@ -141,13 +147,15 @@ async function loadTexts(neededKeys) {
   const { githubLastCommitFor } = require("../sync/upstream");
   const dir = path.join(__dirname, "..", "..", "cache");
 
+  const TEXT_FILE = textFile();
   const textSha = await githubLastCommitFor(REPO, TEXT_FILE, REF);
   const keyHash = crypto
     .createHash("sha1")
     .update(TEXT_FAMILIES.source + [...neededKeys].sort().join("\n"))
     .digest("hex")
     .slice(0, 10);
-  const cacheFile = textSha ? path.join(dir, `zzz-text-${textSha.slice(0, 12)}-${keyHash}.json`) : null;
+  const prefix = `zzz-text-${LANG}-`;
+  const cacheFile = textSha ? path.join(dir, `${prefix}${textSha.slice(0, 12)}-${keyHash}.json`) : null;
   if (cacheFile && fs.existsSync(cacheFile)) {
     try {
       const map = new Map(JSON.parse(fs.readFileSync(cacheFile, "utf8")));
@@ -166,7 +174,10 @@ async function loadTexts(neededKeys) {
   if (cacheFile) {
     try {
       fs.mkdirSync(dir, { recursive: true });
-      for (const f of fs.readdirSync(dir)) if (f.startsWith("zzz-text-")) fs.unlinkSync(path.join(dir, f));
+      // Older caches of this language (and of the former, language-less naming)
+      for (const f of fs.readdirSync(dir)) {
+        if (f.startsWith(prefix) || /^zzz-text-[0-9a-f]{12}-/.test(f)) fs.unlinkSync(path.join(dir, f));
+      }
       fs.writeFileSync(cacheFile, JSON.stringify([...map]));
     } catch (err) {
       console.warn(`  ⚠ Text cache not written: ${err.message}`);
@@ -410,7 +421,7 @@ async function fetchAll() {
   const store = await Promise.all(
     ["avatars", "weapons", "property", "locs"].map((f) => fetchData(`${ENKA_STORE}/${f}.json`, { timeout: 60_000 }))
   );
-  ENKA = { avatars: store[0], weapons: store[1], property: store[2], locs: store[3].en || {} };
+  ENKA = { avatars: store[0], weapons: store[1], property: store[2], locs: store[3][LANG] || store[3].en || {} };
 
   validate(d);
 
@@ -1081,7 +1092,7 @@ async function main() {
   await mongoose.connection.close();
 }
 
-module.exports = { seedAll, setRef, GAME, REPO, _test: { cleanText, skillValue, fixedValue } };
+module.exports = { seedAll, setRef, setLang, GAME, REPO, _test: { cleanText, skillValue, fixedValue } };
 
 if (require.main === module) {
   main().catch((err) => {

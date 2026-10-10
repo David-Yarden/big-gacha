@@ -34,6 +34,8 @@ const lightConeSchema = new mongoose.Schema(
     // Ascension material costs
     // { ascend1: [{id, name, count}], …, ascend6: [...] }
     costs: mongoose.Schema.Types.Mixed,
+    // Cumulative EXP per level + EXP items with their Credit cost: { exp, items, coin }
+    levelExp: mongoose.Schema.Types.Mixed,
 
     // image/preview/portrait paths (resolved to full CDN URLs at seed time)
     images: mongoose.Schema.Types.Mixed,

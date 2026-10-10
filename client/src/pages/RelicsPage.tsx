@@ -135,7 +135,7 @@ export function RelicsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{pageTitle}</h1>
         {total > 0 && (
-          <span className="text-sm text-muted-foreground">{total} total</span>
+          <span className="text-sm text-muted-foreground">{`${total} total`}</span>
         )}
       </div>
 
@@ -178,7 +178,7 @@ export function RelicsPage() {
 
       {!hasMore && items.length > 0 && (
         <p className="text-center text-xs text-muted-foreground py-2">
-          All {total} relic sets loaded
+          {`All ${total} relic sets loaded`}
         </p>
       )}
     </div>

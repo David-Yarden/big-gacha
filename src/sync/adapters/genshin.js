@@ -38,6 +38,8 @@ module.exports = {
   game: "genshin",
   source: "genshin-db (npm)",
   // Contract: every collection the seeders must produce, with a floor (~70 % of Oct 2026)
+  // Official translations also imported (second run of the seeders, see sync/i18n.js)
+  languages: ["fr"],
   expect: { Character: 85, Weapon: 175, Artifact: 45, Material: 600, Talent: 85, Constellation: 85 },
 
   async check() {
@@ -67,9 +69,10 @@ module.exports = {
     }
   },
 
-  async collect() {
+  async collect(check) {
     purgeRequireCache();
     const seeder = require("../../scripts/seedGenshin");
+    seeder.setLang(check?.lang);
     await seeder.seedAll();
   },
 

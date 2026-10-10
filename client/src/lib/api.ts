@@ -1,4 +1,5 @@
 import axios from "axios";
+import { LANG, localizeData } from "./i18n";
 import type {
   Game,
   ApiResponse,
@@ -30,6 +31,21 @@ const client = axios.create({
   // Required by the API for actions (see src/server.js)
   headers: { "X-Big-Gacha": "1" },
 });
+
+// French: ask for the translations with any field selection, and lay them over the
+// English texts in every response (see lib/i18n.ts)
+if (LANG === "fr") {
+  client.interceptors.request.use((config) => {
+    const fields = config.params?.fields;
+    config.params = { ...config.params, lang: "fr" };
+    if (typeof fields === "string" && fields && !/\bi18n\b/.test(fields)) config.params.fields = `${fields},i18n`;
+    return config;
+  });
+  client.interceptors.response.use((res) => {
+    res.data = localizeData(res.data);
+    return res;
+  });
+}
 
 export interface QueryParams {
   search?: string;
@@ -105,6 +121,119 @@ export interface VersionEntry {
 /** What each version added (newest first) */
 export async function getVersions(game: Game): Promise<ApiResponse<VersionEntry[]>> {
   const { data } = await client.get(`/${game}/versions`);
+  return data;
+}
+
+export interface BannerUnit {
+  name: string;
+  rarity?: number;
+  kind: "character" | "weapon";
+  rateUp?: boolean;
+}
+
+export interface Banner {
+  name: string;
+  title?: string;
+  kind?: "character" | "weapon" | "chronicled";
+  collab?: boolean;
+  version?: string;
+  start?: string;
+  end?: string;
+  featured: BannerUnit[];
+  image?: string;
+  source?: string;
+}
+
+export interface BannerHistory {
+  source: string | null;
+  banners: Banner[];
+  /** "character:Name" / "weapon:Name" → its rarity, element and images on this site */
+  units: Record<string, { rarity?: number; element?: string; images?: Record<string, string> }>;
+}
+
+export async function getBanners(game: Game, unit?: { name: string; kind: "character" | "weapon" }): Promise<ApiResponse<BannerHistory>> {
+  const { data } = await client.get(`/${game}/banners`, { params: unit ? { unit: unit.name, kind: unit.kind } : undefined });
+  return data;
+}
+
+export interface PlanEntry {
+  character: string;
+  levelFrom: number;
+  levelTo: number;
+  skillFrom: number;
+  skillTo: number;
+  weapon?: string;
+  weaponFrom?: number;
+  weaponTo?: number;
+  /** Count the one-time nodes (HSR traces, WuWa inherent/stat nodes, Endfield attributes); default yes */
+  nodes?: boolean;
+}
+
+export interface Plan {
+  entries: PlanEntry[];
+  /** In-game UID used for the showcase import */
+  uid?: string;
+  /** Material key (id, or name) → count owned */
+  inventory: Record<string, number>;
+}
+
+export async function getPlan(game: Game): Promise<ApiResponse<Plan>> {
+  const { data } = await client.get(`/${game}/plan`);
+  return data;
+}
+
+export async function savePlan(game: Game, plan: Plan): Promise<ApiResponse<Plan>> {
+  const { data } = await client.put(`/${game}/plan`, plan);
+  return data;
+}
+
+/** A character of the player's in-game showcase (Enka.Network) */
+export interface ShowcaseCharacter {
+  /** English name (the planner's key) */
+  character: string;
+  displayName?: string;
+  images?: Record<string, string>;
+  level: number;
+  /** Lowest of the main skill levels */
+  skill: number;
+  weapon?: string;
+  weaponLevel?: number;
+  /** HSR: every major trace and stat node already unlocked */
+  nodesDone?: boolean;
+}
+
+export async function getAccount(game: Game, uid: string): Promise<ApiResponse<{ nickname?: string; characters: ShowcaseCharacter[] }>> {
+  const { data } = await client.get(`/${game}/account/${uid}`);
+  return data;
+}
+
+/** An in-game event (official announcements) */
+export interface GameEvent {
+  id: number;
+  title: string;
+  start: string;
+  end: string;
+  image?: string;
+}
+
+export async function getEvents(game: Game): Promise<ApiResponse<{ source: string; events: GameEvent[] } | null>> {
+  const { data } = await client.get(`/${game}/events`);
+  return data;
+}
+
+/** Where a material drops (the planner's "Where to farm") */
+export interface FarmInfo {
+  name: string;
+  rarity?: number;
+  source?: string[];
+  /** Genshin: the domain and its days (1 = Monday … 7 = Sunday) */
+  domain?: string;
+  days?: number[];
+  images?: Record<string, string>;
+}
+
+export async function getFarmInfo(game: Game, names: string[]): Promise<ApiResponse<FarmInfo[]>> {
+  const { data } = await client.get(`/${game}/farm`, { params: { names: names.join("|") } });
   return data;
 }
 

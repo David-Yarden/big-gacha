@@ -1,3 +1,11 @@
+const mongoose = require("mongoose");
+
+// Official translations of a document's texts (i18n.fr…), filled by the sync
+// (src/sync/i18n.js). Added to every schema, before the models are compiled.
+mongoose.plugin((schema) => {
+  if (!schema.path("i18n") && schema.path("game")) schema.add({ i18n: mongoose.Schema.Types.Mixed });
+});
+
 module.exports = {
   Character: require("./Character"),
   Weapon: require("./Weapon"),
@@ -19,6 +27,8 @@ module.exports = {
   AgentKit: require("./AgentKit"),
   Bangboo: require("./Bangboo"),
   Reference: require("./Reference"),
+  Banner: require("./Banner"),
+  Plan: require("./Plan"),
   // Sync
   SyncState: require("./SyncState"),
   Changelog: require("./Changelog"),

@@ -12,6 +12,7 @@ import {
   StatBonusTable,
   NumberedEntryCard,
   renderMarkdownText,
+  nodeCosts,
 } from "@/components/character/shared";
 import {
   useCharacterEnhancements,
@@ -20,6 +21,7 @@ import {
 } from "@/components/character/enhancements";
 import { BuildTab } from "@/components/character/BuildTab";
 import type { CharacterKit, KitArgs } from "./types";
+import type { SkillSection } from "@/components/character/TotalCostCalculator";
 
 type ForteKey = (typeof WUWA_FORTE_SKILLS)[number];
 // Displayed in this order; the Outro Skill has no level
@@ -228,15 +230,17 @@ export function useWuwaKit({ game, name, activeElement }: KitArgs): CharacterKit
   const activeChain = (chainVariant ?? chain) as ResonanceChain | undefined;
 
   const costs = activeForte?.costs;
-  const skillSections = useMemo(
-    () =>
-      WUWA_FORTE_SKILLS.map((key) => ({
-        label: WUWA_FORTE_SKILL_LABELS[key],
-        materials: calculateTalentMaterials(costs?.[key], levels[key]),
-        level: levels[key],
-      })),
-    [costs, levels]
-  );
+  const skillSections = useMemo(() => {
+    const sections: SkillSection[] = WUWA_FORTE_SKILLS.map((key) => ({
+      label: WUWA_FORTE_SKILL_LABELS[key],
+      materials: calculateTalentMaterials(costs?.[key], levels[key]),
+      level: levels[key],
+    }));
+    // Inherent skills and stat nodes of the forte tree: unlocked once
+    const nodes = nodeCosts([activeForte?.inherentSkill1, activeForte?.inherentSkill2], activeForte?.statBonuses);
+    if (nodes.length) sections.push({ label: "Inherent skills & stat nodes", materials: nodes });
+    return sections;
+  }, [costs, levels, activeForte]);
 
   const inherent = [activeForte?.inherentSkill1, activeForte?.inherentSkill2].filter(Boolean);
 

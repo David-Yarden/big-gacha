@@ -6,7 +6,8 @@ import type { MaterialCostEntry } from "@/lib/materials";
 export interface SkillSection {
   label: string;
   materials: MaterialCostEntry[];
-  level: number;
+  /** Selected level (none for one-time unlocks such as trace nodes) */
+  level?: number;
 }
 
 interface TotalCostCalculatorProps {
@@ -70,7 +71,7 @@ export function TotalCostCalculator({
 
   if (ascensionMaterials.length === 0 && !hasSkillMaterials) return null;
 
-  const levelStr = skillSections.map((s) => s.level).join("/");
+  const levelStr = skillSections.filter((s) => s.level != null).map((s) => s.level).join("/");
 
   return (
     <Card>

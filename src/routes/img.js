@@ -1,10 +1,10 @@
 /**
- * GET /api/img?u=<image URL> — local image cache for icons.
+ * GET /api/img?u=<image URL> — local copy of the site's images.
  *
- * The first request downloads the image from its CDN and keeps it in cache/img/;
- * later requests (and the browser, for 30 days) never hit the CDN again, so icons
- * stay fast and keep working if a CDN is slow or down. Only known game CDNs are
- * proxied, and big files (splash art) are not cached: the browser is redirected.
+ * The first request (or the background mirror, src/sync/imageMirror.js) downloads the
+ * image from its CDN and keeps it in cache/img/; later requests (and the browser, for
+ * 30 days) never hit the CDN again, so images stay fast and keep working if a CDN is
+ * slow, changes or goes away. Only known game CDNs are proxied.
  */
 const express = require("express");
 const fs = require("fs");
@@ -13,10 +13,11 @@ const crypto = require("crypto");
 
 const router = express.Router();
 const DIR = path.join(__dirname, "..", "..", "cache", "img");
-const MAX_CACHED = 1.5 * 1024 * 1024; // icons are well under this; splash art is not
+const MAX_CACHED = 30 * 1024 * 1024; // splash art included; anything bigger is not an image we use
 const ALLOWED = [
   "githubusercontent.com", "encore.moe", "yatta.moe", "enka.network", "jmp.blue",
   "hoyolab.com", "mihoyo.com", "hoyoverse.com", "wikia.nocookie.net", "nanoka.cc", "gachabase.net",
+  "wiki.gg",
 ];
 const TYPES = { ".png": "image/png", ".webp": "image/webp", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".svg": "image/svg+xml" };
 const inflight = new Map();
@@ -63,7 +64,8 @@ router.get("/", async (req, res) => {
   };
 
   if (fs.existsSync(file)) return send();
-  if (fs.existsSync(`${file}.big`)) return res.redirect(302, url);
+  // Marker of the former 1.5 MB limit: download it now
+  if (fs.existsSync(`${file}.big`)) fs.rmSync(`${file}.big`, { force: true });
 
   try {
     if (!inflight.has(file)) inflight.set(file, download(url, file).finally(() => inflight.delete(file)));
@@ -76,4 +78,23 @@ router.get("/", async (req, res) => {
   }
 });
 
+/** Local file of an image URL (null when the host is not cached) */
+function cacheFile(url) {
+  return allowed(url) ? path.join(DIR, crypto.createHash("sha1").update(url).digest("hex")) : null;
+}
+
+/** Download an image into the cache (no-op when already there). Resolves to an HTTP-like status. */
+async function ensureCached(url) {
+  const file = cacheFile(url);
+  if (!file) return 400;
+  if (fs.existsSync(file)) return 200;
+  fs.rmSync(`${file}.big`, { force: true });
+  if (!inflight.has(file)) inflight.set(file, download(url, file).finally(() => inflight.delete(file)));
+  return (await inflight.get(file)).status;
+}
+
 module.exports = router;
+module.exports.ensureCached = ensureCached;
+module.exports.cacheFile = cacheFile;
+module.exports.allowed = allowed;
+module.exports.DIR = DIR;

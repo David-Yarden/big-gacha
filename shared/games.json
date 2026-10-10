@@ -12,6 +12,8 @@
       "resources": [
         { "path": "characters", "label": "Characters", "kind": "characters" },
         { "path": "versions",   "label": "Versions",   "kind": "versions" },
+        { "path": "banners",    "label": "Banners",    "kind": "banners" },
+        { "path": "planner",    "label": "Planner",    "kind": "planner" },
         { "path": "weapons",    "label": "Weapons",    "kind": "weapons" },
         { "path": "artifacts",  "label": "Artifacts",  "kind": "gear" },
         { "path": "materials",  "label": "Materials",  "kind": "materials" }
@@ -40,6 +42,8 @@
       "resources": [
         { "path": "characters", "label": "Characters",  "kind": "characters" },
         { "path": "versions",   "label": "Versions",   "kind": "versions" },
+        { "path": "banners",    "label": "Banners",    "kind": "banners" },
+        { "path": "planner",    "label": "Planner",    "kind": "planner" },
         { "path": "lightcones", "label": "Light Cones", "kind": "weapons" },
         { "path": "relics",     "label": "Relics",      "kind": "gear" },
         { "path": "materials",  "label": "Materials",   "kind": "materials" }
@@ -80,6 +84,8 @@
       "resources": [
         { "path": "characters", "label": "Agents",      "kind": "characters" },
         { "path": "versions",   "label": "Versions",   "kind": "versions" },
+        { "path": "banners",    "label": "Banners",    "kind": "banners" },
+        { "path": "planner",    "label": "Planner",    "kind": "planner" },
         { "path": "weapons",    "label": "W-Engines",   "kind": "weapons" },
         { "path": "relics",     "label": "Drive Discs", "kind": "gear" },
         { "path": "bangboos",   "label": "Bangboos",    "kind": "bangboos" },
@@ -129,6 +135,8 @@
       "resources": [
         { "path": "characters", "label": "Characters",     "kind": "characters" },
         { "path": "versions",   "label": "Versions",   "kind": "versions" },
+        { "path": "banners",    "label": "Banners",    "kind": "banners" },
+        { "path": "planner",    "label": "Planner",    "kind": "planner" },
         { "path": "weapons",    "label": "Weapons",        "kind": "weapons" },
         { "path": "echoes",     "label": "Echoes",         "kind": "echoes" },
         { "path": "echosets",   "label": "Sonata Effects", "kind": "gear" },
@@ -154,6 +162,8 @@
       "resources": [
         { "path": "characters", "label": "Operators",  "kind": "characters" },
         { "path": "versions",   "label": "Versions",   "kind": "versions" },
+        { "path": "banners",    "label": "Banners",    "kind": "banners" },
+        { "path": "planner",    "label": "Planner",    "kind": "planner" },
         { "path": "weapons",    "label": "Weapons",    "kind": "weapons" },
         { "path": "relics",     "label": "Gear Sets",  "kind": "gear" },
         { "path": "materials",  "label": "Materials",  "kind": "materials" }

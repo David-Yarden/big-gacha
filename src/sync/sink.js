@@ -19,6 +19,11 @@ function stopRecording() {
   return ops;
 }
 
+/** Operations recorded so far by the current sync ([] outside a sync). */
+function recorded() {
+  return recorder || [];
+}
+
 function isRecording() {
   return recorder !== null;
 }
@@ -49,4 +54,4 @@ async function deleteMany(Model, filter) {
   return Model.deleteMany(filter);
 }
 
-module.exports = { startRecording, stopRecording, isRecording, upsert, update, deleteMany };
+module.exports = { startRecording, stopRecording, isRecording, recorded, upsert, update, deleteMany };

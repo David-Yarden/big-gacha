@@ -17,6 +17,9 @@ const materialSchema = new mongoose.Schema(
     materialType: String,
     rarity: Number,
     source: [String],
+    // Genshin: the domain that drops it and its days (1 = Monday … 7 = Sunday)
+    domain: String,
+    days: [Number],
     version: String,
 
     images: mongoose.Schema.Types.Mixed,

@@ -13,6 +13,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { useInfiniteList } from "@/hooks/useInfiniteList";
 import { CHARACTER_RARITIES, RARITY_COLOR_MAP, resolveRegion } from "@/lib/constants";
 import { gameUi } from "@/lib/gameUi";
+import { keyName } from "@/lib/i18n";
 import { registryGame, resourceLabel } from "@/lib/registry";
 import type { Game, Character, EnhancementType } from "@/lib/types";
 import type { FilterGroup, SortOption } from "@/components/shared/FilterBar";
@@ -145,7 +146,7 @@ function CharacterCard({ character, game }: { character: Character; game: string
           </div>
           {ui.showRegion && (
             <p className="mt-0.5 text-xs text-muted-foreground truncate">
-              {resolveRegion(character.region, character.name)}
+              {resolveRegion(character.region, keyName(character))}
             </p>
           )}
         </CardContent>
@@ -200,7 +201,7 @@ export function CharactersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{resourceLabel(game, "characters", "Characters")}</h1>
-        {total > 0 && <span className="text-sm text-muted-foreground">{total} total</span>}
+        {total > 0 && <span className="text-sm text-muted-foreground">{`${total} total`}</span>}
       </div>
 
       <FilterBar
@@ -239,7 +240,7 @@ export function CharactersPage() {
       <div ref={sentinelRef} className="h-px" />
 
       {!hasMore && items.length > 0 && (
-        <p className="text-center text-xs text-muted-foreground py-2">All {total} characters loaded</p>
+        <p className="text-center text-xs text-muted-foreground py-2">{`All ${total} characters loaded`}</p>
       )}
     </div>
   );

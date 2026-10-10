@@ -20,13 +20,20 @@ function setDataRef(ref) {
   DATA_REF = ref || "master";
 }
 
+// Language of the texts: "en" (the documents) or "fr" (official translation, see sync/i18n.js)
+let LANG = "en";
+function setLang(lang) {
+  LANG = lang === "fr" ? "fr" : "en";
+}
+const getLang = () => LANG;
+
 /**
  * Fetch a JSON file from Mar-7th/StarRailRes.
  * @param {string} filename  e.g. "characters.json"
  * @returns {Promise<object>}
  */
 async function fetchHsr(filename) {
-  const url = `https://raw.githubusercontent.com/Mar-7th/StarRailRes/${DATA_REF}/index_new/en/${filename}`;
+  const url = `https://raw.githubusercontent.com/Mar-7th/StarRailRes/${DATA_REF}/index_new/${LANG}/${filename}`;
   return fetchData(url, { timeout: 120_000 });
 }
 
@@ -141,6 +148,8 @@ function computeStats(values, maxLevel = 80, statKeys = ["hp", "atk", "def", "sp
 // ── Exports ───────────────────────────────────────────────────────────────────
 
 module.exports = {
+  setLang,
+  getLang,
   STARRAILRES_BASE,
   setDataRef,
   fetchHsr,

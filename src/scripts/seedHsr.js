@@ -376,6 +376,16 @@ function buildAscensionCosts(materialsArr, items) {
   return costs;
 }
 
+/** One-time unlock cost of a trace node (major trace or stat bonus). */
+function nodeCost(node, items) {
+  return (node?.levels?.[0]?.materials ?? []).map((m) => ({
+    id: Number(m.id),
+    name: items[m.id]?.name ?? `Item ${m.id}`,
+    count: m.num,
+    icon: cdnUrl(items[m.id]?.icon) ?? undefined,
+  }));
+}
+
 /**
  * Build trace level costs for a single skill from its skill_tree node.
  * node.levels[0] = level 1 (free, no cost)
@@ -474,9 +484,12 @@ async function hsrOutfits() {
   if (!entries.length) return new Map();
 
   // Texts (cached per TextMap commit)
-  const sha = await githubLastCommitFor(HSR_DUMP, "TextMap/TextMapEN.json");
+  const lang = require("./hsrData").getLang();
+  const TEXT_MAP = `TextMap/TextMap${lang.toUpperCase()}.json`;
+  const sha = await githubLastCommitFor(HSR_DUMP, TEXT_MAP);
   const dir = path.join(__dirname, "..", "..", "cache");
-  const file = sha ? path.join(dir, `hsr-skin-text-${sha.slice(0, 12)}.json`) : null;
+  const prefix = `hsr-skin-text-${lang}-`;
+  const file = sha ? path.join(dir, `${prefix}${sha.slice(0, 12)}.json`) : null;
   let texts = null;
   if (file && fs.existsSync(file)) {
     try {
@@ -487,13 +500,15 @@ async function hsrOutfits() {
   }
   const wanted = entries.flatMap((e) => [e.name, e.desc]);
   if (!texts || wanted.some((h) => !(h in texts))) {
-    const map = await tryFetch(raw("TextMap/TextMapEN.json"), { timeout: 300_000 });
+    const map = await tryFetch(raw(TEXT_MAP), { timeout: 300_000 });
     if (!map) return new Map();
     texts = Object.fromEntries(wanted.map((h) => [h, map[h] ?? null]));
     if (file) {
       try {
         fs.mkdirSync(dir, { recursive: true });
-        for (const f of fs.readdirSync(dir)) if (f.startsWith("hsr-skin-text-")) fs.unlinkSync(path.join(dir, f));
+        for (const f of fs.readdirSync(dir)) {
+          if (f.startsWith(prefix) || /^hsr-skin-text-[0-9a-f]{12}\./.test(f)) fs.unlinkSync(path.join(dir, f));
+        }
         fs.writeFileSync(file, JSON.stringify(texts));
       } catch {
         /* cache is optional */
@@ -593,6 +608,60 @@ async function hsrBuilds() {
   return builds;
 }
 
+// ─── Level EXP curves (characters and light cones) ───────────────────────
+
+/**
+ * Cumulative EXP to reach each level and the EXP items, from the game tables:
+ * ExpType (characters, per ExpGroup), EquipmentExpType (light cones, per ExpType),
+ * AvatarExpItemConfig (no Credit cost) and EquipmentExpItemConfig (CoinCost per item).
+ * Returns { avatar: Map(avatarId → levelExp), equipment: Map(lightConeId → levelExp) }.
+ */
+let LEVEL_CURVES = { avatar: new Map(), equipment: new Map() };
+async function hsrLevelCurves(items) {
+  const { tryFetch } = require("../sync/http");
+  const get = (f) => tryFetch(`https://raw.githubusercontent.com/${HSR_DUMP}/master/ExcelOutput/${f}`, { timeout: 120_000 });
+  const [expType, avatarItems, eqType, eqItems, avatars, equipments] = await Promise.all(
+    ["ExpType.json", "AvatarExpItemConfig.json", "EquipmentExpType.json", "EquipmentExpItemConfig.json", "AvatarConfig.json", "EquipmentConfig.json"].map(get)
+  );
+  const out = { avatar: new Map(), equipment: new Map() };
+  if (![expType, avatarItems, eqType, eqItems, avatars, equipments].every(Array.isArray)) {
+    console.warn("  ⚠ HSR EXP tables unavailable: level EXP not counted");
+    return out;
+  }
+  // rows: { Level, Exp } = EXP from Level to Level + 1
+  const curves = (rows, key) => {
+    const byType = new Map();
+    for (const r of rows) {
+      if (!byType.has(r[key])) byType.set(r[key], []);
+      byType.get(r[key]).push(r);
+    }
+    const res = new Map();
+    for (const [type, list] of byType) {
+      const exp = [0, 0];
+      for (const r of list.sort((a, b) => a.Level - b.Level)) exp[r.Level + 1] = (exp[r.Level] ?? 0) + (r.Exp ?? 0);
+      res.set(type, Array.from(exp, (v) => v ?? 0));
+    }
+    return res;
+  };
+  const item = (id, exp, coin) => ({
+    id, name: items[id]?.name ?? `Item ${id}`, exp, ...(coin ? { coin } : {}), icon: cdnUrl(items[id]?.icon) ?? undefined,
+  });
+  const credit = { id: 2, name: items[2]?.name ?? "Credit", icon: cdnUrl(items[2]?.icon) ?? undefined };
+  const avatarList = avatarItems.map((x) => item(x.ItemID, x.Exp)).sort((a, b) => b.exp - a.exp);
+  const eqList = eqItems.map((x) => item(x.ItemID, x.ExpProvide, x.CoinCost)).sort((a, b) => b.exp - a.exp);
+  const avatarCurves = curves(expType, "TypeID");
+  const eqCurves = curves(eqType, "ExpType");
+  for (const a of avatars) {
+    const exp = avatarCurves.get(a.ExpGroup);
+    if (exp) out.avatar.set(String(a.AvatarID), { exp: exp.slice(0, 81), items: avatarList });
+  }
+  for (const e of equipments) {
+    const exp = eqCurves.get(e.ExpType);
+    if (exp) out.equipment.set(String(e.EquipmentID), { exp: exp.slice(0, 81), items: eqList, coin: credit });
+  }
+  return out;
+}
+
 async function seedCharacters(characters, promotions, items) {
   const outfits = await hsrOutfits().catch(() => new Map());
   const builds = await hsrBuilds().catch(() => new Map());
@@ -603,13 +672,14 @@ async function seedCharacters(characters, promotions, items) {
 
   // Hover glossary per character (extra effects from sr.yatta.moe), fetched in parallel
   const { hsrGlossary, hsrProfile, mapLimit } = require("../sync/glossary");
+  const lang = require("./hsrData").getLang();
   const glossaries = new Map();
   const profiles = new Map();
   await mapLimit(ids, 6, async (id) => {
-    glossaries.set(id, await hsrGlossary([id]));
-    profiles.set(id, await hsrProfile(id));
+    glossaries.set(id, await hsrGlossary([id], lang));
+    profiles.set(id, await hsrProfile(id, lang));
   });
-  const trailblazerGlossary = await hsrGlossary(TRAILBLAZER_GROUPS.map((g) => g.ids[0]));
+  const trailblazerGlossary = await hsrGlossary(TRAILBLAZER_GROUPS.map((g) => g.ids[0]), lang);
   console.log(`  ✓ Glossaries for ${[...glossaries.values()].filter(Boolean).length} characters`);
 
   let count = 0;
@@ -634,6 +704,7 @@ async function seedCharacters(characters, promotions, items) {
       region: profiles.get(id)?.affiliation, // faction filter
       stats,
       costs: buildAscensionCosts(promo.materials, items),
+      levelExp: LEVEL_CURVES.avatar.get(String(id)),
       skins: withDefaultOutfit(outfits.get(String(id)), cdnUrl(char.icon)),
       build: builds.get(String(id)),
       images: {
@@ -684,6 +755,7 @@ async function seedCharacters(characters, promotions, items) {
       region: "Astral Express",
       stats: baseStats,
       costs: buildAscensionCosts(basePromo.materials, items),
+      levelExp: LEVEL_CURVES.avatar.get(String(baseGroup.ids[0])),
       images: {
         icon:    cdnUrl(baseChar.icon),
         preview: cdnUrl(baseChar.preview),
@@ -692,7 +764,7 @@ async function seedCharacters(characters, promotions, items) {
       availableElements: TRAILBLAZER_GROUPS.map((g) => g.element),
       elementVariants,
       glossary: trailblazerGlossary,
-      ...((await hsrProfile(TRAILBLAZER_GROUPS[0].ids[0])) ?? {}),
+      ...((await hsrProfile(TRAILBLAZER_GROUPS[0].ids[0], lang)) ?? {}),
     });
     count++;
   }
@@ -776,12 +848,14 @@ async function seedTraces(characters, skills, skillTrees, items) {
             params:      node.params ?? [],
             icon:        cdnUrl(node.icon),
             unlockPhase,
+            cost:        nodeCost(node, items),
           });
         } else {
           // Minor stat bonus node
-          for (const prop of props) {
-            statBonuses.push({ stat: prop.type, value: prop.value, unlockPhase });
-          }
+          // The node's unlock cost goes on its first stat (dedupe-safe: costs are not compared)
+          props.forEach((prop, i) => {
+            statBonuses.push({ stat: prop.type, value: prop.value, unlockPhase, ...(i === 0 ? { cost: nodeCost(node, items) } : {}) });
+          });
         }
       }
     }
@@ -871,11 +945,12 @@ async function seedTraces(characters, skills, skillTrees, items) {
             params:      node.params ?? [],
             icon:        cdnUrl(node.icon),
             unlockPhase,
+            cost:        nodeCost(node, items),
           });
         } else {
-          for (const prop of props) {
-            variantStatBonus.push({ stat: prop.type, value: prop.value, unlockPhase });
-          }
+          props.forEach((prop, i) => {
+            variantStatBonus.push({ stat: prop.type, value: prop.value, unlockPhase, ...(i === 0 ? { cost: nodeCost(node, items) } : {}) });
+          });
         }
       }
     }
@@ -1033,6 +1108,7 @@ async function seedLightCones(lightCones, lcPromotions, lcRanks, items) {
       stats,
       superimpositions,
       costs,
+      levelExp: LEVEL_CURVES.equipment.get(String(id)),
       images: {
         icon:    cdnUrl(lc.icon),
         preview: cdnUrl(lc.preview),
@@ -1189,6 +1265,7 @@ async function fetchAll() {
 async function seedAll() {
   const d = await fetchAll();
   await seedMaterials(d.items);
+  LEVEL_CURVES = await hsrLevelCurves(d.items);
   await seedCharacters(d.characters, d.promotions, d.items);
   await seedTraces(d.characters, d.skills, d.skillTrees, d.items);
   await seedEidolons(d.characters, d.ranks);

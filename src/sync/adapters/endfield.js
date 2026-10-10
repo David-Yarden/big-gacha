@@ -15,6 +15,8 @@ module.exports = {
   game: "endfield",
   source: REPO,
   // Contract: every collection the seeders must produce, with a floor (~70 % of Oct 2026)
+  // Official French texts too (second run, French from AKEData, see seedEndfield.js)
+  languages: ["fr"],
   expect: { Character: 22, AgentKit: 22, Weapon: 55, Relic: 16, Material: 25 },
 
   async check(previous) {
@@ -43,6 +45,7 @@ module.exports = {
     delete require.cache[require.resolve("../../scripts/seedEndfield")];
     const seeder = require("../../scripts/seedEndfield");
     seeder.setRef(check?.ref);
+    seeder.setLang(check?.lang);
     await seeder.seedAll();
   },
 };

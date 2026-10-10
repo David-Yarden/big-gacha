@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 // Game CDNs served through the API's local image cache (src/routes/img.js)
 const CACHED_HOSTS = [
   "githubusercontent.com", "encore.moe", "yatta.moe", "enka.network", "jmp.blue",
   "hoyolab.com", "mihoyo.com", "hoyoverse.com", "wikia.nocookie.net", "nanoka.cc", "gachabase.net",
+  "wiki.gg",
 ];
 
 export function viaCache(src: string | null): string | null {
@@ -43,9 +44,15 @@ export function ImageWithFallback({
   const [errored, setErrored] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
-  // A reused component (list re-render, element switch) must follow its new src
+  // A reused component (list re-render, element switch) must follow its new src.
+  // Only on a real change: on mount, a cached image can finish loading before this
+  // effect runs, and resetting "loaded" then would leave it invisible.
+  const shown = useRef(first);
   useEffect(() => {
-    setCurrentSrc(cache ? viaCache(src) : src);
+    const next = cache ? viaCache(src) : src;
+    if (next === shown.current) return;
+    shown.current = next;
+    setCurrentSrc(next);
     setErrored(false);
     setLoaded(false);
   }, [src, cache]);

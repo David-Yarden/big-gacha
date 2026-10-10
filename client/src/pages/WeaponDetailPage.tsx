@@ -26,6 +26,8 @@ import { formatBaseAtk, formatSpecialized } from "@/lib/formatters";
 import type { Game } from "@/lib/types";
 import type { MaterialCostEntry } from "@/lib/materials";
 import { renderMarkdownText } from "@/components/character/shared";
+import { UnitBanners } from "@/components/shared/UnitBanners";
+import { keyName } from "@/lib/i18n";
 
 function MaterialCostTable({ materials, game }: { materials: MaterialCostEntry[]; game?: string }) {
   if (materials.length === 0) {
@@ -304,6 +306,8 @@ export function WeaponDetailPage() {
           <MaterialCostTable materials={ascensionMaterials} game={game} />
         </CardContent>
       </Card>
+
+      <UnitBanners game={game!} name={keyName(weapon)} kind="weapon" />
     </div>
   );
 }

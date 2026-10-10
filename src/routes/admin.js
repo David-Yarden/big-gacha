@@ -18,6 +18,26 @@ router.post("/restart", (req, res) => {
   setTimeout(() => process.exit(75), 200);
 });
 
+// GET /api/admin/images — progress of the local image copy; POST starts it
+router.get("/images", (req, res) => {
+  // ?failures=1 — also list the images that could not be copied, and why
+  res.json({
+    success: true,
+    data: { ...require("../sync/imageMirror").mirrorStatus(req.query.failures === "1"), compress: require("../sync/imageCompress").compressStatus() },
+  });
+});
+// POST /api/admin/images/compress — re-encode the big cached PNGs to lossless WebP now
+router.post("/images/compress", (req, res) => {
+  const c = require("../sync/imageCompress");
+  if (!c.compressStatus().running) c.compressCache().catch(() => {});
+  res.json({ success: true, data: c.compressStatus() });
+});
+router.post("/images", (req, res) => {
+  const mirror = require("../sync/imageMirror");
+  if (!mirror.mirrorStatus().running) mirror.mirrorImages().catch(() => {});
+  res.json({ success: true, data: mirror.mirrorStatus() });
+});
+
 // POST /api/admin/selftest — run the test suite (node --test) and return its summary
 router.post("/selftest", (req, res, next) => {
   const { execFile } = require("child_process");
@@ -37,7 +57,7 @@ router.post("/selftest", (req, res, next) => {
 // Only known game data hosts; returns status, size and the start of the body.
 const PROBE_HOSTS = [
   "hakush.in", "githubusercontent.com", "github.com", "encore.moe", "yatta.moe", "enka.network",
-  "hoyolab.com", "hoyoverse.com", "wikia.nocookie.net", "nanoka.cc", "gachabase.net",
+  "hoyolab.com", "hoyoverse.com", "mihoyo.com", "wikia.nocookie.net", "nanoka.cc", "gachabase.net",
 ];
 router.post("/probe", async (req, res) => {
   try {

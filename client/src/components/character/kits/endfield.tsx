@@ -11,7 +11,8 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { getAgentKit } from "@/lib/api";
 import { calculateTalentMaterials } from "@/lib/materials";
 import type { MaterialCostEntry } from "@/lib/materials";
-import { GameText, NumberedEntryCard } from "@/components/character/shared";
+import { GameText, NumberedEntryCard, nodeCosts } from "@/components/character/shared";
+import type { SkillSection } from "@/components/character/TotalCostCalculator";
 import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { BuildTab } from "@/components/character/BuildTab";
 import type { CharacterKit, KitArgs } from "./types";
@@ -169,15 +170,17 @@ export function useEndfieldKit({ game, name }: KitArgs): CharacterKit {
   const kit = data?.data as unknown as EfKit | undefined;
   const [levels, setLevels] = useState<Record<SkillKey, number>>({ basic: 12, skill: 12, combo: 12, ultimate: 12 });
 
-  const skillSections = useMemo(
-    () =>
-      SKILL_KEYS.filter((k) => kit?.skills?.[k]).map((key) => ({
-        label: SKILL_LABELS[key],
-        materials: calculateTalentMaterials(kit?.costs?.[key], levels[key]),
-        level: levels[key],
-      })),
-    [kit?.costs, kit?.skills, levels]
-  );
+  const skillSections = useMemo(() => {
+    const sections: SkillSection[] = SKILL_KEYS.filter((k) => kit?.skills?.[k]).map((key) => ({
+      label: SKILL_LABELS[key],
+      materials: calculateTalentMaterials(kit?.costs?.[key], levels[key]),
+      level: levels[key],
+    }));
+    // Attribute nodes: unlocked once
+    const nodes = nodeCosts(kit?.attributes);
+    if (nodes.length) sections.push({ label: "Attribute nodes", materials: nodes });
+    return sections;
+  }, [kit?.costs, kit?.skills, kit?.attributes, levels]);
 
   const skillsTab = (
     <div className="space-y-4">

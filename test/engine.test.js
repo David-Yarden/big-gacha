@@ -22,6 +22,13 @@ test("empty values are equal: no endless change on \"\" vs missing", () => {
   assert.equal(computeDiff(ops, existing, "6.0").changed.length, 0);
 });
 
+test("dates are compared by value", () => {
+  assert.notEqual(JSON.stringify(canon({ d: new Date("2025-09-04") })), JSON.stringify(canon({ d: new Date("2025-09-24") })));
+  const ops = [up("Banner", "A/2025-09-04", { start: new Date("2025-09-04T03:00:00Z") })];
+  const existing = existingOf("Banner", [{ name: "A/2025-09-04", start: new Date("2025-09-24T03:00:00Z") }]);
+  assert.deepEqual(computeDiff(ops, existing, "3.2").changed.map((c) => c.fields), [["start"]]);
+});
+
 test("collapseDuplicates keeps the last write per model + name", () => {
   const ops = [up("Material", "Credit", { rarity: 2 }), up("Material", "Credit", { rarity: 3 }), up("Material", "Fuel", {})];
   const out = collapseDuplicates(ops);

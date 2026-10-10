@@ -37,8 +37,8 @@ router.get("/", async (req, res, next) => {
 
     const lists = await Promise.all(
       SOURCES.map(([Model, type, label]) =>
-        Model.find({ game: { $in: games }, name: re })
-          .select("game name rarity element path weaponType images")
+        Model.find({ game: { $in: games }, $or: [{ name: re }, { "i18n.fr.name": re }] })
+          .select("game name rarity element path weaponType images i18n.fr.name")
           .limit(limit)
           .lean()
           .then((docs) => docs.map((d) => ({ ...d, type, label: GAME_LABELS[d.game]?.[type] ?? label })))
@@ -46,7 +46,7 @@ router.get("/", async (req, res, next) => {
     );
 
     const score = (r) => {
-      const n = r.name.toLowerCase();
+      const n = (re.test(r.name) ? r.name : r.i18n?.fr?.name ?? r.name).toLowerCase();
       const base = n === lower ? 0 : n.startsWith(lower) ? 1 : /\b/.test(n) && n.includes(` ${lower}`) ? 2 : 3;
       // Characters first, materials last, within the same match quality
       return base * 10 + SOURCES.findIndex((s) => s[1] === r.type);

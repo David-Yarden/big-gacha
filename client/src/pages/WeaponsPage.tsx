@@ -124,7 +124,7 @@ export function WeaponsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{resourceLabel(game, "weapons", "Weapons")}</h1>
         {total > 0 && (
-          <span className="text-sm text-muted-foreground">{total} total</span>
+          <span className="text-sm text-muted-foreground">{`${total} total`}</span>
         )}
       </div>
 
@@ -165,7 +165,7 @@ export function WeaponsPage() {
 
       {!hasMore && items.length > 0 && (
         <p className="text-center text-xs text-muted-foreground py-2">
-          All {total} weapons loaded
+          {`All ${total} weapons loaded`}
         </p>
       )}
     </div>

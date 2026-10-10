@@ -67,10 +67,19 @@ async function start() {
   // Kit enhancements (YAML files) → database
   await require("./enhancements/loader").loadEnhancements().catch((err) => console.warn("⚠ ", err.message));
 
-  app.listen(PORT, HOST, () => {
+  const server = app.listen(PORT, HOST, () => {
     console.log(`🎮 Big Gacha API running on http://${HOST}:${PORT}`);
     console.log(`📖 API docs at http://${HOST}:${PORT}/api\n`);
     require("./sync/scheduler").start();
+    // Local copy of the images missing from cache/img (background, a few at a time)
+    setTimeout(() => require("./sync/imageMirror").mirrorImages().catch(() => {}), 60_000).unref?.();
+  });
+  server.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(`✖ Le port ${PORT} est déjà utilisé : un autre serveur Big Gacha tourne sans doute encore.`);
+      process.exit(98); // the supervisor waits longer before trying again
+    }
+    throw err;
   });
 }
 

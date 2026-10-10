@@ -76,7 +76,7 @@ export function BangboosPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Bangboos</h1>
-        {total > 0 && <span className="text-sm text-muted-foreground">{total} total</span>}
+        {total > 0 && <span className="text-sm text-muted-foreground">{`${total} total`}</span>}
       </div>
 
       <FilterBar
@@ -110,7 +110,7 @@ export function BangboosPage() {
         </div>
       )}
       <div ref={sentinelRef} className="h-px" />
-      {!hasMore && items.length > 0 && <p className="py-2 text-center text-xs text-muted-foreground">All {total} Bangboos loaded</p>}
+      {!hasMore && items.length > 0 && <p className="py-2 text-center text-xs text-muted-foreground">{`All ${total} Bangboos loaded`}</p>}
     </div>
   );
 }

@@ -41,6 +41,14 @@ router.use("/:game", (req, res, next) => {
   next();
 });
 
+/** English name of a document from its English or translated (French) name */
+async function englishName(Model, game, name) {
+  if (!name) return name;
+  if (await Model.exists({ game, name })) return name;
+  const doc = await Model.findOne({ game, "i18n.fr.name": name }).select("name").lean();
+  return doc?.name ?? name;
+}
+
 // ─── Kit enhancements of a game ──────────────────────────
 // GET /api/:game/enhancements?character=Kafka → { types, entries }
 const { Enhancement, EnhancementType } = require("../models");
@@ -48,6 +56,7 @@ router.get("/:game/enhancements", async (req, res, next) => {
   try {
     const game = req.gameParam;
     const entryFilter = { game };
+    if (typeof req.query.character === "string") req.query.character = await englishName(Character, game, req.query.character);
     if (typeof req.query.character === "string") entryFilter.character = req.query.character;
     const [types, entries] = await Promise.all([
       EnhancementType.find({ game }).sort({ version: 1, name: 1 }).lean(),
@@ -61,6 +70,111 @@ router.get("/:game/enhancements", async (req, res, next) => {
         entries,
       },
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── Farm plan ───────────────────────────────────────────
+// GET /api/:game/plan → { entries, inventory }   PUT (same body) saves it
+router.get("/:game/plan", async (req, res, next) => {
+  try {
+    const { Plan } = require("../models");
+    const plan = await Plan.findOne({ planGame: req.gameParam }).lean();
+    res.json({ success: true, data: { entries: plan?.entries ?? [], inventory: plan?.inventory ?? {}, uid: plan?.uid } });
+  } catch (err) {
+    next(err);
+  }
+});
+router.put("/:game/plan", express.json({ limit: "1mb" }), async (req, res, next) => {
+  try {
+    const { Plan } = require("../models");
+    const body = req.body || {};
+    const entries = Array.isArray(body.entries) ? body.entries.slice(0, 200) : [];
+    const uid = /^\d{9,10}$/.test(String(body.uid || "")) ? String(body.uid) : undefined;
+    const inventory = {};
+    for (const [k, v] of Object.entries(body.inventory && typeof body.inventory === "object" ? body.inventory : {})) {
+      const n = Math.max(0, Math.floor(Number(v) || 0));
+      if (n > 0 && k.length < 120) inventory[k] = n;
+    }
+    const doc = await Plan.findOneAndUpdate(
+      { planGame: req.gameParam },
+      body.uid === "" ? { planGame: req.gameParam, entries, inventory, $unset: { uid: 1 } } : { planGame: req.gameParam, entries, inventory, uid },
+      { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
+    ).lean();
+    res.json({ success: true, data: { entries: doc.entries, inventory: doc.inventory, uid: doc.uid } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── Player showcase (Enka.Network) ──────────────────────
+// GET /api/:game/account/:uid → { nickname, characters: [{ character, level, skill, weapon, weaponLevel }] }
+router.get("/:game/account/:uid", async (req, res) => {
+  try {
+    const data = await require("../sync/account").showcase(req.gameParam, String(req.params.uid));
+    const fr = req.query.lang === "fr";
+    const characters = data.characters.map(({ frName, ...c }) => ({ ...c, displayName: (fr && frName) || c.character }));
+    res.json({ success: true, data: { ...data, characters }, source: "Enka.Network" });
+  } catch (err) {
+    res.status(err.status || 500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── In-game events (official announcements, live) ──────
+// GET /api/:game/events?lang=fr → { source, events: [{ id, title, start, end, image }] }
+router.get("/:game/events", async (req, res) => {
+  try {
+    const data = await require("../sync/events").gameEvents(req.gameParam, req.query.lang === "fr" ? "fr" : "en");
+    if (!data) return res.json({ success: true, data: null });
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(502).json({ success: false, error: err.message });
+  }
+});
+
+// ─── Where to farm ───────────────────────────────────────
+// GET /api/:game/farm?names=A|B → [{ name, rarity, source, domain, days, images, i18n? }]
+// (the planner's "Where to farm": English or French names)
+router.get("/:game/farm", async (req, res, next) => {
+  try {
+    const { Material } = require("../models");
+    const names = String(req.query.names || "").split("|").map((x) => x.trim()).filter(Boolean).slice(0, 300);
+    if (!names.length) return res.json({ success: true, data: [] });
+    const fr = req.query.lang === "fr";
+    const docs = await Material.find({ game: req.gameParam, $or: [{ name: { $in: names } }, { "i18n.fr.name": { $in: names } }] })
+      .select(`name sourceId rarity source domain days images${fr ? " i18n" : ""}`)
+      .lean();
+    res.json({ success: true, data: docs });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── Banner history ──────────────────────────────────────
+// GET /api/:game/banners → { source, banners: newest first, units: { name: { kind, rarity, element, images } } }
+//   ?unit=Kafka&kind=character — only the banners featuring that character (or weapon)
+router.get("/:game/banners", async (req, res, next) => {
+  try {
+    const game = req.gameParam;
+    const { Banner } = require("../models");
+    const filter = { game };
+    if (typeof req.query.unit === "string") {
+      const unit = await englishName(req.query.kind === "weapon" ? (game === "hsr" ? LightCone : Weapon) : Character, game, req.query.unit);
+      filter.featured = { $elemMatch: { name: unit, ...(req.query.kind === "weapon" || req.query.kind === "character" ? { kind: req.query.kind } : {}) } };
+    }
+    const banners = await Banner.find(filter).sort({ start: -1, name: 1 }).select("-_id -__v -createdAt -updatedAt -game").lean();
+    const names = { character: new Set(), weapon: new Set() };
+    for (const b of banners) for (const f of b.featured || []) names[f.kind === "weapon" ? "weapon" : "character"].add(f.name);
+    const WeaponModel = game === "hsr" ? LightCone : Weapon;
+    const [chars, weapons] = await Promise.all([
+      Character.find({ game, name: { $in: [...names.character] } }).select("name rarity element images i18n.fr.name").lean(),
+      WeaponModel.find({ game, name: { $in: [...names.weapon] } }).select("name rarity images i18n.fr.name").lean(),
+    ]);
+    const units = {};
+    for (const c of chars) units[`character:${c.name}`] = { rarity: c.rarity, element: c.element, images: c.images, i18n: c.i18n };
+    for (const w of weapons) units[`weapon:${w.name}`] = { rarity: w.rarity, images: w.images, i18n: w.i18n };
+    res.json({ success: true, data: { source: banners[0]?.source ?? null, banners, units } });
   } catch (err) {
     next(err);
   }
@@ -90,7 +204,7 @@ router.get("/:game/versions", async (req, res, next) => {
     const lists = await Promise.all(
       VERSIONED.map(([M, type]) =>
         M.find({ game, version: { $nin: [null, ""] } })
-          .select("name rarity element subElement path weaponType specialty type version images")
+          .select("name rarity element subElement path weaponType specialty type version images i18n.fr.name")
           .lean()
           .then((docs) => docs.map((d) => ({ ...d, _type: type })))
       )
@@ -131,16 +245,16 @@ function costsMention(costs, name) {
 router.get("/:game/materials/:name/usage", async (req, res, next) => {
   try {
     const game = req.gameParam;
-    const name = req.params.name;
+    const name = await englishName(Material, game, req.params.name);
     const kits = [Talent, Trace, Forte, AgentKit]; // keyed by character name
     const [chars, weapons, cones, ...kitDocs] = await Promise.all([
-      Character.find({ game }).select("name rarity images costs elementVariants").lean(),
-      Weapon.find({ game }).select("name rarity images costs").lean(),
-      LightCone.find({ game }).select("name rarity images costs").lean(),
+      Character.find({ game }).select("name rarity images costs elementVariants i18n.fr.name").lean(),
+      Weapon.find({ game }).select("name rarity images costs i18n.fr.name").lean(),
+      LightCone.find({ game }).select("name rarity images costs i18n.fr.name").lean(),
       ...kits.map((M) => M.find({ game }).select("name costs elementVariants").lean()),
     ]);
     const kitUsers = new Set(kitDocs.flat().filter((k) => costsMention(k.costs, name) || costsMention(k.elementVariants, name)).map((k) => k.name));
-    const pick = (type) => (d) => ({ type, name: d.name, rarity: d.rarity, images: d.images });
+    const pick = (type) => (d) => ({ type, name: d.name, rarity: d.rarity, images: d.images, i18n: d.i18n });
     const data = [
       ...chars.filter((c) => kitUsers.has(c.name) || costsMention(c.costs, name) || costsMention(c.elementVariants, name)).map(pick("characters")),
       ...weapons.filter((w) => costsMention(w.costs, name)).map(pick("weapons")),

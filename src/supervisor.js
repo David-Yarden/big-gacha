@@ -15,31 +15,50 @@ const WATCH = ["src", "shared"].map((d) => path.join(ROOT, d));
 const EXTS = new Set([".js", ".json", ".yaml", ".yml"]);
 const RESTART_CODE = 75;
 
+const PORT_IN_USE = 98; // server.js: another server already listens on the port
+
 let child = null;
 let restarting = false;
+let startTimer = null; // a start already scheduled (never two servers at once)
+
+function scheduleStart(ms) {
+  if (child || startTimer) return;
+  startTimer = setTimeout(() => {
+    startTimer = null;
+    start();
+  }, ms);
+}
 
 function start() {
-  child = spawn(process.execPath, [path.join(__dirname, "server.js")], {
+  if (child) return;
+  const proc = spawn(process.execPath, [path.join(__dirname, "server.js")], {
     stdio: "inherit",
     env: { ...process.env, BIG_GACHA_SUPERVISED: "1" },
   });
-  child.on("exit", (code, signal) => {
+  child = proc;
+  proc.on("exit", (code, signal) => {
+    // Only the current server decides what happens next
+    if (child !== proc) return;
     child = null;
+    if (shuttingDown) return;
     if (restarting || code === RESTART_CODE) {
       restarting = false;
       console.log("\n↻ Redémarrage du serveur…\n");
-      setTimeout(start, 300);
-    } else if (code !== 0 && !shuttingDown) {
+      scheduleStart(300);
+    } else if (code === PORT_IN_USE) {
+      console.log("\n✖ Le port est déjà pris par un autre serveur (un ancien Big Gacha ?). Nouvel essai dans 10 s…\n");
+      scheduleStart(10_000);
+    } else if (code !== 0) {
       console.log(`\n✖ Le serveur s'est arrêté (code ${code ?? signal}). Nouvel essai dans 3 s…\n`);
-      setTimeout(start, 3000);
-    } else if (!shuttingDown) {
-      process.exit(code ?? 0);
+      scheduleStart(3000);
+    } else {
+      process.exit(0);
     }
   });
 }
 
 function restart() {
-  if (!child) return start();
+  if (!child) return scheduleStart(300);
   restarting = true;
   child.kill();
 }

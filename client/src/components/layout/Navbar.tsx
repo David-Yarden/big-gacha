@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { linksFor, equivalentPath } from "@/lib/navigation";
 import { useSyncStatus } from "@/hooks/useSyncStatus";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
+import { LANG, setLang } from "@/lib/i18n";
 
 export function Navbar() {
   const { game } = useParams<{ game: string }>();
@@ -67,6 +68,16 @@ export function Navbar() {
               />
             )}
           </Link>
+          <button
+            type="button"
+            onClick={() => setLang(LANG === "fr" ? "en" : "fr")}
+            className="rounded-md border border-border px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            title={LANG === "fr" ? "Switch to English" : "Passer en français"}
+            aria-label={LANG === "fr" ? "Switch to English" : "Passer en français"}
+            data-no-translate
+          >
+            {LANG === "fr" ? "EN" : "FR"}
+          </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1">

@@ -14,6 +14,7 @@ import {
   parseHsrDesc,
   dedupeByPhase,
   dedupeRepeatedHalf,
+  nodeCosts,
 } from "@/components/character/shared";
 import {
   useCharacterEnhancements,
@@ -22,6 +23,7 @@ import {
 } from "@/components/character/enhancements";
 import { BuildTab } from "@/components/character/BuildTab";
 import type { CharacterKit, KitArgs } from "./types";
+import type { SkillSection } from "@/components/character/TotalCostCalculator";
 
 const SKILLS = [
   { key: "basicAtk",  label: "Basic ATK", defaultMax: 10, initial: 6 },
@@ -71,7 +73,7 @@ export function useHsrKit({ game, name, activeElement }: KitArgs): CharacterKit 
 
   const costs = activeTrace?.costs;
   const skillSections = useMemo(() => {
-    const sections = SKILLS.map((s) => ({
+    const sections: SkillSection[] = SKILLS.map((s) => ({
       label: s.label,
       materials: calculateTalentMaterials(costs?.[s.key], levels[s.key]),
       level: levels[s.key],
@@ -87,8 +89,11 @@ export function useHsrKit({ game, name, activeElement }: KitArgs): CharacterKit 
         level,
       });
     });
+    // Major traces (A2/A4/A6) and stat bonus nodes: unlocked once
+    const nodes = nodeCosts(displayTrace?.majorTraces, displayTrace?.statBonuses);
+    if (nodes.length) sections.push({ label: "Trace nodes", materials: nodes });
     return sections;
-  }, [costs, levels, activeTrace, elationLevel, memoLevels]);
+  }, [costs, levels, activeTrace, displayTrace, elationLevel, memoLevels]);
 
   const tracesTab = (
     <div className="space-y-4">

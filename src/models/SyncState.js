@@ -9,6 +9,7 @@ const syncStateSchema = new mongoose.Schema(
     upstreamVersion: String,      // npm version or commit SHA last imported
     skippedUpstream: String,      // version the user rolled back: not re-imported automatically
     gameVersion: String,          // game version detected from the source (e.g. "4.6")
+    bannersVersion: String,       // fingerprint of the banner history source last imported
     lastCheckAt: Date,
     lastSyncAt: Date,
     lastStatus: { type: String, enum: ["up-to-date", "applied", "failed", "dry-run", "running"] },

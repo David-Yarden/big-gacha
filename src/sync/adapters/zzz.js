@@ -17,6 +17,8 @@ module.exports = {
   // Contract: every collection the seeders must produce, with a floor (~70 % of Oct 2026)
   expect: { Character: 40, AgentKit: 40, Weapon: 60, Relic: 20, Bangboo: 25, Material: 30 },
   VERSION_RE,
+  // Official translations also imported (second run of the seeders, see sync/i18n.js)
+  languages: ["fr"],
 
   async check(previous) {
     const commits = await githubCommits(REPO, 20);
@@ -41,6 +43,7 @@ module.exports = {
     delete require.cache[require.resolve("../../scripts/seedZzz")];
     const seeder = require("../../scripts/seedZzz");
     seeder.setRef(check?.ref);
+    seeder.setLang(check?.lang);
     await seeder.seedAll();
   },
 };

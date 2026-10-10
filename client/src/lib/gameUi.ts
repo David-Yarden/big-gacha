@@ -23,6 +23,7 @@ import {
   calculateExpMaterials,
   calculateBreakthroughMaterials,
   expPotions,
+  coinsBetween,
 } from "@/lib/materials";
 import type { Character } from "@/lib/types";
 import type { MaterialCostEntry } from "@/lib/materials";
@@ -64,7 +65,8 @@ export interface GameUi {
   /** Icon for an HSR-style path (only games with showPath) */
   pathIcon?: (path?: string) => string | null;
   /** Character EXP / special costs on top of the ascension costs */
-  levelMaterials: (level: number, character?: Character) => MaterialCostEntry[];
+  /** EXP items (and their currency) from `from` (default 1) to `level` */
+  levelMaterials: (level: number, character?: Character, from?: number) => MaterialCostEntry[];
   materialIcon: (mat: MaterialCostEntry) => { src: string | null; fallback?: string | null };
   /** ZZZ attack type icon (Slash, Strike, Pierce) */
   attackTypeIcon?: (type?: string) => string | null;
@@ -129,7 +131,7 @@ const genshin: GameUi = {
   showPath: false,
   splash: (images) => characterSplashUrl(images) ?? characterIconUrl(images),
   portrait: characterIconUrl,
-  levelMaterials: (level) => [...calculateExpMaterials(level), ...calculateBreakthroughMaterials(level)],
+  levelMaterials: (level, _c, from = 1) => [...calculateExpMaterials(level, from), ...calculateBreakthroughMaterials(level, from)],
   materialIcon: (mat) => ({
     src: mat.icon ?? materialIconUrlById(mat.id),
     fallback: materialFallbackIconUrlById(mat.id),
@@ -150,7 +152,8 @@ const hsr: GameUi = {
   splash: (images) => characterSplashUrl(images) ?? characterIconUrl(images),
   portrait: characterIconUrl,
   pathIcon: hsrPathIconUrl,
-  levelMaterials: () => [],
+  // Character EXP materials (free to use in HSR: no Credit cost)
+  levelMaterials: (level, character, from) => expPotions(level, character, from),
   materialIcon: (mat) => ({ src: mat.icon ?? hsrMaterialIconUrl(mat.id) }),
 };
 
@@ -169,7 +172,7 @@ const wuwa: GameUi = {
   splash: (images) => wuwaCharacterSplashUrl(images) ?? wuwaCharacterIconUrl(images),
   portrait: wuwaCharacterIconUrl,
   // EXP potions from the character's own EXP curve (never Genshin books)
-  levelMaterials: (level, character) => expPotions(level, character),
+  levelMaterials: (level, character, from) => expPotions(level, character, from),
   materialIcon: (mat) => ({ src: mat.icon ?? null }),
 };
 
@@ -190,7 +193,7 @@ const zzz: GameUi = {
   splash: (images) => images?.splash ?? images?.icon ?? null,
   portrait: (images) => images?.icon ?? null,
   // Investigator Logs from the agent EXP curve
-  levelMaterials: (level, character) => expPotions(level, character),
+  levelMaterials: (level, character, from) => expPotions(level, character, from),
   materialIcon: (mat) => ({ src: mat.icon ?? null }),
   weaponMaxLevel: 60,
   weaponAscensionLevels: ZZZ_ASCENSION_LEVELS,
@@ -250,14 +253,20 @@ function cardsFor(amount: number, items: EfCard[]): MaterialCostEntry[] {
 }
 
 /** Endfield EXP: stage 1 cards up to level 60, stage 2 cards after */
-function endfieldExp(level: number, character?: Character): MaterialCostEntry[] {
-  const curve = (character as unknown as { levelExp?: { exp: number[]; items: EfCard[]; items2?: EfCard[]; split?: number } })?.levelExp;
-  if (!curve?.exp?.length) return [];
+function endfieldExp(level: number, character?: Character, from = 1): MaterialCostEntry[] {
+  const curve = (character as unknown as {
+    levelExp?: { exp: number[]; items: EfCard[]; items2?: EfCard[]; split?: number; coin?: EfCard; coinByLevel?: number[] };
+  })?.levelExp;
+  if (!curve?.exp?.length || level <= from) return [];
   const split = curve.split ?? 60;
   const at = (lv: number) => curve.exp[Math.min(lv, curve.exp.length - 1)] ?? 0;
-  const first = at(Math.min(level, split));
-  const second = level > split ? at(level) - at(split) : 0;
-  return [...cardsFor(first, curve.items ?? []), ...cardsFor(second, curve.items2 ?? curve.items ?? [])];
+  const first = at(Math.min(level, split)) - at(Math.min(from, split));
+  const second = level > split ? at(level) - at(Math.max(from, split)) : 0;
+  const out = [...cardsFor(first, curve.items ?? []), ...cardsFor(second, curve.items2 ?? curve.items ?? [])];
+  // T-Creds are charged per level
+  const gold = curve.coinByLevel ? coinsBetween(curve.coinByLevel, from, level) : 0;
+  if (gold > 0 && curve.coin) out.push({ id: curve.coin.id as number, name: curve.coin.name, count: gold, icon: curve.coin.icon });
+  return out;
 }
 
 const endfield: GameUi = {
@@ -276,7 +285,7 @@ const endfield: GameUi = {
   splash: (images) => images?.splash ?? images?.icon ?? null,
   portrait: (images) => images?.icon ?? null,
   portraitFit: "cover",
-  levelMaterials: (level, character) => endfieldExp(level, character),
+  levelMaterials: (level, character, from) => endfieldExp(level, character, from),
   materialIcon: (mat) => ({ src: mat.icon ?? null }),
   weaponMaxLevel: 90,
   weaponAscensionLevels: ENDFIELD_ASCENSION_LEVELS,

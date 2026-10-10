@@ -23,12 +23,14 @@ function createResourceRouter(Model, resourceName) {
 
   router.get("/:name", async (req, res, next) => {
     try {
-      const filter = {
-        name: { $regex: `^${escapeRegex(req.params.name)}$`, $options: "i" },
-      };
+      // The English name, or a translated one (links built from a French page)
+      const exact = { $regex: `^${escapeRegex(req.params.name)}$`, $options: "i" };
+      const filter = { $or: [{ name: exact }, { "i18n.fr.name": exact }] };
       if (req.gameParam) filter.game = req.gameParam;
 
-      const doc = await Model.findOne(filter).lean();
+      const doc = await Model.findOne(filter)
+        .select(req.query.lang === "fr" ? "" : "-i18n")
+        .lean();
       if (!doc) {
         return res.status(404).json({
           success: false,

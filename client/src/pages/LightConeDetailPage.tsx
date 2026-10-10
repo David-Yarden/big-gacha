@@ -11,11 +11,13 @@ import { RarityStars } from "@/components/shared/RarityStars";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { getLightCone } from "@/lib/api";
 import { lightConeSplashUrl, hsrPathIconUrl } from "@/lib/images";
-import { calculateAscensionMaterials } from "@/lib/materials";
+import { calculateAscensionMaterials, expPotions, mergeAllMaterials } from "@/lib/materials";
 import { RARITY_COLOR_MAP, HSR_PATH_COLOR_MAP } from "@/lib/constants";
 import type { Game } from "@/lib/types";
 import type { MaterialCostEntry } from "@/lib/materials";
 import { colorizeElements } from "@/components/character/shared";
+import { UnitBanners } from "@/components/shared/UnitBanners";
+import { keyName } from "@/lib/i18n";
 
 const HSR_LC_ASCENSION_LEVELS = [1, 20, 30, 40, 50, 60, 70, 80] as const;
 
@@ -122,9 +124,10 @@ export function LightConeDetailPage() {
   const pathClass = lc?.path ? (HSR_PATH_COLOR_MAP[lc.path] ?? "bg-muted") : "bg-muted";
 
   const ascensionPhase = hsrLcLevelToPhase(level);
+  // Promotion materials + Refined Aether and the Credits they cost
   const ascensionMaterials = useMemo(
-    () => calculateAscensionMaterials(lc?.costs, ascensionPhase),
-    [lc?.costs, ascensionPhase]
+    () => mergeAllMaterials(calculateAscensionMaterials(lc?.costs, ascensionPhase), expPotions(level, lc ?? undefined)),
+    [lc, ascensionPhase, level]
   );
 
   if (loading) {
@@ -295,6 +298,8 @@ export function LightConeDetailPage() {
           <MaterialCostTable materials={ascensionMaterials} />
         </CardContent>
       </Card>
+
+      <UnitBanners game={game!} name={keyName(lc)} kind="weapon" />
     </div>
   );
 }

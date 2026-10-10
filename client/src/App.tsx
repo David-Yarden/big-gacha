@@ -19,6 +19,8 @@ import { EchoSetsPage } from "@/pages/EchoSetsPage";
 import { EchoSetDetailPage } from "@/pages/EchoSetDetailPage";
 import { BangboosPage } from "@/pages/BangboosPage";
 import { VersionsPage } from "@/pages/VersionsPage";
+import { BannersPage } from "@/pages/BannersPage";
+import { PlannerPage } from "@/pages/PlannerPage";
 import { BangbooDetailPage } from "@/pages/BangbooDetailPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { UpdatesPage } from "@/pages/UpdatesPage";
@@ -47,6 +49,8 @@ export default function App() {
           <Route path="/:game/echosets" element={<EchoSetsPage />} />
           <Route path="/:game/echosets/:name" element={<EchoSetDetailPage />} />
           <Route path="/:game/versions" element={<VersionsPage />} />
+          <Route path="/:game/banners" element={<BannersPage />} />
+          <Route path="/:game/planner" element={<PlannerPage />} />
           <Route path="/:game/bangboos" element={<BangboosPage />} />
           <Route path="/:game/bangboos/:name" element={<BangbooDetailPage />} />
           <Route path="*" element={<NotFoundPage />} />

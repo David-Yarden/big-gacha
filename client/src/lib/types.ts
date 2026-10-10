@@ -1,3 +1,4 @@
+import type { LevelExp } from "./materials";
 export type Game = "genshin" | "hsr" | "zzz" | "wuwa" | "endfield";
 
 export interface ApiResponse<T> {
@@ -24,6 +25,8 @@ export interface MaterialCostEntry {
 
 export interface Character {
   _id: string;
+  /** English name when the game texts are shown in French (lib/i18n.ts) */
+  _name?: string;
   game: Game;
   sourceId?: number;
   name: string;
@@ -79,7 +82,7 @@ export interface Character {
   /** Hover glossary for kit texts */
   glossary?: Array<{ name: string; desc: string }>;
   /** WuWa: cumulative EXP per level and the EXP potions */
-  levelExp?: { exp: number[]; items: Array<{ id: number; name: string; exp: number; icon?: string }> };
+  levelExp?: LevelExp;
   images?: Record<string, string>;
   url?: Record<string, string>;
   availableElements?: string[];
@@ -94,6 +97,8 @@ export interface Character {
 
 export interface Weapon {
   _id: string;
+  /** English name when the game texts are shown in French (lib/i18n.ts) */
+  _name?: string;
   game: Game;
   sourceId?: number;
   name: string;
@@ -110,7 +115,7 @@ export interface Weapon {
   refinements?: Array<{ description: string; values?: string[] }>;
   stats?: Record<string, { atk: number; specialized: number }>;
   /** EXP curve and EXP items (ZZZ) */
-  levelExp?: { exp: number[]; items: Array<{ id: number; name: string; exp: number; icon?: string }> };
+  levelExp?: LevelExp;
   /** Agent whose signature this is (ZZZ) */
   signatureOf?: string;
   costs?: Record<string, MaterialCostEntry[]>;
@@ -120,6 +125,8 @@ export interface Weapon {
 
 export interface Artifact {
   _id: string;
+  /** English name when the game texts are shown in French (lib/i18n.ts) */
+  _name?: string;
   game: Game;
   name: string;
   rarity?: number[];
@@ -139,6 +146,8 @@ export interface Artifact {
 
 export interface Material {
   _id: string;
+  /** English name when the game texts are shown in French (lib/i18n.ts) */
+  _name?: string;
   game: Game;
   sourceId?: number;
   name: string;
@@ -176,6 +185,8 @@ export interface TalentVariant {
 
 export interface Talent extends TalentVariant {
   _id: string;
+  /** English name when the game texts are shown in French (lib/i18n.ts) */
+  _name?: string;
   game: Game;
   name: string;
   isTraveler?: boolean;
@@ -199,6 +210,8 @@ export interface ConstellationVariant {
 
 export interface Constellation extends ConstellationVariant {
   _id: string;
+  /** English name when the game texts are shown in French (lib/i18n.ts) */
+  _name?: string;
   game: Game;
   name: string;
   isTraveler?: boolean;
@@ -207,6 +220,8 @@ export interface Constellation extends ConstellationVariant {
 
 export interface LightCone {
   _id: string;
+  /** English name when the game texts are shown in French (lib/i18n.ts) */
+  _name?: string;
   game: Game;
   sourceId?: number;
   name: string;
@@ -220,6 +235,7 @@ export interface LightCone {
   superimpositions?: Array<{ description: string; values: number[] }>;
   stats?: Record<string, { hp: number; atk: number; def: number }>;
   costs?: Record<string, MaterialCostEntry[]>;
+  levelExp?: LevelExp;
   images?: Record<string, string>;
 }
 
@@ -232,6 +248,8 @@ export interface RelicPiece {
 
 export interface Relic {
   _id: string;
+  /** English name when the game texts are shown in French (lib/i18n.ts) */
+  _name?: string;
   game: Game;
   sourceId?: number;
   name: string;
@@ -276,10 +294,14 @@ export interface MajorTrace {
   params?: number[][];
   icon?: string;
   unlockPhase?: number;
+  /** One-time unlock cost */
+  cost?: MaterialCostEntry[];
 }
 
 export interface Trace {
   _id: string;
+  /** English name when the game texts are shown in French (lib/i18n.ts) */
+  _name?: string;
   game: Game;
   name: string;
   basicAtk?: TraceSkill;
@@ -290,7 +312,8 @@ export interface Trace {
   elation?: TraceSkill;
   memospriteGroups?: MemospriteGroup[];
   majorTraces?: MajorTrace[];
-  statBonuses?: Array<{ stat: string; value: number; unlockPhase?: number }>;
+  /** cost = one-time unlock cost of the node (on its first stat) */
+  statBonuses?: Array<{ stat: string; value: number; unlockPhase?: number; cost?: MaterialCostEntry[] }>;
   costs?: Record<string, Record<string, MaterialCostEntry[]>>;
   images?: Record<string, string>;
   isTraveler?: boolean;
@@ -304,6 +327,8 @@ export interface EidolonLevel {
 
 export interface Eidolon {
   _id: string;
+  /** English name when the game texts are shown in French (lib/i18n.ts) */
+  _name?: string;
   game: Game;
   name: string;
   e1?: EidolonLevel;
@@ -336,10 +361,14 @@ export interface ForteInherentSkill {
   desc?: string;
   icon?: string;
   unlockPhase?: number;
+  /** One-time unlock cost */
+  cost?: MaterialCostEntry[];
 }
 
 export interface Forte {
   _id: string;
+  /** English name when the game texts are shown in French (lib/i18n.ts) */
+  _name?: string;
   game: "wuwa";
   name: string;
   basicAtk?: ForteSkill;
@@ -357,7 +386,8 @@ export interface Forte {
   };
   inherentSkill1?: ForteInherentSkill;
   inherentSkill2?: ForteInherentSkill;
-  statBonuses?: Array<{ stat: string; value: number; unlockPhase?: number }>;
+  /** cost = one-time unlock cost of the node (on its first stat) */
+  statBonuses?: Array<{ stat: string; value: number; unlockPhase?: number; cost?: MaterialCostEntry[] }>;
   costs?: Record<string, Record<string, MaterialCostEntry[]>>;
   images?: Record<string, string>;
   isTraveler?: boolean;
@@ -371,6 +401,8 @@ export interface ResonanceChainSequence {
 
 export interface ResonanceChain {
   _id: string;
+  /** English name when the game texts are shown in French (lib/i18n.ts) */
+  _name?: string;
   game: "wuwa";
   name: string;
   s1?: ResonanceChainSequence;
@@ -396,6 +428,8 @@ export interface EchoSkill {
 
 export interface Echo {
   _id: string;
+  /** English name when the game texts are shown in French (lib/i18n.ts) */
+  _name?: string;
   game: "wuwa";
   sourceId?: string;
   name: string;
@@ -412,6 +446,8 @@ export interface Echo {
 
 export interface EchoSet {
   _id: string;
+  /** English name when the game texts are shown in French (lib/i18n.ts) */
+  _name?: string;
   game: "wuwa";
   sourceId?: string;
   name: string;
@@ -511,6 +547,8 @@ export interface ChangelogItem {
 
 export interface ChangelogEntry {
   _id: string;
+  /** English name when the game texts are shown in French (lib/i18n.ts) */
+  _name?: string;
   game: Game;
   status: "applied" | "failed" | "dry-run" | "rolled-back";
   upstreamBefore?: string;
@@ -552,6 +590,8 @@ export interface AgentSkill {
 
 export interface AgentKit {
   _id: string;
+  /** English name when the game texts are shown in French (lib/i18n.ts) */
+  _name?: string;
   game: Game;
   name: string;
   skills?: Partial<Record<"basic" | "dodge" | "assist" | "special" | "chain", AgentSkill>>;
@@ -566,6 +606,8 @@ export interface AgentKit {
 
 export interface Bangboo {
   _id: string;
+  /** English name when the game texts are shown in French (lib/i18n.ts) */
+  _name?: string;
   game: Game;
   sourceId?: number;
   name: string;

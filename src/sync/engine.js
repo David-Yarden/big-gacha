@@ -13,8 +13,15 @@ const sink = require("./sink");
 const ADAPTERS = require("./adapters");
 const { SyncState, Changelog } = require("../models");
 const { backupGame, restoreGame, pruneAutoBackups } = require("../scripts/backup");
+const { attachTranslations } = require("./i18n");
 
 let running = null; // game currently syncing (one sync at a time)
+
+/** Banner seeder, re-read on each use so its code updates apply without a restart */
+function bannersModule() {
+  delete require.cache[require.resolve("../scripts/seedBanners")];
+  return require("../scripts/seedBanners");
+}
 
 function isRunning() {
   return running;
@@ -24,6 +31,8 @@ function isRunning() {
 
 /** Stable JSON: sorted keys, null/undefined object values dropped (missing == null). */
 function canon(value) {
+  // Dates compare by value (as objects they have no keys and would look "empty")
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString();
   if (Array.isArray(value)) return value.map(canon);
   if (value && typeof value === "object" && !(value instanceof Date)) {
     if (value._bsontype === "ObjectId") return String(value);
@@ -188,6 +197,9 @@ function validate(ops, existing, touched, { prune = false, expect = {} } = {}) {
 
   // A source that suddenly lost many entries is probably broken
   for (const [model, names] of Object.entries(touched)) {
+    // Banner histories only grow; a renamed banner is replaced by the seeder itself
+    // (an unreachable source throws instead of returning less)
+    if (model === "Banner") continue;
     const before = existing[model]?.size ?? 0;
     if (before >= 20 && names.size < before * 0.9) {
       // An explicit cleanup is expected to shrink the collection: warn only
@@ -269,6 +281,15 @@ async function runSync(game, { dryRun = false, force = false, prune = false, res
     report.notes = check.notes || [];
     state.lastCheckAt = new Date();
 
+    // Banner history: its own sources (wikis…) — a new banner triggers a sync by itself
+    let bannerSig = null;
+    try {
+      bannerSig = await bannersModule().bannerSignature(game);
+    } catch (err) {
+      report.notes.push(`Bannières : source injoignable (${err.message})`);
+    }
+    const bannersChanged = !!bannerSig && bannerSig !== state.bannersVersion;
+
     // A version the user rolled back is not re-imported until the source moves on
     if (!force && state.skippedUpstream && state.skippedUpstream === check.upstreamVersion) {
       state.lastStatus = "up-to-date";
@@ -282,7 +303,7 @@ async function runSync(game, { dryRun = false, force = false, prune = false, res
     }
 
     // New commits that touch none of the files we read: just remember the new revision
-    if (!force && check.irrelevant) {
+    if (!force && check.irrelevant && !bannersChanged) {
       state.upstreamVersion = check.upstreamVersion;
       state.gameVersion = check.gameVersion || state.gameVersion;
       state.lastStatus = "up-to-date";
@@ -297,7 +318,7 @@ async function runSync(game, { dryRun = false, force = false, prune = false, res
     }
 
     const unchanged = state.upstreamVersion === check.upstreamVersion && !check.needsPackageUpdate;
-    if (unchanged && !force) {
+    if (unchanged && !force && !bannersChanged) {
       state.lastStatus = "up-to-date";
       state.lastError = undefined;
       await state.save();
@@ -308,10 +329,39 @@ async function runSync(game, { dryRun = false, force = false, prune = false, res
     if (!dryRun && adapter.prepare) await adapter.prepare(check);
     sink.startRecording();
     let ops;
+    let bannerError = null;
     try {
       await adapter.collect(check);
+      // Banners last: they link to the characters and weapons recorded just before
+      try {
+        await bannersModule().seedBanners(game);
+      } catch (err) {
+        bannerError = err.message;
+        report.notes.push(`Bannières non mises à jour : ${err.message}`);
+      }
     } finally {
       ops = sink.stopRecording();
+    }
+
+    // Official translations: the same seeders again in each other language, their texts
+    // attached to the English documents (i18n.<lang>). A failure keeps the previous ones.
+    for (const lang of adapter.languages || []) {
+      let langOps = null;
+      sink.startRecording();
+      try {
+        await adapter.collect({ ...check, lang });
+        langOps = sink.stopRecording();
+      } catch (err) {
+        sink.stopRecording();
+        report.notes.push(`Textes « ${lang} » non mis à jour : ${err.message}`);
+      }
+      if (langOps) {
+        const stats = attachTranslations(ops, langOps, lang);
+        const missed = Object.entries(stats)
+          .filter(([, s]) => s.unmatched > 0)
+          .map(([m, s]) => `${m} ${s.unmatched} (${s.names.join(", ")}${s.unmatched > s.names.length ? "…" : ""})`);
+        if (missed.length) report.notes.push(`Textes « ${lang} » sans correspondance : ${missed.join(", ")}`);
+      }
     }
     const gameVersion = check.gameVersion || adapter.detectGameVersion?.(ops) || state.gameVersion || null;
     report.gameVersion = gameVersion;
@@ -387,12 +437,16 @@ async function runSync(game, { dryRun = false, force = false, prune = false, res
       await trimChangelog(game);
     }
 
+    // New images: copied locally in the background (src/sync/imageMirror.js)
+    if (hasChanges) setTimeout(() => require("./imageMirror").mirrorImages().catch(() => {}), 1000).unref?.();
+
     // New characters may now match enhancement files that referenced them
     if (hasChanges) {
       await require("../enhancements/loader").loadEnhancements().catch((e) => report.warnings.push(`enhancements: ${e.message}`));
     }
 
     state.upstreamVersion = check.upstreamVersion;
+    if (bannerSig && !bannerError) state.bannersVersion = bannerSig;
     state.skippedUpstream = undefined;
     state.gameVersion = gameVersion || state.gameVersion;
     state.lastSyncAt = new Date();

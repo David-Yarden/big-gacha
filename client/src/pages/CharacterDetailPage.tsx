@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, type ReactNode } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { ImageWithFallback, viaCache } from "@/components/shared/ImageWithFallba
 import { TrimmedImage } from "@/components/shared/TrimmedImage";
 import { RarityStars } from "@/components/shared/RarityStars";
 import { TotalCostCalculator } from "@/components/character/TotalCostCalculator";
-import { MaterialCostTable, StatIcon, GlossaryContext, type GlossaryTerm } from "@/components/character/shared";
+import { MaterialCostTable, StatIcon, GlossaryContext, GameText, type GlossaryTerm } from "@/components/character/shared";
 import { KITS, useNoKit } from "@/components/character/kits";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { getCharacter } from "@/lib/api";
@@ -22,6 +22,8 @@ import { resolveRegion } from "@/lib/constants";
 import { gameUi } from "@/lib/gameUi";
 import { registryGame, resourceLabel } from "@/lib/registry";
 import type { Character, Game } from "@/lib/types";
+import { UnitBanners } from "@/components/shared/UnitBanners";
+import { keyName } from "@/lib/i18n";
 
 const NO_TERMS: GlossaryTerm[] = [];
 
@@ -53,6 +55,15 @@ function CharacterDetail({ game, name }: { game: Game; name: string }) {
       setActiveElement(character.availableElements[0]);
     }
   }, [character, activeElement]);
+
+  // Reached through a French name: continue on the English one (kits, builds and
+  // overrides are keyed by it)
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (baseCharacter?._name && baseCharacter._name !== name) {
+      navigate(`/${game}/characters/${encodeURIComponent(baseCharacter._name)}`, { replace: true });
+    }
+  }, [baseCharacter, name, game, navigate]);
 
   const kit = useKit({ game, name, activeElement });
 
@@ -132,6 +143,7 @@ function CharacterDetail({ game, name }: { game: Game; name: string }) {
             <TabsTrigger key={t.value} value={t.value}>{t.label}</TabsTrigger>
           ))}
           <TabsTrigger value="ascension">Ascension</TabsTrigger>
+          <TabsTrigger value="banners">Banners</TabsTrigger>
         </TabsList>
 
         {kit.tabs.map((t) => (
@@ -147,6 +159,10 @@ function CharacterDetail({ game, name }: { game: Game; name: string }) {
             phase={ascensionPhase}
             materials={levelMaterials}
           />
+        </TabsContent>
+
+        <TabsContent value="banners">
+          <UnitBanners game={game} name={keyName(character)} kind="character" bare />
         </TabsContent>
       </Tabs>
 
@@ -250,8 +266,7 @@ function SplashWithOutfits({ character, game, elementClass }: { character: Chara
         <ImageWithFallback
           key={src ?? ""}
           src={src}
-          // Big art straight from its CDN, except the wiki's (it blocks hotlinks: served by our cache)
-          cache={/wikia\.nocookie\.net/.test(src ?? "")}
+          // Served from the local image copy (src/routes/img.js), like every other image
           alt={skin?.name ?? character.name}
           className={`relative h-full w-full ${
             skin?.fit === "contain" && !skin.default ? "object-contain p-6" : `object-cover ${emptyTop > 0 ? "object-bottom" : "object-top"}`
@@ -345,7 +360,9 @@ function CharacterHeader({
         </div>
 
         {character.description && (
-          <p className="max-w-3xl text-[15px] leading-relaxed text-muted-foreground">{character.description}</p>
+          <p className="max-w-3xl whitespace-pre-line text-[15px] leading-relaxed text-muted-foreground">
+            <GameText text={character.description} />
+          </p>
         )}
 
         {/* One panel: label / value rows in two columns, voice actors at the bottom */}
@@ -373,7 +390,7 @@ function CharacterHeader({
             {ui.showRegion && (
               <InfoCell label="Region">
                 <InlineIcon src={registryGame(game)?.regionIcons?.[character.region ?? ""] ?? null} className="h-6 w-6" />
-                {resolveRegion(character.region, character.name)}
+                {resolveRegion(character.region, keyName(character))}
               </InfoCell>
             )}
             {character.specialty && (

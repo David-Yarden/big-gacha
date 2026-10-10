@@ -31,6 +31,11 @@ let REF = "HEAD";
 function setRef(ref) {
   REF = ref || "HEAD";
 }
+// Language of the texts: "en" (the documents) or "fr" (official translation, see sync/i18n.js)
+let LANG = "en";
+function setLang(lang) {
+  LANG = lang === "fr" ? "fr" : "en";
+}
 const { fetchData, tryFetch } = require("../sync/http");
 const ENCORE = "https://api.encore.moe";
 
@@ -245,12 +250,13 @@ async function loadTexts() {
   const path = require("path");
   const crypto = require("crypto");
   const { githubLastCommitFor } = require("../sync/upstream");
-  const FILE = "Textmaps/en/multi_text/MultiText.json";
+  const FILE = `Textmaps/${LANG}/multi_text/MultiText.json`;
   const dir = path.join(__dirname, "..", "..", "cache");
 
   const textSha = await githubLastCommitFor(REPO, FILE, REF);
   const filterKey = crypto.createHash("sha1").update(TEXT_PREFIXES.source).digest("hex").slice(0, 8);
-  const cacheFile = textSha ? path.join(dir, `wuwa-text-${textSha.slice(0, 12)}-${filterKey}.json`) : null;
+  const prefix = `wuwa-text-${LANG}-`;
+  const cacheFile = textSha ? path.join(dir, `${prefix}${textSha.slice(0, 12)}-${filterKey}.json`) : null;
 
   if (cacheFile && fs.existsSync(cacheFile)) {
     try {
@@ -267,7 +273,10 @@ async function loadTexts() {
   if (cacheFile) {
     try {
       fs.mkdirSync(dir, { recursive: true });
-      for (const f of fs.readdirSync(dir)) if (f.startsWith("wuwa-text-")) fs.unlinkSync(path.join(dir, f));
+      // Older caches of this language (and of the former, language-less naming)
+      for (const f of fs.readdirSync(dir)) {
+        if (f.startsWith(prefix) || /^wuwa-text-[0-9a-f]{12}-/.test(f)) fs.unlinkSync(path.join(dir, f));
+      }
       fs.writeFileSync(cacheFile, JSON.stringify([...map]));
     } catch (err) {
       console.warn(`  ⚠ Text cache not written: ${err.message}`);
@@ -307,6 +316,11 @@ async function fetchAll() {
     getJson("BinData/weapon/weaponbreach.json"),
     getJson("BinData/property/propertyindex.json"),
   ]);
+  // Weapon EXP: EXP per level (per LevelId) and the energy cores (Cost = Shell Credits per core)
+  const [weaponLevels, weaponExpItems] = await Promise.all([
+    getJson("BinData/weapon/weaponlevel.json").catch(() => []),
+    getJson("BinData/weapon/weaponexpitem.json").catch(() => []),
+  ]);
   const [accessPaths, showTypes, echoRecommend, echoMainRecommend] = await Promise.all([
     getJson("BinData/accesspath/accesspath.json"),
     getJson("BinData/item/itemshowtype.json"),
@@ -319,7 +333,7 @@ async function fetchAll() {
   SHOW_TYPES = new Map(showTypes.map((x) => [x.Id, x]));
   USED_ITEMS = new Set();
   LEVELING = {
-    baseProps: new Map(baseProps.map((b) => [b.Id, b])), growth, breaches, levelConsume, expItems,
+    baseProps: new Map(baseProps.map((b) => [b.Id, b])), growth, breaches, levelConsume, expItems, weaponLevels, weaponExpItems,
     weaponGrowth, weaponBreaches, props: new Map(propIndex.map((p) => [p.Id, p])),
     // Lookup tables (instead of scanning the arrays for every level of every item)
     growthIdx: new Map(growth.map((g) => [`${g.Level}:${g.BreachLevel}`, g])),
@@ -345,7 +359,10 @@ const ENCORE_CACHE = new Map();
 /** encore.moe's character page data (splash path, Skill Input guide). Cached per run. */
 async function encoreCharacter(roleId) {
   if (ENCORE_CACHE.has(roleId)) return ENCORE_CACHE.get(roleId);
-  const j = await tryFetch(`${ENCORE}/en/character/${roleId}`, { timeout: 30_000 });
+  // Texts of the selected language; the English page when encore.moe has none
+  const j =
+    (LANG !== "en" && (await tryFetch(`${ENCORE}/${LANG}/character/${roleId}`, { timeout: 30_000 }))) ||
+    (await tryFetch(`${ENCORE}/en/character/${roleId}`, { timeout: 30_000 }));
   ENCORE_CACHE.set(roleId, j);
   return j;
 }
@@ -525,8 +542,8 @@ async function outfitSplash(card, name) {
 
 async function seedCharacters(roles, d) {
   const playable = playableRoles(roles);
-  const rovers = playable.filter((r) => /^Rover/.test(t(r.Name)));
-  const others = playable.filter((r) => !/^Rover/.test(t(r.Name)));
+  const rovers = playable.filter((r) => /^(Rover|Nomade)/.test(t(r.Name)));
+  const others = playable.filter((r) => !/^(Rover|Nomade)/.test(t(r.Name)));
 
   // encore.moe pages fetched in parallel up front (splash + Skill Input guide)
   const { mapLimit } = require("../sync/glossary");
@@ -627,7 +644,7 @@ async function seedResonanceChains(roles, chains) {
     const name = t(r.Name).trim();
     const nodes = byGroup.get(r.ResonantChainGroupId);
     if (!nodes) continue;
-    if (/^Rover/.test(name)) {
+    if (/^(Rover|Nomade)/.test(name)) {
       const el = ELEMENTS[r.ElementId];
       if (!roverVariants[el]) roverVariants[el] = chainDoc(nodes);
       continue;
@@ -703,14 +720,16 @@ function forteDoc(role, d) {
   const skillById = new Map(skills.map((x) => [x.Id, x]));
   const inherent = nodes
     .filter((n) => skillById.get(n.SkillId)?.SkillType === INHERENT_TYPE)
-    .sort((a, b) => a.NodeIndex - b.NodeIndex)
-    .map((n) => skillById.get(n.SkillId));
-  inherent.slice(0, 2).forEach((sk, i) => {
+    .sort((a, b) => a.NodeIndex - b.NodeIndex);
+  inherent.slice(0, 2).forEach((n, i) => {
+    const sk = skillById.get(n.SkillId);
     doc[`inherentSkill${i + 1}`] = {
       name: t(sk.SkillName),
       desc: cleanText(t(sk.SkillDescribe), sk.SkillDetailNum),
       icon: img(sk.Icon),
       unlockPhase: i === 0 ? 2 : 4,
+      // One-time unlock cost: the skill's level-1 row (the tree node's own Consume is a placeholder)
+      cost: consume(d.skillLevels.find((l) => l.SkillLevelGroupId === sk.SkillLevelGroupId && l.SkillId === 1)?.Consume),
     };
   });
 
@@ -718,11 +737,13 @@ function forteDoc(role, d) {
   doc.statBonuses = nodes
     .filter((n) => n.NodeType === 4 && n.Property?.length)
     .flatMap((n) =>
-      n.Property.map((p) => {
+      n.Property.map((p, i) => {
         const title = (t(n.PropertyNodeTitle) || "").replace(/\+$/, "").trim();
         return {
           stat: STAT_NAMES[title] ?? (title || String(p.Id)),
           value: p.IsRatio ? p.Value : p.Value / 10000,
+          // the node's unlock cost, on its first stat
+          ...(i === 0 ? { cost: consume(n.Consume) } : {}),
         };
       })
     );
@@ -736,7 +757,7 @@ async function seedFortes(roles, d) {
   const rovers = [];
   for (const r of playable) {
     const name = t(r.Name).trim();
-    if (/^Rover/.test(name)) { rovers.push(r); continue; }
+    if (/^(Rover|Nomade)/.test(name)) { rovers.push(r); continue; }
     if (seen.has(name)) continue;
     seen.add(name);
     await upsert(Forte, { game: GAME, name }, { game: GAME, name, ...forteDoc(r, d), guide: await skillGuide(r.Id) });
@@ -826,9 +847,32 @@ function weaponLeveling(w) {
   }
   return {
     stats: Object.keys(stats).length ? stats : undefined,
+    levelExp: weaponLevelExp(w.LevelId),
     mainStatType: secondProp ? `WUWA_${secondProp.Key}${second.IsRatio ? "_PCT" : ""}` : undefined,
     mainStatText: secondName,
     costs: Object.keys(costs).length ? costs : undefined,
+  };
+}
+
+/** Cumulative weapon EXP per level + energy cores (weaponlevel: Exp from Level to Level + 1). */
+function weaponLevelExp(levelId) {
+  const rows = (LEVELING.weaponLevels ?? []).filter((r) => r.LevelId === levelId).sort((a, b) => a.Level - b.Level);
+  if (!rows.length || !LEVELING.weaponExpItems?.length) return undefined;
+  const exp = [0, 0];
+  for (const r of rows) if (r.Level < 90) exp[r.Level + 1] = (exp[r.Level] ?? 0) + (r.Exp ?? 0);
+  const items = LEVELING.weaponExpItems
+    .map((x) => {
+      const it = ITEMS.get(x.Id);
+      USED_ITEMS.add(x.Id);
+      return { id: x.Id, name: (it && t(it.Name)) || String(x.Id), exp: x.BasicExp, coin: x.Cost, icon: it ? img(it.IconMiddle || it.Icon) : undefined };
+    })
+    .sort((a, b) => b.exp - a.exp);
+  const credit = ITEMS.get(2);
+  USED_ITEMS.add(2);
+  return {
+    exp: Array.from(exp, (v) => v ?? 0),
+    items,
+    coin: { id: 2, name: (credit && t(credit.Name)) || "Shell Credit", icon: credit ? img(credit.IconMiddle || credit.Icon) : undefined },
   };
 }
 
@@ -1035,7 +1079,7 @@ async function main() {
   await mongoose.connection.close();
 }
 
-module.exports = { seedAll, setRef, GAME, REPO };
+module.exports = { seedAll, setRef, setLang, GAME, REPO };
 
 if (require.main === module) {
   main().catch((err) => {

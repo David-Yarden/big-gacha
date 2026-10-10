@@ -20,6 +20,8 @@ module.exports = {
   game: "wuwa",
   source: REPO,
   // Contract: every collection the seeders must produce, with a floor (~70 % of Oct 2026)
+  // Official translations also imported (second run of the seeders, see sync/i18n.js)
+  languages: ["fr"],
   expect: { Character: 40, Weapon: 80, Material: 100, Forte: 40, ResonanceChain: 40, Echo: 170, EchoSet: 25 },
   VERSION_RE,
 
@@ -46,6 +48,7 @@ module.exports = {
     delete require.cache[require.resolve("../../scripts/seedWuwa")];
     const seeder = require("../../scripts/seedWuwa");
     seeder.setRef(check?.ref);
+    seeder.setLang(check?.lang);
     await seeder.seedAll();
   },
 };

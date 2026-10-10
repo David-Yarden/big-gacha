@@ -48,7 +48,65 @@ function check(cond, message) {
   if (!cond) throw new Error(`Endfield data layout changed — ${message}`);
 }
 
-const en = (o) => (o && typeof o === "object" ? (o.en ?? "").trim() || undefined : undefined);
+// The English text of a { cn, en } value
+const enText = (o) => (o && typeof o === "object" ? (o.en ?? "").trim() || undefined : undefined);
+
+// Language of the texts: "en" (the documents) or "fr" (official translation, see sync/i18n.js).
+// beyondGameData only has Chinese and English: the French texts come from AKEData's copy of
+// the game's I18nTextTable (data.akedata.wiki), matched through the English text of the
+// same build (English → French dictionary).
+let LANG = "en";
+let FR = null; // Map English → French
+function setLang(lang) {
+  LANG = lang === "fr" ? "fr" : "en";
+}
+/** A plain English string in the selected language (unchanged when there is no translation) */
+const tr = (s) => (s && LANG === "fr" && FR ? FR.get(s) ?? s : s);
+/** The text of a { cn, en } value in the selected language */
+const en = (o) => {
+  const s = enText(o);
+  if (!s || LANG !== "fr" || !FR) return s;
+  return (FR.get(o.en) ?? FR.get(s) ?? s).trim() || undefined;
+};
+
+const AKEDATA = "https://data.akedata.wiki";
+
+/** English → French dictionary of the latest build (cached on disk per build). */
+async function loadFrench() {
+  const fs = require("fs");
+  const path = require("path");
+  const manifest = await fetchData(`${AKEDATA}/manifest.json`, { timeout: 60_000 });
+  const latest = manifest?.versions?.find((v) => v.id === manifest.latest) ?? manifest?.versions?.[0];
+  if (!latest?.tableCfgPath) throw new Error("AKEData: no build in manifest.json");
+  const dir = path.join(__dirname, "..", "..", "cache");
+  const file = path.join(dir, `endfield-fr-${latest.id.replace(/[^\w.-]/g, "_")}.json`);
+  if (fs.existsSync(file)) {
+    try {
+      return new Map(JSON.parse(fs.readFileSync(file, "utf8")));
+    } catch {
+      /* corrupt cache: download again */
+    }
+  }
+  const base = `${AKEDATA}/${latest.tableCfgPath}`;
+  const [enTable, frTable] = await Promise.all([
+    fetchData(`${base}/I18nTextTable_EN.json`, { timeout: 300_000 }),
+    fetchData(`${base}/I18nTextTable_FR.json`, { timeout: 300_000 }),
+  ]);
+  const map = new Map();
+  for (const [id, text] of Object.entries(enTable || {})) {
+    const fr = frTable?.[id];
+    if (typeof text === "string" && typeof fr === "string" && fr && !map.has(text)) map.set(text, fr);
+  }
+  if (map.size < 10_000) throw new Error(`AKEData: only ${map.size} French texts`);
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    for (const f of fs.readdirSync(dir)) if (f.startsWith("endfield-fr-")) fs.unlinkSync(path.join(dir, f));
+    fs.writeFileSync(file, JSON.stringify([...map]));
+  } catch {
+    /* the cache is optional */
+  }
+  return map;
+}
 const num = (v) => (v == null || v === "" ? undefined : Number(v));
 const img = (folder, name) => (name ? `${ASSETS}/${folder}/${name}.png` : undefined);
 
@@ -96,7 +154,8 @@ function formatValue(v, fmt = "") {
   const pct = fmt.endsWith("%");
   const decimals = (fmt.split(".")[1] || "").replace("%", "").length;
   const x = pct ? v * 100 : v;
-  const s = decimals ? x.toFixed(decimals) : String(Math.round(x * 100) / 100);
+  let s = decimals ? x.toFixed(decimals) : String(Math.round(x * 100) / 100);
+  if (LANG === "fr") s = s.replace(".", ","); // French decimal comma, as in game
   return pct ? `${s}%` : s;
 }
 
@@ -194,13 +253,24 @@ function operatorStats(c) {
 }
 
 /** Cumulative EXP per level and the EXP cards (stage 1 up to 60, stage 2 after) */
+/** T-Creds: the currency of the level-ups (charged per level, not per EXP item). */
+function goldCoin() {
+  USED_ITEMS.add("item_gold");
+  return { id: "item_gold", name: itemName("item_gold"), icon: itemIcon("item_gold") };
+}
+
 function levelExp() {
   const exp = [0, 0];
+  // T-Creds to reach each level (CharLevelUpTable[lv].gold = cost of lv → lv + 1)
+  const coinByLevel = [0, 0];
   let total = 0;
+  let gold = 0;
   for (let lv = 1; lv < MAX_LEVEL; lv++) {
     const need = num(D.CharLevelUpTable[lv]?.exp) ?? 0;
     total += need > 0 ? need : 0;
+    gold += Math.max(0, num(D.CharLevelUpTable[lv]?.gold) ?? 0);
     exp[lv + 1] = total;
+    coinByLevel[lv + 1] = gold;
   }
   const cards = Object.entries(D.ExpItemDataMap).map(([id, x]) => ({
     id,
@@ -215,21 +285,53 @@ function levelExp() {
     items: cards.filter((c) => c.stage === 1 && c.name),
     items2: cards.filter((c) => c.stage === 2 && c.name),
     split: 60,
+    coin: goldCoin(),
+    coinByLevel,
   };
+}
+
+/**
+ * Weapon EXP curve of a level template: EXP and T-Creds per level (WeaponUpgradeTemplateTable,
+ * lvUpExp / lvUpGold = cost of weaponLv → weaponLv + 1) and the weapon EXP items
+ * (WeaponExpItemTable rows with an item).
+ */
+function weaponLevelExp(templateId) {
+  const list = [...(D.WeaponUpgradeTemplateTable[templateId]?.list || [])].sort((a, b) => num(a.weaponLv) - num(b.weaponLv));
+  if (!list.length) return undefined;
+  const exp = [0, 0];
+  const coinByLevel = [0, 0];
+  for (const l of list) {
+    const lv = num(l.weaponLv);
+    if (lv >= MAX_LEVEL) continue;
+    exp[lv + 1] = (exp[lv] ?? 0) + Math.max(0, num(l.lvUpExp) ?? 0);
+    coinByLevel[lv + 1] = (coinByLevel[lv] ?? 0) + Math.max(0, num(l.lvUpGold) ?? 0);
+  }
+  const items = Object.values(D.WeaponExpItemTable || {})
+    .filter((x) => x.expItemId && num(x.itemExp) > 0)
+    .map((x) => {
+      USED_ITEMS.add(x.expItemId);
+      return { id: x.expItemId, name: itemName(x.expItemId), exp: num(x.itemExp), icon: itemIcon(x.expItemId) };
+    })
+    .filter((x) => x.name);
+  if (!items.length) return undefined;
+  return { exp: Array.from(exp, (v) => v ?? 0), items, coin: goldCoin(), coinByLevel: Array.from(coinByLevel, (v) => v ?? 0) };
 }
 
 function profile(c) {
   const records = c.profileRecord || [];
-  const basic = en(records.find((r) => r.recordIndex === "1")?.recordDesc);
+  // The fields are read in the English record (their labels), then translated one by one
+  const basic = enText(records.find((r) => r.recordIndex === "1")?.recordDesc);
   const summary = en(records.find((r) => r.recordIndex === "2")?.recordDesc);
   const field = (label) => basic?.match(new RegExp(`${label}:\\s*([^\\n]+)`, "i"))?.[1]?.trim().replace(/■+/g, "") || undefined;
+  // Real affiliation ("department" is ENDFIELD INDUSTRIES for everyone); the Endministrator has none
+  const faction = field("AUTHENTICATION")?.replace(/\s*\(TGCC\)$/, "") || "Endfield Industries";
   return {
     description: summary,
-    gender: field("GENDER"),
-    birthday: field("DOB"),
-    race: field("RACE"),
-    // Real affiliation ("department" is ENDFIELD INDUSTRIES for everyone); the Endministrator has none
-    faction: field("AUTHENTICATION")?.replace(/\s*\(TGCC\)$/, "") || "Endfield Industries",
+    gender: tr(field("GENDER")),
+    birthday: tr(field("DOB")),
+    race: tr(field("RACE")),
+    faction, // filter key, English
+    factionName: tr(faction),
   };
 }
 
@@ -261,7 +363,7 @@ async function seedCharacters(versions) {
       element: ELEMENT_NAMES[c.charTypeId] ?? c.charTypeId,
       weaponType: WEAPON_TYPES[weaponPrefix(c.weaponType)],
       specialty: en(prof?.name),
-      affiliation: p.faction,
+      affiliation: p.factionName,
       region: p.faction,
       description: p.description,
       gender: p.gender,
@@ -498,6 +600,7 @@ async function seedWeapons(versions) {
       signatureOf: sig ? operatorName(D.CharacterTable[sig]) : undefined,
       stats,
       costs: Object.keys(costs).length ? costs : undefined,
+      levelExp: weaponLevelExp(w.levelTemplateId),
       images: { icon: img("itemiconbig", item?.iconId || w.weaponId), full: img("gachaweapon", w.weaponId) },
     });
     count++;
@@ -586,6 +689,7 @@ async function seedMaterials() {
 
 async function fetchAll() {
   console.log(`Fetching data from ${REPO}...`);
+  FR = LANG === "fr" ? await loadFrench() : null;
   D = {};
   for (let i = 0; i < TABLES.length; i += 6) {
     const chunk = TABLES.slice(i, i + 6);
@@ -662,7 +766,7 @@ async function main() {
   await mongoose.connection.close();
 }
 
-module.exports = { seedAll, setRef, latestVersion, GAME, REPO, _test: { richText, fill, formatValue } };
+module.exports = { seedAll, setRef, setLang, latestVersion, GAME, REPO, _test: { richText, fill, formatValue } };
 
 if (require.main === module) {
   main().catch((err) => {
