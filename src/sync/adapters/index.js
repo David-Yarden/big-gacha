@@ -5,4 +5,5 @@ module.exports = {
   wuwa: require("./wuwa"),
   zzz: require("./zzz"),
   endfield: require("./endfield"),
+  czn: require("./czn"),
 };

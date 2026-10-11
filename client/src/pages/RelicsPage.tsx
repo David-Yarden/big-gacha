@@ -142,7 +142,7 @@ export function RelicsPage() {
       <FilterBar
         searchParams={searchParams}
         setSearchParams={setSearchParams}
-        searchPlaceholder="Search relic sets..."
+        searchPlaceholder={game === "czn" ? "Search memory fragments..." : "Search relic sets..."}
         filterGroups={game === "hsr" ? RELIC_FILTERS : []}
         sortOptions={SORT_OPTIONS}
         defaultSortBy="version"

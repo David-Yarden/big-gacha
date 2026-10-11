@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import { Navbar } from "./Navbar";
+import { PluginOverlays } from "@/lib/plugins";
 
 export function Layout() {
   return (
@@ -8,6 +9,7 @@ export function Layout() {
       <main className="mx-auto max-w-7xl px-4 py-6">
         <Outlet />
       </main>
+      <PluginOverlays />
     </div>
   );
 }

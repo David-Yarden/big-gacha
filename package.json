@@ -19,6 +19,7 @@
     "enrich:hsr": "node src/scripts/hsrWikiEnrich.js",
     "enrich:hsr:force": "node src/scripts/hsrWikiEnrich.js --force",
     "seed:wuwa": "node src/scripts/seedWuwa.js",
+    "seed:czn": "node src/scripts/seedCzn.js",
     "client:dev": "npm run dev --prefix client",
     "dev:all": "concurrently \"npm run dev\" \"npm run client:dev\"",
     "enhancements:reload": "node -e \"fetch('http://127.0.0.1:5000/api/enhancements/reload',{method:'POST',headers:{'X-Big-Gacha':'1'}}).then(r=>r.json()).then(j=>console.log(JSON.stringify(j.data,null,2)))\""

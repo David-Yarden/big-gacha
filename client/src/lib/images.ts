@@ -67,7 +67,9 @@ export function weaponIconUrl(images?: Record<string, string>): string | null {
 
 /** Full weapon art (Genshin wish art, 512×1024), or null when the game has none. */
 export function weaponFullArtUrl(images?: Record<string, string>): string | null {
-  return images?.filename_gacha ? enkaUrl(images.filename_gacha) : null;
+  if (images?.filename_gacha) return enkaUrl(images.filename_gacha);
+  return images?.art ?? null; // CZN partner card illustration
+
 }
 
 // ── Artifacts ────────────────────────────────────────────

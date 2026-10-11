@@ -23,6 +23,10 @@ const agentKitSchema = new mongoose.Schema(
     talents: [mongoose.Schema.Types.Mixed],
     attributes: [mongoose.Schema.Types.Mixed],
     potentials: [mongoose.Schema.Types.Mixed],
+    // CZN: cards [{ id, kind: start|unique|ego, name, cost, type, desc, epiphanies: [{ level, name, cost, type, desc }] }],
+    // Ego Manifestations [{ level, name, kind, desc }]
+    cards: [mongoose.Schema.Types.Mixed],
+    manifestations: [mongoose.Schema.Types.Mixed],
     costs: mongoose.Schema.Types.Mixed,
   },
   { timestamps: true, collection: "agentkits" }

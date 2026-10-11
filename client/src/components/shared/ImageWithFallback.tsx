@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 const CACHED_HOSTS = [
   "githubusercontent.com", "encore.moe", "yatta.moe", "enka.network", "jmp.blue",
   "hoyolab.com", "mihoyo.com", "hoyoverse.com", "wikia.nocookie.net", "nanoka.cc", "gachabase.net",
-  "wiki.gg",
+  "wiki.gg", "wikitide.net", "miraheze.org",
 ];
 
 export function viaCache(src: string | null): string | null {

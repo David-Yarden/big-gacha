@@ -136,6 +136,11 @@ export function FilterBar({
                     {/* Trimmed: the game's glyphs sit off-centre in their PNG */}
                     <TrimmedImage src={opt.icon} alt="" maxWidth={11} maxHeight={11} />
                   </span>
+                ) : /_class_icon/.test(opt.icon) ? (
+                  // CZN class icons: a small glyph in a wide transparent margin, trimmed to show
+                  <span className="-ml-0.5 inline-flex h-4.5 w-4.5 shrink-0 items-center justify-center">
+                    <TrimmedImage src={opt.icon} alt="" maxWidth={18} maxHeight={18} />
+                  </span>
                 ) : (
                   <img src={viaCache(opt.icon) ?? opt.icon} className="h-3.5 w-3.5 shrink-0" alt="" />
                 ))}

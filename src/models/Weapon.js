@@ -30,6 +30,12 @@ const weaponSchema = new mongoose.Schema(
     levelExp: mongoose.Schema.Types.Mixed,
     // Agent whose signature this weapon is (ZZZ)
     signatureOf: String,
+    // CZN partners: Ego skill card { name, cost, desc } and faction
+    egoSkill: mongoose.Schema.Types.Mixed,
+    affiliation: String,
+    // Full-size artwork [{ label, src }] and links to animated versions [{ label, url }] (CZN partners)
+    gallery: mongoose.Schema.Types.Mixed,
+    animated: mongoose.Schema.Types.Mixed,
     images: mongoose.Schema.Types.Mixed,
     url: mongoose.Schema.Types.Mixed,
   },

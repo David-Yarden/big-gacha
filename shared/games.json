@@ -175,6 +175,26 @@
       "regionLabel": "Faction",
       "regions": ["Endfield Industries", "Rhodes Island", "Hongshan Academy of Sciences", "Talos-II General Chamber of Commerce", "The Pack", "Seš'qa", "Hannabit Circuit", "Order of Steel Oath", "Cabal of Tranquility", "United Workers' Syndicates of Talos II", "Qingbo Stockade", "Yinglung Special Task Force"],
       "regionIcons": {}
+    },
+    {
+      "id": "czn",
+      "name": "Chaos Zero Nightmare",
+      "shortName": "CZN",
+      "description": "Roguelite deckbuilder by Super Creative",
+      "available": true,
+      "logo": "https://static.wikitide.net/cznwiki/9/9d/CZN_Site_Logo.png",
+      "resources": [
+        { "path": "characters", "label": "Combatants",       "kind": "characters" },
+        { "path": "cards",      "label": "Cards",            "kind": "cards" },
+        { "path": "decks",      "label": "Decks",            "kind": "decks" },
+        { "path": "weapons",    "label": "Partners",         "kind": "weapons" },
+        { "path": "relics",     "label": "Memory Fragments", "kind": "gear" }
+      ],
+      "elements": ["Passion", "Order", "Justice", "Void", "Instinct"],
+      "specialties": ["Striker", "Vanguard", "Ranger", "Hunter", "Controller", "Psionic"],
+      "rarities": [5, 4],
+      "regionLabel": "Affiliation",
+      "regions": []
     }
   ]
 }

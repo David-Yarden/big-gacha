@@ -18,6 +18,9 @@ import { EchoDetailPage } from "@/pages/EchoDetailPage";
 import { EchoSetsPage } from "@/pages/EchoSetsPage";
 import { EchoSetDetailPage } from "@/pages/EchoSetDetailPage";
 import { BangboosPage } from "@/pages/BangboosPage";
+import { CznCardsPage } from "@/pages/CznCardsPage";
+import { CznDecksPage } from "@/pages/CznDecksPage";
+import { PLUGINS } from "@/lib/plugins";
 import { VersionsPage } from "@/pages/VersionsPage";
 import { BannersPage } from "@/pages/BannersPage";
 import { PlannerPage } from "@/pages/PlannerPage";
@@ -52,7 +55,12 @@ export default function App() {
           <Route path="/:game/banners" element={<BannersPage />} />
           <Route path="/:game/planner" element={<PlannerPage />} />
           <Route path="/:game/bangboos" element={<BangboosPage />} />
+          <Route path="/:game/cards" element={<CznCardsPage />} />
+          <Route path="/:game/decks" element={<CznDecksPage />} />
           <Route path="/:game/bangboos/:name" element={<BangbooDetailPage />} />
+          {PLUGINS.flatMap((p) => p.routes ?? []).map((r) => (
+            <Route key={r.path} path={r.path} element={r.element} />
+          ))}
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

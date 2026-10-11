@@ -25,9 +25,10 @@ import { resourceLabel } from "@/lib/registry";
 import { formatBaseAtk, formatSpecialized } from "@/lib/formatters";
 import type { Game } from "@/lib/types";
 import type { MaterialCostEntry } from "@/lib/materials";
-import { renderMarkdownText } from "@/components/character/shared";
+import { GameText, renderMarkdownText } from "@/components/character/shared";
 import { UnitBanners } from "@/components/shared/UnitBanners";
 import { keyName } from "@/lib/i18n";
+import { ArtGallery } from "@/components/character/ArtGallery";
 
 function MaterialCostTable({ materials, game }: { materials: MaterialCostEntry[]; game?: string }) {
   if (materials.length === 0) {
@@ -124,7 +125,7 @@ export function WeaponDetailPage() {
 
   const refinements = weapon.refinements ?? [];
   // Endfield weapon skills have levels (1–9), not refinements
-  const refLabel = game === "endfield" ? "Lv." : "R";
+  const refLabel = game === "endfield" || game === "czn" ? "Lv." : "R";
   const fullArt = weaponFullArtUrl(weapon.images);
   const currentRefinement = refinements[refinement];
 
@@ -230,8 +231,8 @@ export function WeaponDetailPage() {
           </div>
 
           {weapon.description && (
-            <p className="text-sm text-muted-foreground">
-              {weapon.description}
+            <p className="whitespace-pre-line text-sm text-muted-foreground">
+              {game === "czn" ? <GameText text={weapon.description} /> : weapon.description}
             </p>
           )}
         </div>
@@ -269,15 +270,45 @@ export function WeaponDetailPage() {
               </p>
             ) : currentRefinement?.description ? (
               <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
-                {renderMarkdownText(currentRefinement.description)}
+                {game === "czn" ? <GameText text={currentRefinement.description} /> : renderMarkdownText(currentRefinement.description)}
               </p>
             ) : null}
           </CardContent>
         </Card>
       )}
 
-      {/* Ascension Materials */}
-      <Card>
+      {/* CZN partner: its Ego skill card */}
+      {weapon.egoSkill?.name && (
+        <Card>
+          <CardContent className="space-y-2 p-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-b from-slate-200 to-slate-400 font-black text-slate-900 ring-2 ring-black/40" title="Cost">
+                {weapon.egoSkill.cost ?? "–"}
+              </span>
+              <div>
+                <p className="text-xs text-muted-foreground">Ego skill</p>
+                <h3 className="font-semibold">{weapon.egoSkill.name}</h3>
+              </div>
+            </div>
+            {weapon.egoSkill.desc && (
+              <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+                <GameText text={weapon.egoSkill.desc} />
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Artwork at full size (CZN partners) */}
+      {(weapon.gallery?.length || weapon.animated?.length) ? (
+        <section className="space-y-3">
+          <h3 className="text-lg font-semibold">Gallery</h3>
+          <ArtGallery gallery={weapon.gallery} animated={weapon.animated} />
+        </section>
+      ) : null}
+
+      {/* Ascension Materials (CZN: no cost data yet) */}
+      {game !== "czn" && <Card>
         <CardContent className="p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">Ascension Materials</h3>
@@ -305,9 +336,9 @@ export function WeaponDetailPage() {
           </div>
           <MaterialCostTable materials={ascensionMaterials} game={game} />
         </CardContent>
-      </Card>
+      </Card>}
 
-      <UnitBanners game={game!} name={keyName(weapon)} kind="weapon" />
+      {game !== "czn" && <UnitBanners game={game!} name={keyName(weapon)} kind="weapon" />}
     </div>
   );
 }

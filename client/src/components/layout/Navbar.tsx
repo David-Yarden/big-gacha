@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 import { linksFor, equivalentPath } from "@/lib/navigation";
 import { useSyncStatus } from "@/hooks/useSyncStatus";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
+import { PowerButton } from "@/components/layout/PowerButton";
+import { usePluginLinks } from "@/lib/plugins";
 import { LANG, setLang } from "@/lib/i18n";
 
 export function Navbar() {
@@ -24,7 +26,8 @@ export function Navbar() {
   const syncFailed = sync?.data.some((g) => g.lastStatus === "failed");
 
   const currentGame = GAMES.find((g) => g.id === game);
-  const navLinks = linksFor(game);
+  const pluginLinks = usePluginLinks(game);
+  const navLinks = [...linksFor(game), ...pluginLinks];
   const currentResource = location.pathname.split("/")[2] ?? "";
 
   // Close the mobile menu on navigation
@@ -102,6 +105,8 @@ export function Navbar() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <PowerButton />
 
           {game && (
             <>

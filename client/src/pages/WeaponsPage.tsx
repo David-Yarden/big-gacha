@@ -102,7 +102,7 @@ export function WeaponsPage() {
     {
       key: "rarity",
       label: "Rarity",
-      options: (game === "zzz" ? [5, 4, 3] : game === "endfield" ? [6, 5, 4, 3] : WEAPON_RARITIES).map((r) => ({ value: String(r), label: rarityLabel(game, r), icon: rankIcon(game, r) })),
+      options: (game === "zzz" || game === "czn" ? [5, 4, 3] : game === "endfield" ? [6, 5, 4, 3] : WEAPON_RARITIES).map((r) => ({ value: String(r), label: rarityLabel(game, r), icon: rankIcon(game, r) })),
     },
   ];
 
@@ -131,7 +131,7 @@ export function WeaponsPage() {
       <FilterBar
         searchParams={searchParams}
         setSearchParams={setSearchParams}
-        searchPlaceholder="Search weapons..."
+        searchPlaceholder={game === "czn" ? "Search partners..." : "Search weapons..."}
         filterGroups={filterGroups}
         sortOptions={SORT_OPTIONS}
         defaultSortBy="version"

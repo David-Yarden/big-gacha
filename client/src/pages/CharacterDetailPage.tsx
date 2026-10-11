@@ -8,13 +8,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { ImageWithFallback, viaCache } from "@/components/shared/ImageWithFallback";
+import { formatDate } from "@/lib/banners";
 import { TrimmedImage } from "@/components/shared/TrimmedImage";
+import { ClassIcon } from "@/components/shared/ClassIcon";
 import { RarityStars } from "@/components/shared/RarityStars";
 import { TotalCostCalculator } from "@/components/character/TotalCostCalculator";
 import { MaterialCostTable, StatIcon, GlossaryContext, GameText, type GlossaryTerm } from "@/components/character/shared";
 import { KITS, useNoKit } from "@/components/character/kits";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import { getCharacter } from "@/lib/api";
+import { getCharacter, getAgentKit } from "@/lib/api";
 import { hsrPathIconUrl } from "@/lib/images";
 import { formatSpecialized } from "@/lib/formatters";
 import { calculateAscensionMaterials, mergeAllMaterials } from "@/lib/materials";
@@ -23,6 +25,7 @@ import { gameUi } from "@/lib/gameUi";
 import { registryGame, resourceLabel } from "@/lib/registry";
 import type { Character, Game } from "@/lib/types";
 import { UnitBanners } from "@/components/shared/UnitBanners";
+import { ArtGallery } from "@/components/character/ArtGallery";
 import { keyName } from "@/lib/i18n";
 
 const NO_TERMS: GlossaryTerm[] = [];
@@ -46,6 +49,16 @@ function CharacterDetail({ game, name }: { game: Game; name: string }) {
   const [activeElement, setActiveElement] = useState<string | null>(null);
 
   const { data: charData, loading, error } = useApiQuery(() => getCharacter(game, name), [game, name]);
+  // CZN: the art of every card of the combatant, for the gallery
+  const { data: kitData } = useApiQuery(() => (game === "czn" ? getAgentKit(game, name) : Promise.resolve(null)), [game, name]);
+  const cardArt = useMemo(() => {
+    const cards = ((kitData?.data as { cards?: Array<{ name: string; image?: string }> } | undefined)?.cards ?? []).filter((c) => c.image);
+    const seen = new Set<string>();
+    // One picture per card: the starting cards repeat (two "Amp Therapy" with their own file)
+    return cards
+      .filter((c) => !seen.has(c.image!) && !seen.has(c.name) && seen.add(c.image!) && seen.add(c.name))
+      .map((c) => ({ label: c.name, src: c.image! }));
+  }, [kitData]);
   const baseCharacter = charData?.data;
   // Trailblazer / Rover: the selected element's own path, stats, costs and art
   const character = useMemo(() => withVariant(baseCharacter, activeElement), [baseCharacter, activeElement]);
@@ -65,7 +78,7 @@ function CharacterDetail({ game, name }: { game: Game; name: string }) {
     }
   }, [baseCharacter, name, game, navigate]);
 
-  const kit = useKit({ game, name, activeElement });
+  const kit = useKit({ game, name, activeElement, element: character?.element });
 
   const ascensionPhase = ui.levelToPhase(Math.min(charLevel, ui.maxLevel));
   const levelMaterials = useMemo(
@@ -102,6 +115,8 @@ function CharacterDetail({ game, name }: { game: Game; name: string }) {
   const displayElement = isMultiElement ? (activeElement ?? character.element) : character.element;
   const elementClass = ui.elementColor[displayElement ?? ""] ?? "bg-muted";
   const [skillsTab] = kit.tabs;
+  const hasBanners = !!registryGame(game)?.resources.some((r) => r.kind === "banners");
+  const hasGallery = !!(character?.gallery?.length || character?.animated?.length);
 
   return (
     <GlossaryContext.Provider value={character.glossary ?? NO_TERMS}>
@@ -143,7 +158,8 @@ function CharacterDetail({ game, name }: { game: Game; name: string }) {
             <TabsTrigger key={t.value} value={t.value}>{t.label}</TabsTrigger>
           ))}
           <TabsTrigger value="ascension">Ascension</TabsTrigger>
-          <TabsTrigger value="banners">Banners</TabsTrigger>
+          {hasGallery && <TabsTrigger value="gallery">Gallery</TabsTrigger>}
+          {hasBanners && <TabsTrigger value="banners">Banners</TabsTrigger>}
         </TabsList>
 
         {kit.tabs.map((t) => (
@@ -160,6 +176,12 @@ function CharacterDetail({ game, name }: { game: Game; name: string }) {
             materials={levelMaterials}
           />
         </TabsContent>
+
+        {hasGallery && (
+          <TabsContent value="gallery">
+            <ArtGallery gallery={character.gallery} animated={character.animated} cards={cardArt} />
+          </TabsContent>
+        )}
 
         <TabsContent value="banners">
           <UnitBanners game={game} name={keyName(character)} kind="character" bare />
@@ -339,6 +361,15 @@ function CharacterHeader({
       <div className="flex min-w-0 flex-col gap-5 md:pt-1">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-3">
+            {character.images?.chibi && (
+              // In-game chibi face (CZN bookmark)
+              <ImageWithFallback
+                src={character.images.chibi}
+                alt=""
+                className="h-14 w-14 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/[0.04]"
+                imgClassName="h-full w-full object-cover"
+              />
+            )}
             <h1 className="text-4xl font-extrabold tracking-tight">{character.name}</h1>
             {element && element !== "None" && (
               <Badge className={`${elementClass} flex items-center gap-1 border-0 text-white`}>
@@ -394,9 +425,9 @@ function CharacterHeader({
               </InfoCell>
             )}
             {character.specialty && (
-              <InfoCell label={game === "endfield" ? "Class" : "Specialty"}>
+              <InfoCell label={game === "endfield" || game === "czn" ? "Class" : "Specialty"}>
                 {ui.specialtyIcon?.(character.specialty) && (
-                  <img src={ui.specialtyIcon(character.specialty)!} className="h-4 w-4" alt="" />
+                  <ClassIcon src={ui.specialtyIcon(character.specialty)!} size={18} />
                 )}
                 {character.specialty}
               </InfoCell>
@@ -446,7 +477,16 @@ function CharacterHeader({
             )}
             {character.gender && <InfoCell label="Gender">{character.gender}</InfoCell>}
             {character.height && <InfoCell label="Height">{character.height}</InfoCell>}
-            {character.version && <InfoCell label="Release">Version {character.version}</InfoCell>}
+            {character.profile?.map((p) => (
+              <InfoCell key={p.name} label={p.name} wide={p.value.length > 24}>
+                {p.value}
+              </InfoCell>
+            ))}
+            {character.version && (
+              <InfoCell label="Release">
+                {/^\d{4}-\d{2}-\d{2}$/.test(character.version) ? formatDate(character.version) : `Version ${character.version}`}
+              </InfoCell>
+            )}
           </dl>
 
           {voices.length > 0 && (
@@ -479,9 +519,9 @@ function InlineIcon({ src, className = "h-4 w-4" }: { src?: string | null; class
   );
 }
 
-function InfoCell({ label, children }: { label: string; children: ReactNode }) {
+function InfoCell({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
   return (
-    <div className="flex min-w-0 items-baseline justify-between gap-4 border-b border-white/[0.06] py-3 text-sm">
+    <div className={`flex min-w-0 items-baseline justify-between gap-4 border-b border-white/[0.06] py-3 text-sm ${wide ? "col-span-full" : ""}`}>
       <dt className="shrink-0 text-muted-foreground">{label}</dt>
       <dd className="flex min-w-0 items-center justify-end gap-1.5 text-right font-semibold">{children}</dd>
     </div>
@@ -531,7 +571,7 @@ function AscensionPanel({
       rows.push({ label, statType: "", value: Math.round(v).toLocaleString() });
     }
     // Base stats that do not grow with level (ZZZ: Impact, CRIT, Anomaly…)
-    for (const x of character.extraStats ?? []) rows.push({ label: x.name, statType: "", value: x.value });
+    for (const x of Array.isArray(character.extraStats) ? character.extraStats : []) rows.push({ label: x.name, statType: "", value: x.value });
   }
 
   return (

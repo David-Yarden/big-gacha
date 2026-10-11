@@ -7,6 +7,7 @@ import { FilterBar } from "@/components/shared/FilterBar";
 import { ResourceGrid } from "@/components/shared/ResourceGrid";
 import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { TrimmedImage } from "@/components/shared/TrimmedImage";
+import { ClassIcon } from "@/components/shared/ClassIcon";
 import { RarityStars, rarityLabel, rankIcon, rarityTextClass } from "@/components/shared/RarityStars";
 import { getCharacters, getEnhancements } from "@/lib/api";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -51,7 +52,7 @@ function filtersFor(
   if (reg?.specialties?.length) {
     groups.push({
       key: "specialty",
-      label: game === "endfield" ? "Class" : "Specialty",
+      label: game === "endfield" || game === "czn" ? "Class" : "Specialty",
       options: reg.specialties.map((sp) => ({ value: sp, label: sp, icon: ui.specialtyIcon?.(sp) ?? undefined })),
     });
   }
@@ -139,7 +140,7 @@ function CharacterCard({ character, game }: { character: Character; game: string
           <p className="font-semibold text-sm truncate">{character.name}</p>
           <div className="mt-1 flex items-center justify-between gap-1 text-xs text-muted-foreground">
             <span className="flex items-center gap-1 truncate">
-              {subIcon && <img src={subIcon} className="h-3 w-3" alt="" />}
+              {subIcon && <ClassIcon src={subIcon} size={14} />}
               {subLabel}
             </span>
             <RarityStars rarity={character.rarity} className="shrink-0 text-xs" />

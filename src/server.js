@@ -15,6 +15,11 @@ const HOST = process.env.HOST || "127.0.0.1";
 // Personal tool: only the local Vite dev server needs cross-origin access.
 app.use(cors({ origin: [/^http:\/\/localhost:\d+$/, /^http:\/\/127\.0\.0\.1:\d+$/] }));
 app.use(express.json());
+// Answers are read as the type they announce (JSON stays JSON), and never framed by a page
+app.use((req, res, next) => {
+  res.set({ "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY" });
+  next();
+});
 
 // Actions (POST, PUT, DELETE) must carry the app's header: a web page on another site
 // cannot add it without a CORS preflight, which only localhost origins pass.
@@ -40,6 +45,7 @@ app.use("/api/enhancements", require("./routes/enhancements"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/search", require("./routes/search"));
 app.use("/api/img", require("./routes/img"));
+require("./localPlugins").load(app); // ./local/*/server.js, before /api/:game
 app.use("/api", apiRoutes);
 
 // ─── 404 ─────────────────────────────────────────────────

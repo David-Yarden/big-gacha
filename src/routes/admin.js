@@ -18,6 +18,19 @@ router.post("/restart", (req, res) => {
   setTimeout(() => process.exit(75), 200);
 });
 
+// POST /api/admin/shutdown — the site's power button: asks the launcher's notification-area
+// icon (launch.ps1) to stop the server and the site. It watches cache/stop-request.
+router.post("/shutdown", (req, res) => {
+  const fs = require("fs");
+  const path = require("path");
+  const cache = path.join(__dirname, "..", "..", "cache");
+  if (!fs.existsSync(path.join(cache, "tray.pid"))) {
+    return res.status(409).json({ success: false, error: "Big Gacha n'a pas été lancé par son raccourci : ferme ses fenêtres de terminal pour l'éteindre." });
+  }
+  fs.writeFileSync(path.join(cache, "stop-request"), new Date().toISOString());
+  res.json({ success: true, data: { stopping: true } });
+});
+
 // GET /api/admin/images — progress of the local image copy; POST starts it
 router.get("/images", (req, res) => {
   // ?failures=1 — also list the images that could not be copied, and why

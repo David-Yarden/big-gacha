@@ -108,6 +108,9 @@ router.put("/:game/plan", express.json({ limit: "1mb" }), async (req, res, next)
   }
 });
 
+// ─── Decks of the deck builder ───────────────────────────
+require("./decks")(router);
+
 // ─── Player showcase (Enka.Network) ──────────────────────
 // GET /api/:game/account/:uid → { nickname, characters: [{ character, level, skill, weapon, weaponLevel }] }
 router.get("/:game/account/:uid", async (req, res) => {
@@ -193,6 +196,8 @@ const VERSIONED = [
 ];
 const rarityOf = (d) => (typeof d.rarity === "number" ? d.rarity : Array.isArray(d.rarity) ? Math.max(...d.rarity) : 0);
 function versionKey(v) {
+  // CZN has release dates instead of versions: they already sort as text
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return String(v);
   return String(v)
     .split(".")
     .map((n) => String(Number(n) || 0).padStart(4, "0"))

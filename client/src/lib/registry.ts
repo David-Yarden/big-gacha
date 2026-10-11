@@ -5,7 +5,7 @@
 import registry from "@shared/games.json";
 import type { Game } from "./types";
 
-export type ResourceKind = "characters" | "versions" | "banners" | "planner" | "weapons" | "gear" | "echoes" | "bangboos" | "materials";
+export type ResourceKind = "characters" | "versions" | "banners" | "planner" | "weapons" | "gear" | "echoes" | "bangboos" | "materials" | "cards" | "decks";
 
 export interface RegistryResource {
   path: string;

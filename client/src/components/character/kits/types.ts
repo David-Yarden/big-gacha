@@ -24,6 +24,8 @@ export interface KitArgs {
   name: string;
   /** Selected element / path for multi-element characters (Traveler, Trailblazer, Rover) */
   activeElement: string | null;
+  /** The character's element / attribute (CZN: colour of the epiphany strip) */
+  element?: string;
 }
 
 export type UseKit = (args: KitArgs) => CharacterKit;

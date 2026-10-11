@@ -50,6 +50,9 @@ export interface Character {
   attackType?: string;
   subElement?: string;
   height?: string;
+  profile?: Array<{ name: string; value: string }>;
+  gallery?: Array<{ label: string; src: string }>;
+  animated?: Array<{ label: string; url: string }>;
   extraStats?: Array<{ name: string; value: string }>;
   /** Outfits (art switcher under the splash) */
   /** fit "contain": art that is not a character portrait (HSR weapon-only outfit) */
@@ -97,6 +100,9 @@ export interface Character {
 
 export interface Weapon {
   _id: string;
+  /** Full-size artwork and animated versions (CZN partners) */
+  gallery?: Array<{ label: string; src: string }>;
+  animated?: Array<{ label: string; url: string }>;
   /** English name when the game texts are shown in French (lib/i18n.ts) */
   _name?: string;
   game: Game;

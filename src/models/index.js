@@ -29,6 +29,7 @@ module.exports = {
   Reference: require("./Reference"),
   Banner: require("./Banner"),
   Plan: require("./Plan"),
+  Deck: require("./Deck"),
   // Sync
   SyncState: require("./SyncState"),
   Changelog: require("./Changelog"),

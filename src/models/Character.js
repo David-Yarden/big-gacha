@@ -64,6 +64,12 @@ const characterSchema = new mongoose.Schema(
 
     // Other base stats that do not grow with level (ZZZ): [{ name, value }] (value formatted)
     extraStats: mongoose.Schema.Types.Mixed,
+    // Other profile facts shown with birthday and gender (CZN: species…): [{ name, value }]
+    profile: mongoose.Schema.Types.Mixed,
+    // Full-size artwork shown in a viewer: [{ label, src }] (CZN: splash, portrait, mental breakdown)
+    gallery: mongoose.Schema.Types.Mixed,
+    // Links to animated versions on another site: [{ label, url }]
+    animated: mongoose.Schema.Types.Mixed,
 
     // Outfits: [{ name, desc, splash, icon, default }]
     skins: mongoose.Schema.Types.Mixed,

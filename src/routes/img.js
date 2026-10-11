@@ -17,7 +17,7 @@ const MAX_CACHED = 30 * 1024 * 1024; // splash art included; anything bigger is 
 const ALLOWED = [
   "githubusercontent.com", "encore.moe", "yatta.moe", "enka.network", "jmp.blue",
   "hoyolab.com", "mihoyo.com", "hoyoverse.com", "wikia.nocookie.net", "nanoka.cc", "gachabase.net",
-  "wiki.gg",
+  "wiki.gg", "wikitide.net", "miraheze.org",
 ];
 const TYPES = { ".png": "image/png", ".webp": "image/webp", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".svg": "image/svg+xml" };
 const inflight = new Map();
@@ -59,7 +59,14 @@ router.get("/", async (req, res) => {
     } catch {
       type = TYPES[path.extname(new URL(url).pathname).toLowerCase()] || type;
     }
-    res.set({ "Content-Type": type, "Cache-Control": "public, max-age=2592000, immutable" });
+    res.set({
+      "Content-Type": type,
+      "Cache-Control": "public, max-age=2592000, immutable",
+      // Served from the site's own address: an SVG from a wiki could carry a script, and
+      // opened on its own it would run as the site. No script, no request, nothing else.
+      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+      "X-Content-Type-Options": "nosniff",
+    });
     fs.createReadStream(file).pipe(res);
   };
 

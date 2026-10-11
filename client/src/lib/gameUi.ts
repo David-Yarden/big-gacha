@@ -313,7 +313,54 @@ const generic: GameUi = {
   materialIcon: (mat) => ({ src: mat.icon ?? null }),
 };
 
-const GAME_UI: Partial<Record<string, GameUi>> = { genshin, hsr, wuwa, zzz, endfield };
+// ── Chaos Zero Nightmare ────────────────────────────────────────────────────
+
+const CZN_ASSETS = "https://raw.githubusercontent.com/steve1316/hub-czn-updated/master/android-app/app/src/main/assets";
+const CZN_ATTRIBUTE_COLOR: Record<string, string> = {
+  Passion: "bg-[#e0565b]",
+  Order: "bg-[#2ea866]",
+  Justice: "bg-[#3b8fd4]",
+  Void: "bg-[#8e4fb0]",
+  Instinct: "bg-[#e9851a]",
+};
+// Class icons of the CZN wiki (czn.miraheze.org, CC BY-SA)
+const CZN_CLASS_ICONS: Record<string, string> = {
+  Controller: "https://static.wikitide.net/cznwiki/9/94/Controller_class_icon.png",
+  Hunter: "https://static.wikitide.net/cznwiki/3/38/Hunter_class_icon.png",
+  Psionic: "https://static.wikitide.net/cznwiki/b/b9/Psionic_class_icon.png",
+  Ranger: "https://static.wikitide.net/cznwiki/f/f7/Ranger_class_icon.png",
+  Striker: "https://static.wikitide.net/cznwiki/9/96/Striker_class_icon.png",
+  Vanguard: "https://static.wikitide.net/cznwiki/5/57/Vanguard_class_icon.png",
+};
+
+/** One promotion every 10 levels (cap 60). */
+const cznLevelToPhase = (level: number) => Math.min(5, Math.max(0, Math.floor((level - 1) / 10)));
+
+const czn: GameUi = {
+  maxLevel: 60,
+  breakthroughLevels: [],
+  ascensionLevels: [1, 10, 20, 30, 40, 50, 60],
+  levelToPhase: cznLevelToPhase,
+  levelLabel: "Combatant Level",
+  variantLabel: "Attribute:",
+  elementColor: CZN_ATTRIBUTE_COLOR,
+  elementIcon: (el) => (el ? `${CZN_ASSETS}/attr/icon_type_ego_${el.toLowerCase()}.png` : null),
+  weaponTypeIcon: (cls) => (cls && CZN_CLASS_ICONS[cls]) || null,
+  specialtyIcon: (cls) => (cls && CZN_CLASS_ICONS[cls]) || null,
+  showRegion: false,
+  showPath: false,
+  splash: (images) => images?.splash ?? images?.portrait ?? images?.icon ?? null,
+  portrait: (images) => images?.icon ?? null,
+  portraitFit: "cover",
+  // No level-up cost data yet
+  levelMaterials: () => [],
+  materialIcon: (mat) => ({ src: mat.icon ?? null }),
+  weaponMaxLevel: 60,
+  weaponAscensionLevels: [1, 10, 20, 30, 40, 50, 60],
+  weaponLevelToPhase: cznLevelToPhase,
+};
+
+const GAME_UI: Partial<Record<string, GameUi>> = { genshin, hsr, wuwa, zzz, endfield, czn };
 
 export function gameUi(game?: string): GameUi {
   const ui = game ? GAME_UI[game] : undefined;

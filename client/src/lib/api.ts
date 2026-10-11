@@ -187,6 +187,59 @@ export async function savePlan(game: Game, plan: Plan): Promise<ApiResponse<Plan
   return data;
 }
 
+// ── Decks of the deck builder ────────────────────────────────────────────────
+
+export interface DeckCard {
+  /** Unique within the deck (two copies of a card are two entries) */
+  uid: string;
+  /** "kit": a combatant's card; "extra": neutral, season, Persona… */
+  source: "kit" | "extra";
+  /** Combatant (English name) of a kit card */
+  owner?: string;
+  cardId: string;
+  level: number;
+  divineId?: string | null;
+  commonId?: string | null;
+  engravings?: Array<string | null>;
+  personaClass?: string | null;
+}
+export interface Deck {
+  _id?: string;
+  name: string;
+  /** Up to three combatants (English names) */
+  team: string[];
+  cards: DeckCard[];
+  notes?: string;
+  updatedAt?: string;
+}
+export interface DeckSummary {
+  _id: string;
+  name: string;
+  team: string[];
+  count: number;
+  updatedAt: string;
+}
+
+export async function listDecks(game: Game): Promise<ApiResponse<DeckSummary[]>> {
+  const { data } = await client.get(`/${game}/decks`);
+  return data;
+}
+export async function getDeck(game: Game, id: string): Promise<ApiResponse<Deck>> {
+  const { data } = await client.get(`/${game}/decks/${encodeURIComponent(id)}`);
+  return data;
+}
+export async function createDeck(game: Game, deck: Deck): Promise<ApiResponse<Deck>> {
+  const { data } = await client.post(`/${game}/decks`, deck);
+  return data;
+}
+export async function saveDeck(game: Game, id: string, deck: Deck): Promise<ApiResponse<Deck>> {
+  const { data } = await client.put(`/${game}/decks/${encodeURIComponent(id)}`, deck);
+  return data;
+}
+export async function deleteDeck(game: Game, id: string): Promise<void> {
+  await client.delete(`/${game}/decks/${encodeURIComponent(id)}`);
+}
+
 /** A character of the player's in-game showcase (Enka.Network) */
 export interface ShowcaseCharacter {
   /** English name (the planner's key) */
