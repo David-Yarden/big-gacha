@@ -1,11 +1,12 @@
 /**
  * "Gallery" tab of a character: the artwork at full size (splash art large on the left, the
  * portrait and mental breakdowns beside it), each with its original file, and the links to
- * the animated versions hosted elsewhere. A click opens a full-screen viewer.
+ * the animated versions hosted elsewhere. A click opens a full-screen viewer, with a zoom bar
+ * (slider, − / +, mouse wheel, double click; drag to move around a zoomed picture).
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, Download, ExternalLink, Sparkles, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, ExternalLink, Maximize2, Sparkles, X, ZoomIn, ZoomOut } from "lucide-react";
 import { viaCache } from "@/components/shared/ImageWithFallback";
 import { cn } from "@/lib/utils";
 
@@ -58,19 +59,37 @@ function Figure({ item, big, contain, onOpen }: { item: GalleryItem; big?: boole
   );
 }
 
-/** Full-screen viewer: blurred backdrop, ← → and a strip of thumbnails, Esc to close. */
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 6;
+const clampZoom = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(z * 100) / 100));
+
+/** Full-screen viewer: blurred backdrop, ← → and a strip of thumbnails, zoom bar, Esc to close. */
 function Viewer({ items, index, onIndex, onClose }: { items: GalleryItem[]; index: number; onIndex: (i: number) => void; onClose: () => void }) {
   const n = items.length;
   const item = items[index];
   const go = useCallback((d: number) => onIndex((index + d + n) % n), [index, n, onIndex]);
   const [size, setSize] = useState<string | null>(null);
   const [natural, setNatural] = useState<number | null>(null);
-  useEffect(() => (setSize(null), setNatural(null)), [item.src]);
+  // Zoom and the offset of the zoomed picture (px); both start over for each picture
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const drag = useRef<{ x: number; y: number; px: number; py: number; moved: boolean; outside: boolean } | null>(null);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const setZoomTo = useCallback((z: number) => {
+    const next = clampZoom(z);
+    setZoom(next);
+    if (next === 1) setPan({ x: 0, y: 0 });
+  }, []);
+  useEffect(() => (setSize(null), setNatural(null), setZoom(1), setPan({ x: 0, y: 0 })), [item.src]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
       else if (e.key === "ArrowLeft") go(-1);
       else if (e.key === "ArrowRight") go(1);
+      else if (e.key === "+" || e.key === "=") setZoomTo(zoomRef.current + 0.5);
+      else if (e.key === "-") setZoomTo(zoomRef.current - 0.5);
+      else if (e.key === "0") setZoomTo(1);
     };
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -79,7 +98,7 @@ function Viewer({ items, index, onIndex, onClose }: { items: GalleryItem[]; inde
       document.body.style.overflow = overflow;
       window.removeEventListener("keydown", onKey);
     };
-  }, [go, onClose]);
+  }, [go, onClose, setZoomTo]);
   const src = viaCache(item.src) ?? item.src;
   const round = "flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/[0.06] text-white transition hover:bg-white/15";
 
@@ -103,14 +122,68 @@ function Viewer({ items, index, onIndex, onClose }: { items: GalleryItem[]; inde
         </div>
       </div>
 
-      <img
-        key={item.src}
-        src={src}
-        alt={item.label}
-        onLoad={(e) => (setSize(`${e.currentTarget.naturalWidth} × ${e.currentTarget.naturalHeight}`), setNatural(e.currentTarget.naturalWidth))}
-        style={natural != null && natural < 200 ? { width: natural * 4, height: natural * 4 } : undefined}
-        className="pointer-events-none absolute inset-x-4 bottom-28 top-20 m-auto max-h-[calc(100%-12rem)] max-w-[calc(100%-2rem)] object-contain drop-shadow-2xl sm:inset-x-24 sm:max-w-[calc(100%-12rem)]"
-      />
+      {/* The picture: wheel and double click zoom, drag moves it once zoomed; a plain click beside it closes */}
+      <div
+        className={cn("absolute inset-x-4 bottom-36 top-20 overflow-hidden sm:inset-x-24", zoom > 1 ? "cursor-grab active:cursor-grabbing" : "")}
+        onWheel={(e) => setZoomTo(zoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15))}
+        onDoubleClick={() => setZoomTo(zoom > 1 ? 1 : 2.5)}
+        onPointerDown={(e) => {
+          drag.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y, moved: false, outside: e.target === e.currentTarget };
+          e.currentTarget.setPointerCapture(e.pointerId);
+        }}
+        onPointerMove={(e) => {
+          const d = drag.current;
+          if (!d) return;
+          const dx = e.clientX - d.x;
+          const dy = e.clientY - d.y;
+          if (Math.abs(dx) + Math.abs(dy) > 4) d.moved = true;
+          if (zoom > 1 && d.moved) setPan({ x: d.px + dx, y: d.py + dy });
+        }}
+        onPointerUp={() => {
+          const d = drag.current;
+          drag.current = null;
+          // A click (no drag) outside the picture closes the viewer, as before
+          if (d && !d.moved && zoom === 1 && d.outside) onClose();
+        }}
+      >
+        <img
+          key={item.src}
+          src={src}
+          alt={item.label}
+          draggable={false}
+          onLoad={(e) => (setSize(`${e.currentTarget.naturalWidth} × ${e.currentTarget.naturalHeight}`), setNatural(e.currentTarget.naturalWidth))}
+          style={{
+            ...(natural != null && natural < 200 ? { width: natural * 4, height: natural * 4 } : {}),
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transition: drag.current ? "none" : "transform 120ms ease-out",
+          }}
+          className="absolute inset-0 m-auto max-h-full max-w-full select-none object-contain drop-shadow-2xl"
+        />
+      </div>
+
+      {/* Zoom bar */}
+      <div className="absolute inset-x-0 bottom-24 mx-auto flex w-max items-center gap-2 rounded-full border border-white/15 bg-black/50 px-3 py-1.5 text-white backdrop-blur">
+        <button type="button" onClick={() => setZoomTo(zoom - 0.5)} disabled={zoom <= MIN_ZOOM} className="rounded-full p-1 hover:bg-white/15 disabled:opacity-40" aria-label="Zoom out" title="Zoom out (−)">
+          <ZoomOut className="h-4 w-4" />
+        </button>
+        <input
+          type="range"
+          min={MIN_ZOOM}
+          max={MAX_ZOOM}
+          step={0.05}
+          value={zoom}
+          onChange={(e) => setZoomTo(Number(e.target.value))}
+          aria-label="Zoom"
+          className="w-32 accent-white sm:w-48"
+        />
+        <button type="button" onClick={() => setZoomTo(zoom + 0.5)} disabled={zoom >= MAX_ZOOM} className="rounded-full p-1 hover:bg-white/15 disabled:opacity-40" aria-label="Zoom in" title="Zoom in (+)">
+          <ZoomIn className="h-4 w-4" />
+        </button>
+        <span className="w-12 text-center text-xs tabular-nums text-white/80">{`${Math.round(zoom * 100)}%`}</span>
+        <button type="button" onClick={() => setZoomTo(1)} disabled={zoom === 1} className="rounded-full p-1 hover:bg-white/15 disabled:opacity-40" aria-label="Fit" title="Fit (0)">
+          <Maximize2 className="h-4 w-4" />
+        </button>
+      </div>
 
       {n > 1 && (
         <>

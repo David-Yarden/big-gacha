@@ -6,9 +6,10 @@ version: '3.4'
 kind: rework
 color: amber
 description: >-
-  Character Enhancement: reworked kits (v3.4 Jingliu, Blade, Kafka, Silver Wolf; v4.0 Sparkle, Black Swan).
-  'original' = text before the rework, 'enhanced' = text after. Reworked major traces come from the source
-  itself.
+  Character Enhancement: reworked kits (v3.4 Jingliu, Blade, Kafka, Silver Wolf; v4.0 Sparkle, Black Swan;
+  then Welt, Seele, Huohuo, Firefly). The game data holds both versions (skills, traces, eidolons): the
+  seed stores the enhanced kit in `enhanced` and this mechanic gives the Original / Enhanced toggle. The
+  eidolon entries below are only a fallback for a character whose game data has no enhanced version.
 characters:
 - Jingliu
 - Blade
@@ -16,6 +17,10 @@ characters:
 - Silver Wolf
 - Sparkle
 - Black Swan
+- Welt
+- Seele
+- Huohuo
+- Firefly
 entries:
 - character: Jingliu
   target: eidolon.e1

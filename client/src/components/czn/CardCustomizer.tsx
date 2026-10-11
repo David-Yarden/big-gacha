@@ -3,6 +3,10 @@
  * epiphanies, then a divine epiphany (by god) and a common epiphany. Which divine / common
  * epiphanies a card can get depends on the TYPE and COST of the chosen epiphany, so the
  * lists follow the selected epiphany; a choice that no longer fits is dropped.
+ * A card takes either one of its own epiphanies (I–V) or a common epiphany, never both; a
+ * divine epiphany needs one of them (the game offers none on a card with no epiphany) and
+ * combines with either. A combatant's basic cards (starting cards with no
+ * epiphany of their own) take no epiphany at all.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check } from "lucide-react";
@@ -22,6 +26,23 @@ export interface Effect {
   types: string[];
   costs: string[];
   god?: string;
+  /** Classes that can get it (none: any class) */
+  classes?: string[];
+  /** What the card must do to be offered it: cure (heals), shield, draw, targetable (hits one chosen enemy) */
+  requires?: string[];
+  /** What the card must not do (a card that already draws gets no draw effect) */
+  forbids?: string[];
+  /** Divine epiphanies: cost range of the card (an X-cost card has neither) */
+  minCost?: number;
+  maxCost?: number;
+  /** Not offered to cards with one of these keywords */
+  excludes?: string[];
+  /** Not offered to these card versions ("Name II") */
+  excludeCards?: string[];
+  /** Offered by every god */
+  shared?: boolean;
+  /** Cards whose in-game probability screen shows it */
+  seen?: string[];
 }
 export interface EpiphanyTables {
   gods: string[];
@@ -31,8 +52,43 @@ export interface EpiphanyTables {
 
 const ROMAN = ["", "I", "II", "III", "IV", "V"];
 const costBracket = (cost: number) => (cost >= 4 ? "4+" : String(Math.max(0, cost)));
-export const fits = (e: Effect, type?: string, cost?: number) =>
-  (!e.types.length || (type != null && e.types.includes(type))) && (!e.costs.length || (cost != null && cost >= 0 && e.costs.includes(costBracket(cost))));
+
+/**
+ * What a card does, read from its text, for the epiphanies that need it. A heal or a shield
+ * of the card before its epiphany still counts (the game keeps them, datamine notes).
+ */
+export function cardTags(variant: { type?: string; desc?: string }, base?: { name?: string; type?: string; desc?: string }) {
+  const desc = variant.desc ?? "";
+  const both = `${desc}\n${base?.desc ?? ""}`;
+  const tags = new Set<string>();
+  if (/\bHeal(?:s|ing)?\b(?! Amount)/i.test(both) || /\bHeal \d/i.test(both)) tags.add("cure");
+  if (/\d+% (?:\w+-Based )?Shield|\bShield \d/i.test(both)) tags.add("shield");
+  // Draws a card: "Draw", or a card taken from the Draw Pile to hand (Attack!: no draw effect at all);
+  // a card only acting "in Draw Pile" does not draw
+  if (/\bDraw\b(?! Pile)/i.test(desc) || /from the Draw Pile[^.]*\bhand\b/i.test(desc)) tags.add("draw");
+  // Hits one chosen enemy. A version that hits all enemies has no target (Devil Dice V); one whose
+  // text says nothing of a target keeps its base card's (Soulfire Dance IV, a Skill that only
+  // draws, keeps the target of its base Attack and gets the Coordinated Attack)
+  const spread = (d: string) => /all enemies|random enem|enemy with the (?:highest|lowest)|all allies/i.test(d);
+  const aims = (c: { type?: string; desc?: string }) => (c.type === "Attack" ? /Damage|Attack/i.test(c.desc ?? "") : /\bthe target\b/i.test(c.desc ?? ""));
+  const targetable = spread(desc) ? false : aims(variant) || (!!base?.desc && !spread(base.desc) && aims(base));
+  if (targetable) tags.add("targetable");
+  // Keywords of the card ("**Weakness Attack**")
+  for (const m of desc.matchAll(/\*\*([^*]+)\*\*/g)) tags.add(`kw:${m[1]}`);
+  if ((variant as { name?: string }).name) tags.add(`card:${(variant as { name?: string }).name}`);
+  return tags;
+}
+
+export const fits = (e: Effect, type?: string, cost?: number, tags?: Set<string>) =>
+  (!e.types.length || (type != null && e.types.includes(type))) &&
+  (!e.costs.length || (cost != null && cost >= 0 && e.costs.includes(costBracket(cost)))) &&
+  // An X-cost card (cost −1) counts as 0 for the divine epiphanies (checked on Soulfire Dance IV)
+  (e.minCost == null || (cost != null && Math.max(0, cost) >= e.minCost)) &&
+  (e.maxCost == null || (cost != null && Math.max(0, cost) <= e.maxCost)) &&
+  (!tags || !e.requires?.length || e.requires.every((r) => tags.has(r))) &&
+  (!tags || !e.forbids?.some((r) => tags.has(r))) &&
+  (!tags || !e.excludes?.some((k) => tags.has(`kw:${k}`))) &&
+  (!tags || !e.excludeCards?.some((n) => tags.has(`card:${n}`)));
 /** "Reduce Cost of this card by 1" → the card costs 1 less */
 export const costDelta = (text?: string) => {
   const m = text?.match(/(?:Reduce|Decrease) (?:the )?Cost of this card by (\d+)/i);
@@ -51,8 +107,11 @@ export interface CardChoice {
 export function builtCard(variants: CardVariant[], choice: Partial<CardChoice>, tables: EpiphanyTables | null) {
   const variant = variants.find((v) => v.level === (choice.level ?? 0)) ?? variants[0];
   const baseCost = variant.cost ?? 0;
-  const divine = (tables?.divine ?? []).find((e) => e.id === choice.divineId && fits(e, variant.type, baseCost)) ?? null;
-  const common = (tables?.common ?? []).find((e) => e.id === choice.commonId && fits(e, variant.type, baseCost)) ?? null;
+  const tags = cardTags(variant, variants[0]);
+  // Only on the card without its own epiphany
+  const common = variant.level === 0 ? ((tables?.common ?? []).find((e) => e.id === choice.commonId && fits(e, variant.type, baseCost, tags)) ?? null) : null;
+  // The game offers a divine epiphany only on a card that has an epiphany (its own or a common one)
+  const divine = variant.level > 0 || common ? ((tables?.divine ?? []).find((e) => e.id === choice.divineId && fits(e, variant.type, baseCost, tags)) ?? null) : null;
   const cost = variant.cost == null ? undefined : Math.max(0, baseCost + costDelta(divine?.text) + costDelta(common?.text));
   return { variant, divine, common, cost };
 }
@@ -68,8 +127,14 @@ export function CardCustomizer({
   initialLevel = 0,
   initial,
   onChange,
+  cls,
+  basic = false,
 }: {
   variants: CardVariant[];
+  /** A basic card: no epiphany of any kind */
+  basic?: boolean;
+  /** The owner's class: common epiphanies of other classes are left out */
+  cls?: string;
   attribute?: string;
   initialLevel?: number;
   /** Choices to start from (a deck's card) */
@@ -86,19 +151,36 @@ export function CardCustomizer({
   const variant = variants.find((v) => v.level === level) ?? variants[0];
   const baseCost = variant.cost ?? 0;
 
-  // What this epiphany (type + cost) can receive
-  const divineFor = useMemo(() => (tables?.divine ?? []).filter((e) => fits(e, variant.type, baseCost)), [tables, variant.type, baseCost]);
-  const commonFor = useMemo(() => (tables?.common ?? []).filter((e) => fits(e, variant.type, baseCost)), [tables, variant.type, baseCost]);
+  // What this epiphany (type, cost and what it does) can receive
+  const tags = useMemo(() => cardTags(variant, variants[0]), [variant, variants]);
+  const divineFor = useMemo(() => (tables?.divine ?? []).filter((e) => fits(e, variant.type, baseCost, tags)), [tables, variant.type, baseCost, tags]);
+  const commonFor = useMemo(
+    () => (tables?.common ?? []).filter((e) => fits(e, variant.type, baseCost, tags) && (!cls || !e.classes?.length || e.classes.includes(cls))),
+    [tables, variant.type, baseCost, tags, cls]
+  );
   const perGod = useMemo(() => {
     const m = new Map<string, number>();
     for (const e of divineFor) m.set(e.god ?? "", (m.get(e.god ?? "") ?? 0) + 1);
     return m;
   }, [divineFor]);
 
+  // A common epiphany only goes on the card without its own epiphany
+  const common = level === 0 ? (commonFor.find((e) => e.id === commonId) ?? null) : null;
+  // The game offers a divine epiphany only on a card that has an epiphany (its own or a common one)
+  const canDivine = level > 0 || !!common;
   // A choice made for another epiphany may not fit this one any more
-  const divine = divineFor.find((e) => e.id === divineId) ?? null;
-  const common = commonFor.find((e) => e.id === commonId) ?? null;
-  const dropped = (divineId && !divine) || (commonId && !common);
+  const divine = canDivine ? (divineFor.find((e) => e.id === divineId) ?? null) : null;
+  const dropped = (canDivine && divineId && !divine) || (level === 0 && commonId && !common);
+  const pickLevel = (l: number) => {
+    setLevel(l);
+    if (l > 0) setCommonId(null);
+    // Back to the base card with no common epiphany: no divine epiphany any more
+    if (l === 0 && !commonId) setDivineId(null);
+  };
+  const pickCommon = (id: string | null) => {
+    setCommonId(id);
+    if (!id && level === 0) setDivineId(null);
+  };
 
   const cost = variant.cost == null ? undefined : Math.max(0, baseCost + costDelta(divine?.text) + costDelta(common?.text));
 
@@ -118,6 +200,17 @@ export function CardCustomizer({
 
   const shownDivine = god ? divineFor.filter((e) => e.god === god) : divineFor;
 
+  if (basic) {
+    return (
+      <div className="space-y-3">
+        <div className="max-w-[280px]">
+          <CardFace card={variants[0]} attribute={attribute} basic />
+        </div>
+        <p className="text-sm text-muted-foreground">Basic cards take no epiphany.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
       {/* Epiphanies of the card */}
@@ -128,7 +221,7 @@ export function CardCustomizer({
             <button
               key={v.level}
               type="button"
-              onClick={() => setLevel(v.level)}
+              onClick={() => pickLevel(v.level)}
               className={cn("rounded-lg p-1 text-center transition", v.level === level ? "bg-primary/20 ring-2 ring-primary" : "opacity-75 hover:opacity-100")}
             >
               <CardFace card={v} attribute={attribute} epiphany={v.level > 0} />
@@ -163,7 +256,7 @@ export function CardCustomizer({
             <section className="space-y-2">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="text-sm font-semibold">Divine Epiphany</p>
-                <p className="text-xs text-muted-foreground">{`${divineFor.length} possible for a ${baseCost}-cost ${variant.type ?? "card"}`}</p>
+                <p className="text-xs text-muted-foreground">{`${divineFor.length} possible for a ${baseCost < 0 ? "X" : baseCost}-cost ${variant.type ?? "card"}`}</p>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 <GodChip label="All gods" active={!god} count={divineFor.length} onClick={() => setGod(null)} />
@@ -171,7 +264,16 @@ export function CardCustomizer({
                   <GodChip key={g} label={g} god={g} active={god === g} count={perGod.get(g) ?? 0} onClick={() => setGod(god === g ? null : g)} />
                 ))}
               </div>
-              <EffectList items={shownDivine} selected={divineId} onSelect={setDivineId} showGod={!god} />
+              {!canDivine ? (
+                <p className="text-sm text-muted-foreground">The game offers a divine epiphany only on a card that has an epiphany: choose one of its epiphanies or a common epiphany first.</p>
+              ) : (
+                <EffectList items={shownDivine} selected={divineId} onSelect={setDivineId} showGod={!god} chance={divineFor.length ? 100 / divineFor.length : undefined} />
+              )}
+              {!canDivine ? null : divineFor.some((e) => e.seen?.includes(variant.name)) ? (
+                <p className="text-xs text-emerald-300/80">Checked against the game's probability screen for this card.</p>
+              ) : (
+                <p className="text-xs text-amber-300/80">Worked out from the game's rules (card type, cost and what the card does): not yet checked in game for this card.</p>
+              )}
             </section>
           )}
 
@@ -179,9 +281,13 @@ export function CardCustomizer({
             <section className="space-y-2">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="text-sm font-semibold">Common Epiphany</p>
-                <p className="text-xs text-muted-foreground">{`${commonFor.length} possible`}</p>
+                {level === 0 && <p className="text-xs text-muted-foreground">{`${commonFor.length} possible`}</p>}
               </div>
-              <EffectList items={commonFor} selected={commonId} onSelect={setCommonId} />
+              {level === 0 ? (
+                <EffectList items={commonFor} selected={commonId} onSelect={pickCommon} />
+              ) : (
+                <p className="text-sm text-muted-foreground">A card takes either one of its epiphanies or a common epiphany, not both. Choose Base to add a common epiphany.</p>
+              )}
             </section>
           )}
         </div>
@@ -209,7 +315,20 @@ function GodChip({ label, god, active, count, onClick }: { label: string; god?: 
   );
 }
 
-function EffectList({ items, selected, onSelect, showGod }: { items: Effect[]; selected: string | null; onSelect: (id: string | null) => void; showGod?: boolean }) {
+function EffectList({
+  items,
+  selected,
+  onSelect,
+  showGod,
+  chance,
+}: {
+  items: Effect[];
+  selected: string | null;
+  onSelect: (id: string | null) => void;
+  showGod?: boolean;
+  /** Chance of each effect, % (all effects of a pool are equally likely) */
+  chance?: number;
+}) {
   return (
     <ul className="max-h-72 space-y-1 overflow-y-auto rounded-lg border border-white/10 p-1">
       {items.map((e) => (
@@ -220,8 +339,9 @@ function EffectList({ items, selected, onSelect, showGod }: { items: Effect[]; s
             className={cn("flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm", selected === e.id ? "bg-primary/20" : "hover:bg-white/5")}
           >
             {e.god ? <GodSigil god={e.god} className="mt-0.5 h-4 w-4 shrink-0" /> : <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-white/40" />}
-            <span className="flex-1">{plain(e.text)}</span>
+            <span className="flex-1 whitespace-pre-line">{plain(e.text)}</span>
             {showGod && e.god && <span className="shrink-0 text-xs text-muted-foreground">{e.god}</span>}
+            {chance != null && <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{`${chance.toFixed(2)}%`}</span>}
             {selected === e.id && <Check className="h-4 w-4 shrink-0 text-primary" />}
           </button>
         </li>

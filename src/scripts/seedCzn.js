@@ -24,7 +24,7 @@ const connectDB = require("../config/db");
 const sink = require("../sync/sink");
 const { Character, AgentKit, Weapon, Relic, Reference } = require("../models");
 const { fetchData } = require("../sync/http");
-const { wikiFile, pyLiteral, mwJson, wikiText, cardText, infobox, fillPassive, deckBuilderCards } = require("./cznParse");
+const { wikiFile, pyLiteral, mwJson, wikiText, cardText, infobox, fillPassive, deckBuilderCards, epiphanyText, epiphanyRules, officialName, sameEquipmentName, fillValues, officialTerms } = require("./cznParse");
 
 const GAME = "czn";
 const REPO = "steve1316/hub-czn-updated";
@@ -184,6 +184,21 @@ async function fetchAll() {
   } catch (err) {
     console.warn(`  ⚠ Persona engravings: ${err.message}`);
   }
+  // Equipment of Chaos runs and the refinement effects (CZN Deck Builder lists), with the game's
+  // own names and texts where the hub has them (optional)
+  let equipment = null;
+  try {
+    const [weapon, armor, pendant, messages, official] = await Promise.all([
+      fetchData(DECK_BUILDER + "lib/equipment/weapons.ts", { as: "text", timeout: 60_000 }),
+      fetchData(DECK_BUILDER + "lib/equipment/armors.ts", { as: "text", timeout: 60_000 }),
+      fetchData(DECK_BUILDER + "lib/equipment/pendants.ts", { as: "text", timeout: 60_000 }),
+      fetchData(DECK_BUILDER + "messages/en/equipment.json", { timeout: 60_000 }),
+      fetchData(raw("scripts/ko_pipeline/data/equipment_catalog.raw.json"), { timeout: 60_000 }).catch(() => []),
+    ]);
+    equipment = { ts: { weapon, armor, pendant }, messages, official };
+  } catch (err) {
+    console.warn(`  ⚠ Equipment: ${err.message}`);
+  }
   // The animation viewer's catalogue (optional)
   let viewer = { rigs: [], cutins: [] };
   try {
@@ -196,14 +211,17 @@ async function fetchAll() {
     const m = path.match(/^src\/pages\/deck-builder\/data\/combatants\/[^/]+\/(c_[^/]+)\.webp$/);
     if (m) bigCards.set(m[1], path);
   }
-  D = { index, base, levels, ascend, db, deck, epiphanies, characters, partners, sets, wiki, community, hubFiles, builderFiles, bigCards, viewer, neutral, monsterGrades, divine, commonEpiphanies, persona };
+  // The game's English texts of combatants the game files and the wiki do not cover yet
+  // (read at each sync: an edit of the file needs no restart)
+  const officialTexts = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "cznTexts.json"), "utf8")).combatants;
+  D = { index, base, levels, ascend, db, deck, epiphanies, characters, partners, sets, wiki, community, official: officialTexts, hubFiles, builderFiles, bigCards, viewer, neutral, monsterGrades, divine, commonEpiphanies, persona, equipment };
 }
 
 function check(cond, message) {
   if (!cond) throw new Error(`CZN data layout changed — ${message}`);
 }
 
-const cardName = (id) => D.db.names[`card@name@${id}`];
+const cardName = (id) => D.db.names[`card@name@${id}`]?.replace(/\u200b/g, "");
 
 // ── Combatants ───────────────────────────────────────────────────────────────
 
@@ -236,7 +254,17 @@ async function seedCharacters() {
       /* new combatant without an article yet */
     }
     const rarity = D.index[c.name]?.rarity ?? (c.grade >= 5 ? 5 : 4);
-    const birthday = info.birth_month && info.birth_day ? `${info.birth_month} ${String(info.birth_day).replace(/\D/g, "")}` : box.Birthday;
+    // In-game profile typed into cznTexts.json, for combatants the wiki has no profile of yet
+    const own = D.official?.[c.name]?.profile || {};
+    const birthday = info.birth_month && info.birth_day ? `${info.birth_month} ${String(info.birth_day).replace(/\D/g, "")}` : box.Birthday || own.birthday;
+    const affiliation = box.Affiliation || own.affiliation;
+    const profile = [
+      ["Species", info.race_type],
+      ["Talent", info.specialty],
+      ["Reason for hospitalization", info.hospitalization_reason],
+    ]
+      .filter(([, value]) => value)
+      .map(([name, value]) => ({ name, value: wikiText(value) }));
     await upsert(Character, { game: GAME, name: c.name }, {
       game: GAME,
       sourceId: Number(id),
@@ -245,23 +273,22 @@ async function seedCharacters() {
       version: await releaseOf(c.name), // a date (YYYY-MM-DD): sorts like the other games' versions
       element: ATTRIBUTES.includes(c.attribute) ? c.attribute : undefined,
       specialty: c.class,
-      description: wikiText(info.background_text),
+      description: wikiText(info.background_text) || own.description,
       gender: box.Gender,
-      affiliation: box.Affiliation,
-      region: box.Affiliation,
+      affiliation,
+      region: affiliation,
       birthday,
-      cv: { japanese: info.cv_ja || box.Japanese, korean: info.cv_ko || box.Korean, chinese: cleanCv(info.cv_zhs || box.Chinese), english: info.cv_en && info.cv_en !== "Not included" ? info.cv_en : undefined },
+      cv: {
+        japanese: info.cv_ja || box.Japanese || own.cv?.japanese,
+        korean: info.cv_ko || box.Korean || own.cv?.korean,
+        chinese: cleanCv(info.cv_zhs || box.Chinese) || own.cv?.chinese,
+        english: (info.cv_en && info.cv_en !== "Not included" ? info.cv_en : undefined) || own.cv?.english,
+      },
       extraStats: [
         { name: "Crit Rate", value: `${D.base[id]?.cri ?? c.base_crit_rate ?? 3}%` },
         { name: "Crit DMG", value: `${D.base[id]?.cri_dmg ?? c.base_crit_dmg ?? 125}%` },
       ],
-      profile: [
-        ["Species", info.race_type],
-        ["Talent", info.specialty],
-        ["Reason for hospitalization", info.hospitalization_reason],
-      ]
-        .filter(([, value]) => value)
-        .map(([name, value]) => ({ name, value: wikiText(value) })),
+      profile: profile.length ? profile : own.profile || [],
       stats: statsOf(id),
       gallery: await galleryOf(c.name, id),
       animated: animatedOf(id),
@@ -279,7 +306,7 @@ async function seedCharacters() {
         ),
         portrait: await firstImage(wikiFile(`${c.name} Portrait.png`), wikiFile(`Profile ${c.name}.png`)),
         ego: await firstImage(GAME_ASSETS(`tp_skill/battle_icon_tp_skill_${id}.png`), ASSETS(`tp_skill/battle_icon_tp_skill_${id}.png`)),
-        faction: box.Affiliation ? await firstImage(wikiFile(`${box.Affiliation} faction icon.png`)) : undefined,
+        faction: affiliation ? await firstImage(wikiFile(`${affiliation} faction icon.png`)) : undefined,
       },
     });
     count++;
@@ -382,6 +409,10 @@ async function seedKits() {
       const own = Object.entries(D.community).filter(([k]) => k.startsWith(prefix));
       return (own.find(([, v]) => name && v.name === name) || own.find(([k]) => k === `${prefix}${i + 1}`) || [])[1];
     };
+    // The official texts of this combatant's cards (cznTexts.json), by name ("Observer’s Pleasure" = "Observer's Pleasure")
+    const key = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "");
+    const pwCards = new Map((D.official?.[c.name]?.cards || []).map((p) => [key(p.name), p]));
+    const pwCard = (name) => pwCards.get(key(name));
     // Card illustration: the game's card art (hub, by the card's sct_name), else the deck builder's
     const imageOf = (cardId, kind, i) => {
       // Sharpest first: the hub's deck builder pictures (200×300), named after the card id
@@ -403,16 +434,34 @@ async function seedKits() {
     const card = (x, kind, i) => {
       const meta = D.db.cards[x.card_id] || {};
       const w = wikiCards.get(x.card_id);
+      const name = cardName(x.card_id) || x.card_id;
+      // A variant is named after its card (the list keeps some old names: "Rapid Fire" for Chain Fire)
       const variants = D.epiphanies[x.card_id]?.variants?.map((v) => ({
         level: v.level,
-        name: v.name,
+        name: ROMAN[v.level] ? `${name} ${ROMAN[v.level]}` : v.name,
         cost: v.cost,
         type: CATEGORY[v.card_type] ?? v.card_type,
         desc: cardText(v.description),
       }));
       const desc = cardText(x.description) || wikiText(w?.desc?.replace(/\$([^$]+)\$/g, "$1"));
-      const name = cardName(x.card_id) || x.card_id;
-      // Not in the game files nor on the wiki yet: the deck builder's transcription
+      // Not in the game files nor on the wiki yet: the official texts of cznTexts.json
+      const pw = !desc && !variants?.length ? pwCard(name) : undefined;
+      if (pw) {
+        const extra = kind === "ego" ? [] : [1, 2, 3, 4, 5].map((level) => ({ level, card: pwCard(`${name} ${ROMAN[level]}`) })).filter((v) => v.card);
+        return {
+          id: x.card_id,
+          kind,
+          name,
+          cost: meta.cost ?? pw.cost ?? w?.cost,
+          desc: pw.desc,
+          type: CATEGORY[w?.category] ?? CATEGORY[pw.type],
+          rarity: rarityOf(w, kind, i),
+          image: imageOf(x.card_id, kind, i),
+          epiphanies: extra.length ? extra.map(({ level, card: v }) => ({ level, name: `${name} ${ROMAN[level]}`, cost: v.cost, type: CATEGORY[v.type], desc: v.desc })) : undefined,
+          source: "Prydwen",
+        };
+      }
+      // Nor there: the deck builder's transcription
       const cb = !desc && !variants?.length && kind !== "ego" ? communityOf(kind, i, name) : undefined;
       if (cb) {
         const base = cb.levels.find((l) => l.level === 0) || {};
@@ -449,12 +498,14 @@ async function seedKits() {
           ...(deck.ego_skill ? [card(deck.ego_skill, "ego", 0)] : []),
         ]
       : [];
-    const manifestations = (D.wiki.ego[c.name] || []).map((m) => ({
+    let manifestations = (D.wiki.ego[c.name] || []).map((m) => ({
       level: m.level,
       name: m.title,
       kind: m.sub_title,
       desc: wikiText(m.desc),
     }));
+    // Not on the wiki yet: cznTexts.json (the game's text)
+    if (!manifestations.length && D.official?.[c.name]?.manifestations?.length) manifestations = D.official[c.name].manifestations;
     if (!cards.length && !manifestations.length) continue;
     await upsert(AgentKit, { game: GAME, name: c.name }, { game: GAME, name: c.name, cards, manifestations });
     count++;
@@ -567,6 +618,18 @@ function monsterGradesByName(ts, messages) {
   return out;
 }
 
+/**
+ * Monster card grades from the developer note of 2026-01-26 (Season 2), which set the Save Data
+ * points of each grade: Common 20, Rare 50, Legendary 80. Cards added since come from the
+ * deck builder's table.
+ */
+const MONSTER_GRADES = {
+  Common: ["Shy Gardener", "Sorrowful Godfather", "Winged Humanoid Beast", "Wolves Bane", "Dark Grip", "Rotten Ripper", "Seraphim of Pain", "Beam Shooter", "Abyssal Bug", "Chilling Godfather", "Trapper", "Cultist Arbiter", "Slaughter"],
+  Rare: ["Automata Cavalry", "Soldier Prime", "Hunger of the Void", "Evil Spirit Salamander", "Hunger of Loss", "Elemental Phoenix", "Spirit Kefox", "Arbitum", "Gloomy Godmother", "Shell Bug"],
+  Legendary: ["Seven Arms", "Evil Spirit Dullahan", "Dominion"],
+};
+const OFFICIAL_GRADE = Object.fromEntries(Object.entries(MONSTER_GRADES).flatMap(([g, names]) => names.map((n) => [normName(n), g])));
+
 async function seedCards() {
   if (!D.neutral?.length) return;
   // Official names of every card id, to find each card's game id (and so its group)
@@ -586,7 +649,11 @@ async function seedCards() {
     if (c.tags?.includes("season")) return "Season";
     return "Neutral";
   };
-  const cards = D.neutral.map((c) => ({
+  // The game's spelling of each name (the list has typos and old names)
+  const gameNames = Object.entries(D.db.names)
+    .filter(([key]) => key.startsWith("card@name@"))
+    .map(([, name]) => name);
+  const cards = D.neutral.map((c) => ({ ...c, name: officialName(c.name, gameNames) })).map((c) => ({
     id: c.id,
     name: c.name,
     cost: c.cost,
@@ -595,7 +662,7 @@ async function seedCards() {
     desc: cardText(c.description?.replace(/\u200b/g, "")),
     group: groupOf(c),
     classes: c.allowed_classes?.length ? c.allowed_classes : undefined,
-    rarity: c.category === "monster" ? D.monsterGrades[normName(c.name)] : undefined,
+    rarity: c.category === "monster" ? OFFICIAL_GRADE[normName(c.name)] ?? D.monsterGrades[normName(c.name)] : undefined,
     image: c.image_path ? `https://raw.githubusercontent.com/${REPO}/master/src/pages/deck-builder/data/${c.image_path}` : undefined,
   }));
   await upsert(Reference, { game: GAME, name: "Cards" }, { game: GAME, name: "Cards", data: { cards } });
@@ -610,26 +677,39 @@ async function seedCards() {
  * types: [] = any type; costs: [] = any cost, else "1", "2", "3", "4+".
  */
 async function seedEpiphanies() {
-  if (!D.divine?.length) return;
-  // The first line of the game text (some effects end with a keyword kept apart in "tags")
-  const textOf = (e) => (e.raw_text ? e.raw_text.split("\n")[0] : e.description).trim();
-  // The game's English names of the gods (the list spells some of them differently)
-  const GOD_NAMES = { Circen: "Kyrken", Secred: "Sekred", Vitor: "Vytor" };
-  const divine = D.divine.map((e) => ({
-    id: e.id,
-    god: GOD_NAMES[e.god] || e.god,
-    text: cardText(textOf(e)),
-    types: e.card_types || [],
-    costs: e.levels || [],
-  }));
-  const common = (D.commonEpiphanies || []).map((e) => ({
-    id: e.id,
-    text: cardText(textOf(e)),
-    types: e.card_types || [],
-    costs: e.levels || [],
-    classes: e.allowed_classes?.length ? e.allowed_classes : undefined,
-  }));
-  const gods = [...new Set(divine.map((e) => e.god))];
+  // Every line of the effect (cardText would join them: keep the line break)
+  const textOf = (e) =>
+    epiphanyText(e.raw_text, e.description)
+      .split("\n")
+      .map((l) => cardText(l))
+      .join("\n");
+  // Divine epiphanies: our table of the game's rules (cznDivine.json, read at each sync), checked
+  // against in-game probability screens; the hub's list (read from screenshots, no conditions on
+  // what the card does, some texts out of date) is not used for them
+  const table = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "cznDivine.json"), "utf8"));
+  const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const divine = table.effects.flatMap((e) =>
+    (e.gods === "all" ? table.gods : e.gods).map((god) => ({
+      id: `div-${slug(god)}-${slug(e.text)}`,
+      god,
+      text: e.text.split("\n").map((l) => cardText(l)).join("\n"),
+      types: e.types || [],
+      costs: [],
+      minCost: e.minCost,
+      maxCost: e.maxCost,
+      requires: e.requires,
+      forbids: e.forbids,
+      excludes: e.excludes,
+      excludeCards: e.excludeCards,
+      shared: e.gods === "all" || undefined,
+      seen: e.seen?.length ? e.seen : undefined,
+    }))
+  );
+  const common = (D.commonEpiphanies || []).map((e) => {
+    const text = textOf(e);
+    return { id: e.id, text, types: e.card_types || [], ...epiphanyRules(text, e.levels), classes: e.allowed_classes?.length ? e.allowed_classes : undefined };
+  });
+  const gods = table.gods;
   await upsert(Reference, { game: GAME, name: "Epiphanies" }, { game: GAME, name: "Epiphanies", data: { gods, divine, common } });
   console.log(`  ✓ ${divine.length} divine and ${common.length} common epiphanies`);
 }
@@ -655,6 +735,57 @@ async function seedPersona() {
   console.log(`  ✓ ${engravings.length} Persona engravings`);
 }
 
+// ── Equipment ────────────────────────────────────────────────────────────────
+
+// The game's names (the user, in game; the hub's list says the same): Unique, not "Mythic"
+const EQUIPMENT_RARITY = { rare: "Rare", legendary: "Legendary", mythical: "Unique" };
+
+/** Weapons, armors and pendants of Chaos runs, and the refinement effects. */
+async function seedEquipment() {
+  const e = D.equipment;
+  if (!e) return;
+  const msg = e.messages?.equipment || {};
+  // The game's own names and texts (the hub's list, values written "X"); the community list (texts
+  // translated by machine, some names not translated) gives the values and the other pieces
+  const catalog = Array.isArray(e.official) ? e.official.filter((o) => o.name?.en) : [];
+  const SLOT = { weapon: "Weapon", armor: "Armor", pendant: "Accessory" };
+  const officialOf = (type, name) =>
+    catalog.find((o) => o.slot === SLOT[type] && normName(o.name.en) === normName(name)) ||
+    catalog.find((o) => o.slot === SLOT[type] && sameEquipmentName(o.name.en, name));
+  const items = [];
+  for (const [type, ts] of Object.entries(e.ts)) {
+    for (const block of String(ts).split(/\n\s*\{\s*\n\s*id: "/).slice(1)) {
+      const id = block.slice(0, block.indexOf('"'));
+      const rarity = (block.match(/rarity: "equipment\.rarity\.(\w+)"/) || [])[1];
+      const img = (block.match(/imgUrl: "([^"]+)"/) || [])[1];
+      const chaos = [...block.matchAll(/EquipmentObtainableChaosId\.(\w+)/g)].map((m) => m[1].toLowerCase());
+      const text = msg[type]?.[id];
+      if (!text?.name) continue;
+      const o = officialOf(type, text.name);
+      const game = o ? fillValues(o.desc_en, text.description) : null;
+      const japanese = /[぀-ヿ一-鿿]/.test(text.name + text.description);
+      const path = img ? `public${img}` : null;
+      items.push({
+        id,
+        type,
+        name: o?.name?.en || text.name,
+        rarity: EQUIPMENT_RARITY[rarity] || rarity,
+        desc: cardText(game ?? officialTerms(text.description || "")),
+        // The game's text with the community's numbers / the community's text
+        values: game != null && game !== o.desc_en ? "community" : undefined,
+        community: game == null || undefined,
+        lang: japanese && game == null ? "ja" : undefined,
+        chaos: chaos.filter((c) => c !== "all").map((c) => msg.obtainableChaos?.options?.[c] || c),
+        image: path && (!D.builderFiles || D.builderFiles.has(path)) ? DECK_BUILDER + path : undefined,
+      });
+    }
+  }
+  const refinements = Object.entries(msg.refinementEffects || {}).map(([id, text]) => ({ id, text: cardText(officialTerms(String(text))) }));
+  if (!items.length) return;
+  await upsert(Reference, { game: GAME, name: "Equipment" }, { game: GAME, name: "Equipment", data: { items, refinements } });
+  console.log(`  ✓ ${items.length} equipment, ${refinements.length} refinements`);
+}
+
 async function seedAll() {
   await fetchAll();
   await seedCharacters();
@@ -664,6 +795,7 @@ async function seedAll() {
   await seedCards();
   await seedEpiphanies();
   await seedPersona();
+  await seedEquipment();
   D = null;
 }
 

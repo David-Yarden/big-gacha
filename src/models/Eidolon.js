@@ -29,6 +29,9 @@ const eidolonSchema = new mongoose.Schema(
     // Eidolon icon URLs keyed e1…e6
     images: mongoose.Schema.Types.Mixed,
 
+    // Character Enhancement: the enhanced eidolons whose text changed { e1: { name, description, levelUpSkills }, … }
+    enhanced: mongoose.Schema.Types.Mixed,
+
     // Trailblazer support
     isTraveler: { type: Boolean, default: false },
     elementVariants: mongoose.Schema.Types.Mixed, // { Fire: { e1…e6, images }, … }

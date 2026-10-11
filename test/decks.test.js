@@ -25,3 +25,22 @@ test("decks: level kept within 0-9", () => {
   const d = clean({ cards: [{ uid: "a", source: "kit", cardId: "c", level: 99 }, { uid: "b", source: "kit", cardId: "c", level: -3 }] });
   assert.deepStrictEqual(d.cards.map((c) => c.level), [9, 0]);
 });
+
+test("decks: each combatant's equipment and tier", () => {
+  const d = clean({
+    team: ["Nia", "Rin"],
+    members: {
+      Nia: { tier: "99", equipment: { weapon: { id: "obsidian_sword", refinement: "refinement_01", hammer: { $x: 1 } }, armor: { id: { $ne: 1 } }, ring: { id: "x" } } },
+      Olga: { tier: 3 },
+      Rin: { partner: "Bianca" },
+      __proto__: { tier: 2 },
+    },
+    cards: [{ uid: "a", source: "kit", cardId: "c", copied: "yes" }, { uid: "b", source: "kit", cardId: "c", copied: true }],
+  });
+  assert.deepStrictEqual(d.members, {
+    Nia: { tier: 16, equipment: { weapon: { id: "obsidian_sword", refinement: "refinement_01", hammer: null } }, partner: null },
+    Rin: { tier: 14, equipment: {}, partner: "Bianca" },
+  });
+  assert.strictEqual(d.tier, undefined);
+  assert.deepStrictEqual(d.cards.map((c) => c.copied), [undefined, true]);
+});

@@ -324,6 +324,8 @@ export interface Trace {
   images?: Record<string, string>;
   isTraveler?: boolean;
   elementVariants?: Record<string, Partial<Trace>>;
+  /** Character Enhancement: the enhanced kit (the document is the original one) */
+  enhanced?: Partial<Trace> | null;
 }
 
 export interface EidolonLevel {
@@ -346,6 +348,8 @@ export interface Eidolon {
   images?: Record<string, string>;
   isTraveler?: boolean;
   elementVariants?: Record<string, Partial<Eidolon>>;
+  /** Character Enhancement: the eidolons whose text the enhancement changed */
+  enhanced?: Partial<Record<"e1" | "e2" | "e3" | "e4" | "e5" | "e6", EidolonLevel>> | null;
 }
 
 // ── WuWa Types ────────────────────────────────────────────────────────────────

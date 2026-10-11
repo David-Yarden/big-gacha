@@ -49,18 +49,31 @@ export function useHsrKit({ game, name, activeElement }: KitArgs): CharacterKit 
   const trace = traceData?.data as Trace | undefined;
   const eidolon = eidolonData?.data as Eidolon | undefined;
 
+  // Character Enhancement: the documents hold the original kit and the enhanced one (game data);
+  // the enhanced kit is shown unless the version toggle (rework mechanic) is on "original"
+  const versioned = !!(trace?.enhanced || eidolon?.enhanced);
+  const showEnhanced = versioned && !enh.showingOriginal;
+  const reworkType = enh.types.find((t) => t.kind === "rework");
+
   // Trailblazer: kit depends on the selected path
   const traceVariant = trace?.isTraveler && activeElement ? (trace.elementVariants?.[activeElement] as Partial<Trace> | undefined) : null;
-  const activeTrace = (traceVariant ?? trace) as Trace | undefined;
+  // Memoised: a new object at each render would re-run the effects that depend on it
+  const activeTrace = useMemo(
+    () => (traceVariant ?? (showEnhanced && trace?.enhanced ? { ...trace, ...trace.enhanced } : trace)) as Trace | undefined,
+    [traceVariant, showEnhanced, trace]
+  );
   const eidolonVariant = eidolon?.isTraveler && activeElement ? (eidolon.elementVariants?.[activeElement] as Partial<Eidolon> | undefined) : null;
-  const activeEidolon = (eidolonVariant ?? eidolon) as Eidolon | undefined;
+  const activeEidolon = useMemo(
+    () => (eidolonVariant ?? (showEnhanced && eidolon?.enhanced ? { ...eidolon, ...eidolon.enhanced } : eidolon)) as Eidolon | undefined,
+    [eidolonVariant, showEnhanced, eidolon]
+  );
 
   useEffect(() => {
     setMemoLevels(activeTrace?.memospriteGroups?.map(() => 10) ?? []);
   }, [activeTrace]);
 
-  // Reworked characters (Novaflare, …): the source lists BOTH the original and the new
-  // major traces / stat nodes (original first). Keep one copy, the one matching the view.
+  // Older documents (before the split of the two trees): the source listed BOTH the original and
+  // the new major traces / stat nodes (original first). Keep one copy, the one matching the view.
   const displayTrace = useMemo((): Trace | undefined => {
     if (!activeTrace) return activeTrace;
     const base = {
@@ -218,7 +231,10 @@ export function useHsrKit({ game, name, activeElement }: KitArgs): CharacterKit 
         EIDOLON_KEYS.map((key) => {
           const e = activeEidolon[key];
           if (!e) return null;
-          const shown = enh.rework(`eidolon.${key}`, { name: e.name, description: e.description });
+          // Versioned by the game data: its own text, marked when the enhancement changed it
+          const shown = versioned
+            ? { name: e.name, description: e.description, reworkedBy: showEnhanced && eidolon?.enhanced?.[key] ? reworkType : undefined }
+            : enh.rework(`eidolon.${key}`, { name: e.name, description: e.description });
           return (
             <NumberedEntryCard
               key={key}

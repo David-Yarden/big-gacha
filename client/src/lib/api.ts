@@ -202,6 +202,16 @@ export interface DeckCard {
   commonId?: string | null;
   engravings?: Array<string | null>;
   personaClass?: string | null;
+  /** Added with "copy" (counts for the Save Data) */
+  copied?: boolean;
+}
+export type EquipmentSlotName = "weapon" | "armor" | "pendant";
+export interface DeckEquipment {
+  id: string;
+  /** Refinement effect id */
+  refinement?: string | null;
+  /** God's Hammer: the equipment whose effect is added */
+  hammer?: string | null;
 }
 export interface Deck {
   _id?: string;
@@ -210,7 +220,18 @@ export interface Deck {
   team: string[];
   cards: DeckCard[];
   notes?: string;
+  /** Each combatant's own Save Data: Chaos tier (cap) and equipment, by combatant name */
+  members?: Record<string, DeckMember>;
+  /** Older decks: one tier and one equipment set for the team (moved to the first combatant) */
+  tier?: number;
+  equipment?: Partial<Record<EquipmentSlotName, DeckEquipment>>;
   updatedAt?: string;
+}
+export interface DeckMember {
+  tier?: number;
+  equipment?: Partial<Record<EquipmentSlotName, DeckEquipment>>;
+  /** Partner (English name) */
+  partner?: string | null;
 }
 export interface DeckSummary {
   _id: string;

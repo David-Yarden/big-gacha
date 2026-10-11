@@ -58,6 +58,10 @@ const traceSchema = new mongoose.Schema(
     // { basicAtk: url, skill: url, ultimate: url, talent: url, technique: url }
     images: mongoose.Schema.Types.Mixed,
 
+    // Character Enhancement: the enhanced kit (same fields: skills, majorTraces, statBonuses, costs,
+    // images…) from the game data's second skill tree; the document itself is the original kit
+    enhanced: mongoose.Schema.Types.Mixed,
+
     // Trailblazer support
     isTraveler: { type: Boolean, default: false },
     elementVariants: mongoose.Schema.Types.Mixed, // { Fire: { basicAtk, skill, … }, Ice: { … }, … }

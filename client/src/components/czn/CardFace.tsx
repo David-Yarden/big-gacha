@@ -194,10 +194,13 @@ export function CardFace({
   epiphany = false,
   divine,
   extra,
+  basic = false,
   className,
   onClick,
 }: {
   card: CznCardData;
+  /** A combatant's basic card (no epiphany): "Basic Attack" / "Basic Skill", as in the game */
+  basic?: boolean;
   /** Owner's attribute: colour of the epiphany strip */
   attribute?: string;
   /** An epiphany variant: strip + sight, changed numbers in green */
@@ -282,7 +285,7 @@ export function CardFace({
             {card.type && (
               <p className="mt-[0.8cqw] flex items-center gap-[1.6cqw] text-[7cqw] leading-none text-white">
                 {TYPE_ICON[card.type] && <img src={viaCache(TYPE_ICON[card.type]) ?? ""} alt="" className="h-[7.2cqw] w-[7.2cqw] rounded-[0.8cqw]" />}
-                {card.type}
+                {basic ? `Basic ${card.type}` : card.type}
               </p>
             )}
           </div>

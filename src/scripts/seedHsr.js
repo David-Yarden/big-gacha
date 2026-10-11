@@ -376,6 +376,15 @@ function buildAscensionCosts(materialsArr, items) {
   return costs;
 }
 
+/**
+ * Character Enhancement: the game data gives an enhanced character a second skill tree whose node
+ * ids are "1" + the original ids (Kafka 1005: 1005001… and 11005001…). Splits the tree ids.
+ */
+function splitEnhanced(charId, nodeIds) {
+  const isEnhanced = (n) => String(n).length === String(charId).length + 4 && String(n).startsWith(`1${charId}`);
+  return { original: nodeIds.filter((n) => !isEnhanced(n)), enhanced: nodeIds.filter(isEnhanced) };
+}
+
 /** One-time unlock cost of a trace node (major trace or stat bonus). */
 function nodeCost(node, items) {
   return (node?.levels?.[0]?.materials ?? []).map((m) => ({
@@ -791,12 +800,11 @@ async function seedTraces(characters, skills, skillTrees, items) {
   // Memosprite skill types — these are grouped by node (multiple skills share one upgrade cost)
   const MEMOSPRITE_TYPES = new Set(["Memosprite Skill", "Memosprite Talent"]);
 
-  let count = 0;
-  for (const id of ids) {
-    const char = characters[id];
-    if (!char) continue;
-
-    // Gather skill nodes (those with level_up_skills) and stat nodes
+  /**
+   * The kit of one skill tree: skills (with their costs and icons), memosprite groups, major
+   * traces and stat bonus nodes.
+   */
+  function treeKit(nodeIds) {
     const skillNodes          = {}; // skillKey → tree node (single skills)
     const statBonuses         = [];
     const majorTraces         = []; // named passive abilities (A2/A4/A6)
@@ -805,7 +813,7 @@ async function seedTraces(characters, skills, skillTrees, items) {
     const memospriteGroupNodes = []; // { node, groupSkills[] } — one per memo node
     const seenSkillIds        = new Set(); // deduplicate single-skill nodes
 
-    for (const nodeId of char.skill_trees ?? []) {
+    for (const nodeId of nodeIds) {
       const node = skillTrees[nodeId];
       if (!node) continue;
 
@@ -872,9 +880,7 @@ async function seedTraces(characters, skills, skillTrees, items) {
       costs:  buildSkillCosts(node, items),
     }));
 
-    await upsert(Trace, { game: GAME, name: char.name }, {
-      game: GAME,
-      name: char.name,
+    return {
       basicAtk:  skillData.basicAtk  ?? null,
       skill:     skillData.skill     ?? null,
       ultimate:  skillData.ultimate  ?? null,
@@ -886,6 +892,24 @@ async function seedTraces(characters, skills, skillTrees, items) {
       statBonuses,
       costs,
       images,
+    };
+  }
+
+  let count = 0;
+  for (const id of ids) {
+    const char = characters[id];
+    if (!char) continue;
+
+    // Enhanced characters (Character Enhancement) have a second tree in the game data, its node ids
+    // being "1" + the usual id (1005001 → 11005001): the original kit stays the document, the
+    // enhanced one goes in `enhanced`
+    const { original: treeIds, enhanced: enhancedIds } = splitEnhanced(id, char.skill_trees ?? []);
+
+    await upsert(Trace, { game: GAME, name: char.name }, {
+      game: GAME,
+      name: char.name,
+      ...treeKit(treeIds),
+      enhanced: enhancedIds.length ? treeKit(enhancedIds) : null,
     });
     count++;
   }
@@ -1018,11 +1042,22 @@ async function seedEidolons(characters, ranks) {
       images[key] = cdnUrl(rank.icon);
     }
 
+    // Character Enhancement: the enhanced eidolons are "1" + the rank id (100501 → 1100501);
+    // only the ones whose text changed are kept
+    const enhanced = {};
+    for (const rankId of rankIds) {
+      const rank = ranks[`1${rankId}`];
+      const key = rank && `e${rank.rank}`;
+      if (!rank || (rank.name === eidolons[key]?.name && rank.desc === eidolons[key]?.description)) continue;
+      enhanced[key] = { name: rank.name, description: rank.desc, levelUpSkills: rank.level_up_skills ?? [] };
+    }
+
     await upsert(Eidolon, { game: GAME, name: char.name }, {
       game: GAME,
       name: char.name,
       ...eidolons,
       images,
+      enhanced: Object.keys(enhanced).length ? enhanced : null,
     });
     count++;
   }

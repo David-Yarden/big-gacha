@@ -22,6 +22,8 @@ export interface CznCard {
   epiphanies?: Array<{ level: number; name: string; cost?: number; type?: string; desc?: string }>;
   /** Text from a community transcription (not yet in the game files or on the wiki) */
   community?: boolean;
+  /** Where the text comes from when it is not in the game files nor on the wiki ("Prydwen") */
+  source?: string;
   /** Normal / Rare / Legendary / Mythic */
   rarity?: string;
   /** Card art */
@@ -31,6 +33,9 @@ export interface CznKit {
   cards?: CznCard[];
   manifestations?: Array<{ level: number; name?: string; kind?: string; desc?: string }>;
 }
+
+/** A combatant's basic card: a starting card with no epiphany of its own (it takes none at all). */
+export const isBasic = (card: CznCard) => card.kind === "start" && !card.epiphanies?.length;
 
 /** The card and its epiphanies, for the customiser and the deck builder. */
 export function variantsOf(card: CznCard): CardVariant[] {
@@ -46,18 +51,27 @@ function CardView({ card, owner, attribute }: { card: CznCard; owner: string; at
   const variants = card.epiphanies ?? [];
   const face = { name: card.name, cost: card.cost, type: card.type, desc: card.desc, rarity: card.rarity, image: card.image };
   const all = variantsOf(card);
+  // A basic card (starting card with no epiphany of its own) takes no epiphany at all
+  const basic = isBasic(card);
   return (
     <div className="space-y-1.5">
-      <CardFace card={face} attribute={attribute} onClick={() => setOpen(true)} />
-      <button type="button" onClick={() => setOpen(true)} className="w-full text-center text-xs font-medium text-primary hover:underline">
-        {variants.length ? `Epiphanies (${variants.length})` : "Divine Epiphany"}
-      </button>
+      <CardFace card={face} attribute={attribute} basic={basic} onClick={basic ? undefined : () => setOpen(true)} />
+      {!basic && (
+        <button type="button" onClick={() => setOpen(true)} className="w-full text-center text-xs font-medium text-primary hover:underline">
+          {variants.length ? `Epiphanies (${variants.length})` : "Divine Epiphany"}
+        </button>
+      )}
       {card.community && (
         <p
           className="text-center text-[10px] leading-tight text-amber-300/80"
           title="Typed from the game by the CZN Deck Builder community; replaced by the official data when it is published"
         >
           Community transcription (unverified)
+        </p>
+      )}
+      {card.source && (
+        <p className="text-center text-[10px] leading-tight text-muted-foreground" title="The game's English text, as published on Prydwen's character guide">
+          {`Text: ${card.source}`}
         </p>
       )}
       <Modal open={open} onClose={() => setOpen(false)} title={`${owner} · ${card.name}`}>

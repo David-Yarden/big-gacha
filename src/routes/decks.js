@@ -2,7 +2,7 @@
  * Decks of the deck builder (one list per game).
  *   GET    /api/:game/decks          → [{ _id, name, team, count, updatedAt }]
  *   GET    /api/:game/decks/:id      → the deck
- *   POST   /api/:game/decks          → creates it (body: { name, team, cards, notes })
+ *   POST   /api/:game/decks          → creates it (body: { name, team, cards, notes, members })
  *   PUT    /api/:game/decks/:id      → replaces it
  *   DELETE /api/:game/decks/:id
  * Writes need the X-Big-Gacha header like every action (src/server.js).
@@ -30,12 +30,32 @@ function clean(body) {
         commonId: str(c.commonId, 80),
         engravings: Array.isArray(c.engravings) ? c.engravings.slice(0, 2).map((e) => str(e, 80) ?? "") : undefined,
         personaClass: str(c.personaClass, 40),
+        copied: c.copied === true || undefined,
       },
     ];
   });
+  const equipmentOf = (src) => {
+    const equipment = {};
+    for (const slot of ["weapon", "armor", "pendant"]) {
+      const e = src && typeof src === "object" ? src[slot] : null;
+      const id = e && typeof e === "object" ? str(e.id, 80) : undefined;
+      if (id) equipment[slot] = { id, refinement: str(e.refinement, 80) ?? null, hammer: str(e.hammer, 80) ?? null };
+    }
+    return equipment;
+  };
+  const tierOf = (v) => Math.min(16, Math.max(1, Math.floor(Number(v) || 14)));
+  const team = (Array.isArray(b.team) ? b.team : []).map((t) => str(t, 80)).filter(Boolean).slice(0, 3);
+  // Each combatant's tier and equipment (only the team's; the names are the team's own strings)
+  const given = b.members && typeof b.members === "object" ? b.members : {};
+  const members = {};
+  for (const name of team) {
+    const m = Object.prototype.hasOwnProperty.call(given, name) && given[name] && typeof given[name] === "object" ? given[name] : {};
+    members[name] = { tier: tierOf(m.tier), equipment: equipmentOf(m.equipment), partner: str(m.partner, 80) ?? null };
+  }
   return {
     name: str(b.name, 80) ?? "New deck",
-    team: (Array.isArray(b.team) ? b.team : []).map((t) => str(t, 80)).filter(Boolean).slice(0, 3),
+    members,
+    team,
     cards,
     notes: str(b.notes, 2000) ?? "",
   };
@@ -80,7 +100,8 @@ module.exports = function deckRoutes(router) {
   router.put("/:game/decks/:id", express.json({ limit: "1mb" }), async (req, res, next) => {
     try {
       if (!validId(req.params.id)) return res.status(404).json({ success: false, error: "Deck not found" });
-      const deck = await Deck.findOneAndUpdate({ _id: req.params.id, deckGame: req.gameParam }, clean(req.body), {
+      // The team-wide tier and equipment of older decks now live in members
+      const deck = await Deck.findOneAndUpdate({ _id: req.params.id, deckGame: req.gameParam }, { ...clean(req.body), $unset: { tier: 1, equipment: 1 } }, {
         new: true,
         runValidators: true,
       }).lean();
