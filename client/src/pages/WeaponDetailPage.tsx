@@ -28,6 +28,7 @@ import type { MaterialCostEntry } from "@/lib/materials";
 import { GameText, renderMarkdownText } from "@/components/character/shared";
 import { UnitBanners } from "@/components/shared/UnitBanners";
 import { keyName } from "@/lib/i18n";
+import { RecommendedFor } from "@/components/shared/RecommendedFor";
 import { ArtGallery } from "@/components/character/ArtGallery";
 
 function MaterialCostTable({ materials, game }: { materials: MaterialCostEntry[]; game?: string }) {
@@ -337,6 +338,9 @@ export function WeaponDetailPage() {
           <MaterialCostTable materials={ascensionMaterials} game={game} />
         </CardContent>
       </Card>}
+
+      {/* Endfield builds recommend weapons: the operators who use this one */}
+      {game === "endfield" && <RecommendedFor game={game as Game} set={keyName(weapon)} who="operators" what="weapon" />}
 
       {game !== "czn" && <UnitBanners game={game!} name={keyName(weapon)} kind="weapon" />}
     </div>

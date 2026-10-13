@@ -39,6 +39,11 @@ const characterSchema = new mongoose.Schema(
     substatType: String, // "FIGHT_PROP_CRITICAL_HURT"
     substatText: String, // "CRIT DMG"
     version: String, // "1.3"
+    // Officially announced, not released yet: name, picture, element and class only. The
+    // next sync after the release replaces it with the full character (CZN)
+    upcoming: { type: Boolean, index: true },
+    // Only on limited banners (CZN: the game's limited combatants)
+    limited: Boolean,
 
     // === Voice Actors ===
     cv: {

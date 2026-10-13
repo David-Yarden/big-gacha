@@ -25,6 +25,18 @@ const RELIC_FILTERS: FilterGroup[] = [
   },
 ];
 
+// CZN Memory Fragments: sets of 2 or 4 pieces
+const FRAGMENT_FILTERS: FilterGroup[] = [
+  {
+    key: "type",
+    label: "Pieces",
+    options: [
+      { value: "2-piece", label: "2-Piece" },
+      { value: "4-piece", label: "4-Piece" },
+    ],
+  },
+];
+
 const SORT_OPTIONS: SortOption[] = [
   { value: "name", label: "Name" },
   { value: "version", label: "Release" },
@@ -41,33 +53,38 @@ function RelicCard({ relic, game }: { relic: Relic; game: string }) {
     <Link to={`/${game}/relics/${encodeURIComponent(relic.name)}`} className="group/relic relative h-full">
       <Card className="group h-full flex flex-col gap-0 overflow-hidden py-0 transition-colors hover:border-primary/40">
         <div className="relative flex h-32 shrink-0 items-center justify-center bg-muted/10">
-          <ImageWithFallback
-            src={relicIconUrl(relic.images)}
-            alt={relic.name}
-            className={`h-full w-full object-contain p-2 ${gearLogoClass(game)}`}
-          />
+          {relicIconUrl(relic.images) ? (
+            <ImageWithFallback
+              src={relicIconUrl(relic.images)}
+              alt={relic.name}
+              className={`h-full w-full object-contain p-2 ${gearLogoClass(game)}`}
+            />
+          ) : (
+            // No picture in any source yet (a set that just came out)
+            <span className="text-xs text-muted-foreground">No picture yet</span>
+          )}
           {relic.type && relic.type !== "disc" && relic.type !== "gear" && (
             <Badge
               variant="secondary"
               className="absolute top-2 right-2 text-xs"
             >
-              {relic.type === "planar" ? "Planar" : "Relic"}
+              {relic.type === "planar" ? "Planar" : relic.type === "cavern" ? "Relic" : `${relic.setPieces}-Piece`}
             </Badge>
           )}
         </div>
         <CardContent className="flex flex-col p-3 flex-1">
           <p className="font-semibold text-sm truncate">{relic.name}</p>
-          {relic.type === "disc" ? (
-            // Drive Discs: both bonuses in full
+          {relic.twoPieceBonus || relic.fourPieceBonus ? (
+            // Every bonus of the set (Drive Discs in full, the others cut after 3 lines)
             <div className="mt-1.5 space-y-1.5 text-xs leading-relaxed text-muted-foreground">
               {relic.twoPieceBonus && (
-                <p>
+                <p className={relic.type === "disc" ? "" : "line-clamp-3"}>
                   <span className="mr-1 font-semibold text-foreground/80">2-Pc</span>
                   <GameText text={relic.twoPieceBonus} />
                 </p>
               )}
               {relic.fourPieceBonus && (
-                <p>
+                <p className={relic.type === "disc" ? "" : "line-clamp-3"}>
                   <span className="mr-1 font-semibold text-foreground/80">4-Pc</span>
                   <GameText text={relic.fourPieceBonus} />
                 </p>
@@ -77,10 +94,6 @@ function RelicCard({ relic, game }: { relic: Relic; game: string }) {
             <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground line-clamp-4">
               <span className="mr-1 font-semibold text-foreground/80">{relic.setPieces ?? 3}-Pc</span>
               <GameText text={bonus} />
-            </p>
-          ) : relic.twoPieceBonus ? (
-            <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-              {relic.twoPieceBonus}
             </p>
           ) : null}
         </CardContent>
@@ -143,13 +156,11 @@ export function RelicsPage() {
         searchParams={searchParams}
         setSearchParams={setSearchParams}
         searchPlaceholder={game === "czn" ? "Search memory fragments..." : "Search relic sets..."}
-        filterGroups={game === "hsr" ? RELIC_FILTERS : []}
+        filterGroups={game === "hsr" ? RELIC_FILTERS : game === "czn" ? FRAGMENT_FILTERS : []}
         sortOptions={SORT_OPTIONS}
         defaultSortBy="version"
         defaultSortDir="desc"
       />
-
-      <GearStatTable game={game!} />
 
       {error && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
@@ -178,9 +189,12 @@ export function RelicsPage() {
 
       {!hasMore && items.length > 0 && (
         <p className="text-center text-xs text-muted-foreground py-2">
-          {`All ${total} relic sets loaded`}
+          {`All ${total} ${game === "czn" ? "Memory Fragment sets" : "relic sets"} loaded`}
         </p>
       )}
+
+      {/* The sets first, the stats table under them */}
+      <GearStatTable game={game!} />
     </div>
   );
 }

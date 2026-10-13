@@ -9,6 +9,8 @@ import { getEchoSet, getEchoes } from "@/lib/api";
 import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { WUWA_ELEMENT_COLOR_MAP } from "@/lib/constants";
 import type { Game } from "@/lib/types";
+import { RecommendedFor } from "@/components/shared/RecommendedFor";
+import { keyName } from "@/lib/i18n";
 
 export function EchoSetDetailPage() {
   const { game, name } = useParams<{ game: string; name: string }>();
@@ -119,6 +121,8 @@ export function EchoSetDetailPage() {
       {echoSet.description && (
         <p className="text-sm text-muted-foreground">{echoSet.description}</p>
       )}
+
+      {game && <RecommendedFor game={game as Game} set={keyName(echoSet)} who="Resonators" />}
     </div>
   );
 }

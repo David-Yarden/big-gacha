@@ -7,8 +7,10 @@
  * - an epiphany card has a strip of sparkles along its left edge in the owner's attribute
  *   colour and the golden epiphany sight under its cost; a divine epiphany adds an iridescent
  *   frame and its line at the end of the text, after the god's sigil;
- * - a sparkle divider in the middle, the text centred below: keywords "[ Retain ]" in orange,
- *   numbers in cyan (green when an epiphany changed them).
+ * - the text centred and anchored to the bottom with a wide margin under it (12.5 % of the
+ *   width), a sparkle divider right above it; the text never goes above the middle of the card:
+ *   a longer text gets a smaller font instead (in-game Epiphany screen of Freezing Blade, Dice
+ *   Trick); keywords "[ Retain ]" in orange, numbers in cyan (green when an epiphany changed them).
  * Every size is a share of the card's width (container units): the card looks the same at
  * any size.
  */
@@ -225,8 +227,8 @@ export function CardFace({
     const el = box.current;
     if (!el) return;
     // Content may overflow upwards (bottom-anchored): add the children's heights up
-    const used = [...el.children].reduce((sum, c) => sum + (c as HTMLElement).offsetHeight, 0) + 4;
-    if (used > el.clientHeight && scale > 0.45) setScale((s) => Math.round((s - 0.06) * 100) / 100);
+    const used = [...el.children].reduce((sum, c) => sum + (c as HTMLElement).offsetHeight, 0) + 2;
+    if (used > el.clientHeight && scale > 0.45) setScale((s) => Math.round((s - 0.05) * 100) / 100);
   }, [scale, card.desc, divine?.text, extra]);
 
   return (
@@ -291,10 +293,11 @@ export function CardFace({
           </div>
         </div>
 
-        {/* Text anchored to the bottom, the divider right above it (as in the game) */}
-        <div ref={box} className={cn("absolute inset-x-[4.5cqw] bottom-[6cqw] top-[36%] flex flex-col justify-end overflow-hidden", OUTLINE)}>
+        {/* Text anchored to the bottom above a wide margin, the divider right above it, never above
+            the middle of the card (as in the game) */}
+        <div ref={box} className={cn("absolute inset-x-[4.5cqw] bottom-[12.5cqw] top-[47%] flex flex-col justify-end overflow-hidden", OUTLINE)}>
           <Divider />
-          <div className="mt-[2.4cqw] whitespace-pre-line text-center leading-[1.3] text-white [text-wrap:balance]" style={{ fontSize: `${7.4 * scale}cqw` }}>
+          <div className="mt-[2cqw] whitespace-pre-line text-center leading-[1.3] text-white [text-wrap:balance]" style={{ fontSize: `${7.4 * scale}cqw` }}>
             {card.desc ? renderText(card.desc, numberColor) : <span className="italic text-white/60">No text yet.</span>}
             {extra?.map((line, i) => (
               <span key={i} className="mt-[0.6cqw] block">

@@ -26,6 +26,8 @@ export interface KitArgs {
   activeElement: string | null;
   /** The character's element / attribute (CZN: colour of the epiphany strip) */
   element?: string;
+  /** The character's class (CZN: common epiphanies of other classes are left out) */
+  specialty?: string;
 }
 
 export type UseKit = (args: KitArgs) => CharacterKit;

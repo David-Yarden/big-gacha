@@ -104,7 +104,6 @@ export function ArtifactsPage() {
         defaultSortDir="desc"
       />
 
-      <GearStatTable game={game ?? "genshin"} />
 
       {error && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
@@ -135,6 +134,9 @@ export function ArtifactsPage() {
           {`All ${total} artifact sets loaded`}
         </p>
       )}
+
+      {/* The sets first, the stats table under them */}
+      <GearStatTable game={game ?? "genshin"} />
     </div>
   );
 }

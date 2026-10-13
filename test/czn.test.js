@@ -151,6 +151,7 @@ test("czn: divine epiphany pools match the in-game probability screens", () => {
   assert.ok(!release.some((e) => /Mark to a random enemy/.test(e.text)));
   // Fei – Soulfire Dance IV: Skill, X cost (counts as 0), draws, Coordinated Attack offered → 17
   // (5.88235 % each): Gain 1 AP, no Reduce Cost / Cost 0-3 / Harmonization / Combo
+  // (no "the target", but "X Flame Arts × 2": several hits, a targeted card)
   const soulfire = p.divinePool(table, { name: "Soulfire Dance IV", type: "Skill", cost: -1, tags: new Set(["draw", "targetable"]) });
   assert.equal(soulfire.length, 17);
   assert.deepEqual(
@@ -198,6 +199,107 @@ test("czn: divine epiphany pools match the in-game probability screens", () => {
     Object.fromEntries(table.gods.map((g) => [g, attack.filter((e) => e.god === g).length])),
     { Nihilum: 2, Diallos: 2, Sekred: 1, Kyrken: 2, Vytor: 2, Caligo: 2 }
   );
+  // Magna – Ice Wall III: Upgrade, 2 cost, gives a Shield → 21 (4.76190 % each): no Shield +30 % nor
+  // Diallos' shield effect (Skills only), no Combo (1-cost cards only)
+  const wall = p.divinePool(table, { name: "Ice Wall III", type: "Upgrade", cost: 2, tags: new Set(["shield"]) });
+  assert.equal(wall.length, 21);
+  assert.deepEqual(
+    Object.fromEntries(table.gods.map((g) => [g, wall.filter((e) => e.god === g).length])),
+    { Nihilum: 4, Diallos: 3, Sekred: 4, Kyrken: 4, Vytor: 3, Caligo: 3 }
+  );
+  // Mika – Whirlpool II: Attack, 1 cost, all enemies, its base heals → 49; 43 shown (2.32558 % each)
+  // + the Agony it already had: no heal effect on an Attack, Fortitude −2 and Combo at cost 1
+  const whirl = p.divinePool(table, { name: "Whirlpool II", type: "Attack", cost: 1, tags: new Set(["cure"]) });
+  assert.equal(whirl.length, 49);
+  assert.equal(whirl.filter((e) => e.text !== "4 Agony to the target").length, 43);
+  assert.ok(!whirl.some((e) => /Heal/.test(e.text)));
+  // Magna – Ice Wall I: Skill, 2 cost, Shield → 28 (3.57143 % each): no Combo at 2 cost
+  const wall1 = p.divinePool(table, { name: "Ice Wall I", type: "Skill", cost: 2, tags: new Set(["shield"]) });
+  assert.equal(wall1.length, 28);
+  assert.deepEqual(
+    Object.fromEntries(table.gods.map((g) => [g, wall1.filter((e) => e.god === g).length])),
+    { Nihilum: 5, Diallos: 5, Sekred: 4, Kyrken: 5, Vytor: 5, Caligo: 4 }
+  );
+  // Mika – Blessing of Waves I: Skill, 1 cost, heals, already has Retain → 29 (3.44828 % each):
+  // the three heal effects, no "Apply Retain" for a card that has it
+  const waves = p.divinePool(table, { name: "Blessing of Waves I", type: "Skill", cost: 1, tags: new Set(["cure"]), keywords: new Set(["Retain"]) });
+  assert.equal(waves.length, 29);
+  assert.deepEqual(
+    Object.fromEntries(table.gods.map((g) => [g, waves.filter((e) => e.god === g).length])),
+    { Nihilum: 6, Diallos: 3, Sekred: 5, Kyrken: 5, Vytor: 5, Caligo: 5 }
+  );
+  // Nine – Hew (Massacre): Attack, 3 cost, all enemies, already has Initiation → 48 (2.08333 % each):
+  // Cost 0-3 and Harmonization still at cost 3, Kyrken's "Decrease Stress by 5", no Initiation, no Combo (Stress −5: it has Exhaust)
+  const hew = p.divinePool(table, { name: "Hew (Massacre)", type: "Attack", cost: 3, tags: new Set(), keywords: new Set(["Unique", "Initiation", "Exhaust", "Ephemeral"]) });
+  assert.equal(hew.length, 48);
+  assert.deepEqual(
+    Object.fromEntries(table.gods.map((g) => [g, hew.filter((e) => e.god === g).length])),
+    { Nihilum: 8, Diallos: 8, Sekred: 7, Kyrken: 9, Vytor: 8, Caligo: 8 }
+  );
+  // Heidemarie – Thread of Light IV: Skill, 3 cost, no target in its text (base: a targeted Attack)
+  // → 22; 21 shown (4.76190 % each) + the Draw 2 of Sekred it already had: no Coordinated Attack,
+  // Kyrken's Stress −5 (it has Exhaust)
+  const thread = p.divinePool(table, { name: "Thread of Light IV", type: "Skill", cost: 3, tags: new Set(), keywords: new Set(["Linked", "Exhaust"]) });
+  assert.equal(thread.length, 22);
+  assert.ok(!thread.some((e) => /Coordinated/.test(e.text)) && thread.some((e) => e.text === "Decrease Stress by 5"));
+  // Fei – Soulfire Dance V: Upgrade, 2 cost (shown 1 with its Reduce Cost divine; not X) → 21;
+  // 15 shown (6.66667 % each) + the Reduce Cost it had: Flame Arts is not a draw
+  const sfv = p.divinePool(table, { name: "Soulfire Dance V", type: "Upgrade", cost: 2, tags: new Set(), keywords: new Set(["Unique"]) });
+  assert.equal(sfv.length, 21);
+  assert.equal(sfv.filter((e) => !/Reduce Cost/.test(e.text)).length, 15);
+  // Fei – Night Rain II and V: Skill, 0 cost, gain Flame Arts (counts as a draw) → 11
+  // (9.09091 % each; II showed 5 + the Gain 1 AP it had): no draw effect, no Coordinated Attack
+  const rain2 = p.divinePool(table, { name: "Night Rain V", type: "Skill", cost: 0, tags: new Set(["draw"]) });
+  assert.equal(rain2.length, 11);
+  assert.deepEqual(
+    Object.fromEntries(table.gods.map((g) => [g, rain2.filter((e) => e.god === g).length])),
+    { Nihilum: 2, Diallos: 2, Sekred: 1, Kyrken: 2, Vytor: 2, Caligo: 2 }
+  );
+  // Maribell – Resolute Blitz I (site tiers cznmetadecks.com): Attack, 1 cost, targeted, already
+  // has Pulverize → 54: no Pulverize, Coordinated Attack, Combo
+  const blitz = p.divinePool(table, { name: "Resolute Blitz I", type: "Attack", cost: 1, tags: new Set(["targetable"]), keywords: new Set(["Pulverize"]) });
+  assert.equal(blitz.length, 54);
+  assert.deepEqual(
+    Object.fromEntries(table.gods.map((g) => [g, blitz.filter((e) => e.god === g).length])),
+    { Nihilum: 9, Diallos: 8, Sekred: 8, Kyrken: 9, Vytor: 10, Caligo: 10 }
+  );
+  assert.ok(!blitz.some((e) => /Pulverize/.test(e.text)));
+  // Finale cards get neither Sekred's Draw 2 nor Combo (site tiers)
+  const finale = p.divinePool(table, { name: "a Finale card", type: "Attack", cost: 1, tags: new Set(["targetable"]), keywords: new Set(["Finale"]) });
+  assert.ok(!finale.some((e) => /Draw 2|Combo/.test(e.text)));
+  // Mika – Whirlpool IV (site tiers): Attack, 4 cost, all enemies → 48: Cost 0-3 and Harmonization
+  // at 4 cost, no Stress −5 (no Exhaust), no Combo, no Coordinated Attack
+  const whirl4 = p.divinePool(table, { name: "Whirlpool IV", type: "Attack", cost: 4, tags: new Set() });
+  assert.equal(whirl4.length, 48);
+  assert.ok(!whirl4.some((e) => /Stress|Combo|Coordinated/.test(e.text)));
+  assert.ok(whirl4.some((e) => /Harmonization/.test(e.text)) && whirl4.some((e) => /0-3/.test(e.text)));
+  // Khalipe – Vulture Ejection I: Attack, 3 cost, all enemies, Retain, no Exhaust → 47 (2.12766 % each):
+  // no Stress −5 (it needs Exhaust, not 3 cost), no Retain, no Coordinated Attack
+  const vulture = p.divinePool(table, { name: "Vulture Ejection I", type: "Attack", cost: 3, tags: new Set(), keywords: new Set(["Celestial", "Retain"]) });
+  assert.equal(vulture.length, 47);
+  assert.deepEqual(
+    Object.fromEntries(table.gods.map((g) => [g, vulture.filter((e) => e.god === g).length])),
+    { Nihilum: 8, Diallos: 7, Sekred: 7, Kyrken: 8, Vytor: 9, Caligo: 8 }
+  );
+  // Mika – Tactical Analysis V (site tiers): Upgrade, 0 cost → 19: Gain 1 AP and Morale/Resolve from
+  // every god, Sekred's Mark, no Reduce Cost, no Harmonization, no Cost 0-3
+  const tactic = p.divinePool(table, { name: "Tactical Analysis V", type: "Upgrade", cost: 0, tags: new Set(["cure"]) });
+  assert.equal(tactic.length, 19);
+  assert.deepEqual(
+    Object.fromEntries(table.gods.map((g) => [g, tactic.filter((e) => e.god === g).length])),
+    { Nihilum: 3, Diallos: 3, Sekred: 4, Kyrken: 3, Vytor: 3, Caligo: 3 }
+  );
+  // Mika – Source of Water V (site tiers: "Targets Exhaust"): Skill, 0 cost, heals, Exhaust → 28,
+  // Kyrken's Stress −5 at 0 cost
+  const water5 = p.divinePool(table, { name: "Source of Water V", type: "Skill", cost: 0, tags: new Set(["cure"]), keywords: new Set(["Exhaust"]) });
+  assert.equal(water5.length, 28);
+  assert.deepEqual(
+    Object.fromEntries(table.gods.map((g) => [g, water5.filter((e) => e.god === g).length])),
+    { Nihilum: 5, Diallos: 4, Sekred: 5, Kyrken: 5, Vytor: 5, Caligo: 4 }
+  );
+  // A cheap card with Exhaust gets it
+  const exhaust = p.divinePool(table, { name: "an Exhaust card", type: "Skill", cost: 0, tags: new Set(), keywords: new Set(["Exhaust"]) });
+  assert.ok(exhaust.some((e) => e.text === "Decrease Stress by 5"));
 });
 
 test("officialName: the game's spelling of a community card name", () => {
@@ -245,4 +347,88 @@ test("officialTerms: the game's terms in a machine-translated text", () => {
 
 test("cardText: keywords with or without spaces in the brackets", () => {
   assert.equal(p.cardText("[ Lead ] 100% Shield. [Unique]"), "**Lead** 100% Shield. **Unique**");
+});
+
+test("currentWording: the game now writes Proc where older texts say Activate", () => {
+  assert.equal(p.currentWording("Activate 5 Effulgent Blade in Graveyard against the target as an Extra Attack."), "Proc 5 Effulgent Blade in Graveyard against the target as an Extra Attack.");
+  assert.equal(p.currentWording("At the start of the turn, activate Hew in hand 1 time(s)."), "At the start of the turn, proc Hew in hand 1 time(s).");
+  assert.equal(p.currentWording("When this card is the first card activated, Draw 2"), "When this card is the first card activated, Draw 2");
+});
+
+test("commonRows / commonPool: the game's three pools of common epiphanies", () => {
+  const rules = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "../src/scripts/cznCommon.json"), "utf8"));
+  // A small copy of the hub's list: blocks of one row per cost, the first row ("1,2,3,4+") is the 0-cost row
+  let n = 0;
+  const row = (text, types, levels, classes) => ({ id: `com_${String(++n).padStart(4, "0")}`, text, types, levels, classes });
+  const AS = ["Attack", "Skill"];
+  const all = ["1", "2", "3", "4+"];
+  const block = (texts, types, classes, withZero = true) =>
+    (withZero ? [all, ["1"], ["2"], ["3"], ["4+"]] : [["1"], ["2"], ["3"], ["4+"]]).map((lv, i) => row(texts[i], types, lv, classes));
+  const VS = ["Vanguard", "Striker"];
+  const CO = ["Vanguard", "Ranger", "Hunter", "Controller"];
+  const rows = [
+    ...block(["Morale 1", "Morale 1", "Morale 2", "Morale 2", "Morale 2"], AS, ["Controller", "Psionic", "Striker"]),
+    ...block(["For 1 turn, gain 1 Morale", "For 1 turn, gain 2 Morale", "For 1 turn, gain 3 Morale", "For 1 turn, gain 4 Morale", "For 1 turn, gain 3 Morale"], AS, ["Controller", "Psionic", "Striker"]),
+    ...block(["Apply 2 Vulnerable to the target", "Apply 2 Vulnerable to the target", "Apply 3 Vulnerable to the target", "Apply 3 Vulnerable to the target", "Apply 3 Vulnerable to the target"], AS, VS),
+    ...block(["Apply 1 Vulnerable to the target", "Apply 1 Vulnerable to the target", "Apply 2 Vulnerable to the target", "Apply 2 Vulnerable to the target", "Apply 2 Vulnerable to the target"], AS, VS),
+    ...block(["Gain 1 AP", "Gain 1 AP", "Gain 2 AP", "Gain 2 AP", "Gain 2 AP"], AS, CO),
+    ...block(["Reduce Cost of this card by 1", "Reduce Cost of this card by 1", "Reduce Cost of this card by 1", "Reduce Cost of this card by 1"], ["Upgrade"], VS, false),
+    row("Gain 1 AP", AS, ["2"], CO),
+    row("Gain 1 AP", AS, ["3"], CO),
+    row("Gain 1 AP", AS, ["4+"], CO),
+    // copies at the end of the list
+    row("Apply 2 Vulnerable to the target", AS, ["3"], VS),
+    row("Gain 1 AP", AS, ["3"], CO),
+  ];
+  const entries = p.commonRows(rows, rules);
+  const pool = (type, cost, cls, tags = []) => p.commonPool(entries, { type, cost, cls, tags: new Set(tags) }).map((e) => e.text);
+  // Sadistic Restraint (Striker Attack 1, targeted): the low block, Morale for 1 turn
+  assert.deepEqual(pool("Attack", 1, "Striker", ["targetable"]), ["For 1 turn, gain 2 Morale", "Apply 1 Vulnerable to the target"]);
+  // 0 cost: the first row of a block (Observer's Pleasure: 1 Morale for 1 turn)
+  assert.deepEqual(pool("Skill", 0, "Striker"), ["For 1 turn, gain 1 Morale"]);
+  // Hew (Attack 3): the low block, copies left out; no Gain AP at 1 cost (Plasma Rain), 1 at 2+ (Whirlpool)
+  assert.deepEqual(pool("Attack", 3, "Vanguard", ["targetable"]), ["Apply 2 Vulnerable to the target", "Gain 1 AP"]);
+  assert.deepEqual(pool("Attack", 1, "Controller"), ["For 1 turn, gain 2 Morale"]);
+  // A Skill with Exhaust (Shuffle, Controller Skill 1): permanent Morale, the high block of Gain AP
+  assert.deepEqual(pool("Skill", 1, "Controller", ["exhaust"]), ["Morale 1", "Gain 1 AP"]);
+  // No Reduce Cost on Upgrades (Big Game Ranger)
+  assert.deepEqual(pool("Upgrade", 1, "Striker"), []);
+  // The game's wording
+  const agony = p.commonRows([row("Apply 2 Agony to the target", AS, all, ["Psionic"])], rules);
+  assert.equal(agony[0].text, "2 Agony to the target");
+});
+
+test("applyScreens: the game's wording from in-game screenshots replaces the card's texts", () => {
+  const screens = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "../src/scripts/cznTexts.json"), "utf8")).screens;
+  // Hew: the game files give no epiphanies, the screen names its five
+  const hew = p.applyScreens({ name: "Hew", cost: 3, type: "Attack", desc: "350% Defense-Based Damage." }, screens);
+  assert.deepEqual(hew.epiphanies.map((e) => e.name), ["Hew (Ironclad)", "Hew (Extreme)", "Hew (Flash)", "Hew (Massacre)", "Hew (Ambush)"]);
+  assert.equal(hew.desc, "350% Defense-Based Damage.");
+  assert.match(hew.epiphanies[1].desc, /^\*\*Unique\*\* .* 300% Defense-Based Damage\./);
+  // Ice Wall: the texts by level, the rest of each epiphany kept
+  const ice = p.applyScreens({ name: "Ice Wall", cost: 2, type: "Skill", desc: "x", epiphanies: [{ level: 2, name: "Ice Wall II", cost: 2, type: "Skill", desc: "old" }] }, screens);
+  assert.equal(ice.epiphanies.find((e) => e.level === 2).desc, "300% Shield. 2 Counterattack. +30% Shield Gain Amount for each Counterattack of this unit.");
+  assert.equal(ice.epiphanies.length, 5);
+  // A card without screenshots is left as it is
+  const other = { name: "Slash", desc: "100% Damage." };
+  assert.equal(p.applyScreens(other, screens), other);
+});
+
+test("fragmentBuild: the game's recommended Memory Fragments with the game's names", () => {
+  const table = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "../src/scripts/cznFragments.json"), "utf8"));
+  const sets = { 7: "Tetra's Authority", 8: "Healer's Journey", 10: "Seth's Scarab" };
+  const raw = p.pyLiteral(
+    '_RAW: dict[int, dict] = {\n    1039: {\n        "sets": [7, 8, 10],\n        "main_4": [\'HP%\'],\n        "main_5": [\'HP%\', \'DEF%\'],\n        "main_6": [\'Ego\', \'DEF%\', \'HP%\'],\n        "substats": [\'Flat DEF\', \'DEF%\', \'Flat HP\', \'HP%\', \'Ego\'],\n    },\n}\n',
+    "_RAW"
+  );
+  const b = p.fragmentBuild(raw["1039"], sets, table);
+  assert.deepEqual(b.sets, [{ label: "Sets", names: ["Tetra's Authority", "Healer's Journey", "Seth's Scarab"] }]);
+  // Defense % is not a main option of Desire in the game's table: left out
+  assert.deepEqual(b.slots, [
+    { slot: "IV · Ideal", stats: ["Health %"] },
+    { slot: "V · Desire", stats: ["Health %"] },
+    { slot: "VI · Imagination", stats: ["Ego Recovery", "Defense %", "Health %"] },
+  ]);
+  assert.deepEqual(b.substats, ["Defense +", "Defense %", "Health +", "Health %", "Ego Recovery"]);
+  assert.equal(p.fragmentBuild(undefined, sets, table), undefined);
 });

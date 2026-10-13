@@ -1,0 +1,11 @@
+{
+  "_source": "Official announcements (1st anniversary livestream, 2026-10-10; Smilegate) and the user. Read at each sync by seedCzn.js.",
+  "_upcoming": "Announced combatants not in the game files yet: shown with their picture, element and class only and the tag Upcoming. Once the hub has a combatant of that name, the sync builds its full page (kit, gallery, pictures) and the entry here no longer matters. Pictures: client/public/czn/upcoming/ (official art sent by the user).",
+  "upcoming": [
+    { "name": "Rossweisse", "element": "Justice", "class": "Striker", "image": "/czn/upcoming/rossweisse.png" },
+    { "name": "Blazebell", "element": "Justice", "class": "Controller", "image": "/czn/upcoming/blazebell.png" },
+    { "name": "Dahlia", "element": "Justice", "image": "/czn/upcoming/dahlia.png" }
+  ],
+  "_limited": "Combatants only obtainable on limited banners (the user, 2026-10-13).",
+  "limited": ["Sereniel", "Heidemarie", "Arabella", "Rossweisse"]
+}

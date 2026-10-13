@@ -21,7 +21,8 @@ function wikiFile(name) {
  * that are not literals (function calls such as _ICON.format(6)) become null.
  */
 function pyLiteral(src, name) {
-  const start = src.search(new RegExp(`^${name}\\s*=\\s*\\{`, "m"));
+  // "NAME = {" or "NAME: dict[int, dict] = {"
+  const start = src.search(new RegExp(`^${name}\\s*(?::[^=\\n]*)?=\\s*\\{`, "m"));
   if (start < 0) throw new Error(`${name} not found`);
   let i = src.indexOf("{", start);
   const out = [];
@@ -288,12 +289,142 @@ function divinePool(table, card) {
       (!e.types?.length || e.types.includes(card.type)) &&
       (e.minCost == null || cost >= e.minCost) &&
       (e.maxCost == null || cost <= e.maxCost) &&
-      (e.requires || []).every((r) => card.tags.has(r)) &&
+      // "kw:Exhaust": the card has that keyword (Kyrken's Decrease Stress by 5)
+      ((e.requires || []).every((r) => (r.startsWith("kw:") ? !!card.keywords?.has(r.slice(3)) : card.tags.has(r))) ||
+        (e.includeCards || []).includes(card.name)) &&
       !(e.forbids || []).some((r) => card.tags.has(r)) &&
       !(e.excludes || []).some((k) => card.keywords?.has(k)) &&
       !(e.excludeCards || []).includes(card.name);
     return ok ? (e.gods === "all" ? table.gods : e.gods).map((god) => ({ god, text: e.text })) : [];
   });
+}
+
+/**
+ * The common epiphanies the game offers, from the hub's list and our rules (cznCommon.json).
+ * rows: [{ id, text, types, levels, classes }] in the hub's order. The list comes in blocks of
+ * one row per cost; a block's first row with several levels ("1, 2, 3, 4+") is its 0-cost row.
+ * An effect can have two blocks (high, then low values): a family takes its "first" or "last"
+ * one (default: last); a block only repeating rows of an earlier one is a copy. Rows no family
+ * matches are not offered.
+ * Returns [{ id, text, types, costs: [one cost], classes, requires, forbids, seen }].
+ */
+function commonRows(rows, rules) {
+  const key = (r) => `${r.text.replace(/[\d.]+/g, "#")}|${r.types.join(",")}|${(r.classes || []).join(",")}`;
+  const costOf = (r) => (r.levels.length > 1 ? "0" : r.levels[0]);
+  // Blocks of consecutive rows of one effect, one row per cost
+  const blocks = [];
+  let cur = null;
+  for (const r of rows) {
+    const k = key(r);
+    const c = costOf(r);
+    if (!cur || cur.key !== k || r.levels.length > 1 || cur.rows.some((x) => x.cost === c)) blocks.push((cur = { key: k, rows: [] }));
+    cur.rows.push({ ...r, cost: c });
+  }
+  // The blocks of each effect, copies left out
+  const byKey = new Map();
+  for (const b of blocks) {
+    const list = byKey.get(b.key) || [];
+    const seen = new Set(list.flatMap((x) => x.rows.map((r) => `${r.cost}|${r.text}`)));
+    if (!b.rows.every((r) => seen.has(`${r.cost}|${r.text}`))) list.push(b);
+    byKey.set(b.key, list);
+  }
+  const out = [];
+  const ids = new Set();
+  for (const fam of rules.families) {
+    for (const list of byKey.values()) {
+      const head = list[0].rows[0];
+      if (!new RegExp(fam.match).test(head.text) || !head.types.some((t) => fam.types.includes(t))) continue;
+      const block = fam.block === "first" ? list[0] : list[list.length - 1];
+      for (const r of block.rows) {
+        const w = (rules.wording || []).find((x) => new RegExp(x.from).test(r.text));
+        const id = ids.has(r.id) ? `${r.id}-${out.length}` : r.id;
+        ids.add(id);
+        out.push({
+          id,
+          text: w ? r.text.replace(new RegExp(w.from), w.to) : r.text,
+          types: r.types.filter((t) => fam.types.includes(t)),
+          costs: [r.cost],
+          classes: r.classes?.length ? r.classes : undefined,
+          requires: fam.requires,
+          forbids: fam.forbids,
+          seen: fam.seen?.length ? fam.seen : undefined,
+        });
+      }
+    }
+  }
+  return out.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/**
+ * The common epiphanies a card can get (same rules as the deck builder's `fits`):
+ * card: { type, cost, cls, tags: Set }. Every effect has the same chance.
+ */
+function commonPool(entries, card) {
+  const c = card.cost < 0 ? 0 : card.cost;
+  const bracket = c >= 4 ? "4+" : String(c);
+  return entries.filter(
+    (e) =>
+      e.types.includes(card.type) &&
+      e.costs.includes(bracket) &&
+      (!e.classes || e.classes.includes(card.cls)) &&
+      (e.requires || []).every((r) => card.tags.has(r)) &&
+      !(e.forbids || []).some((r) => card.tags.has(r))
+  );
+}
+
+/**
+ * A card with the game's wording typed from in-game screenshots (cznTexts.json "screens"):
+ * replaces the card's text and its epiphanies' (by level); adds the epiphanies the game files
+ * give none of (Hew: named epiphanies with their name, cost and type).
+ * card: { name, desc, epiphanies?: [{ level, name, cost, type, desc }] }
+ */
+function applyScreens(card, screens) {
+  const s = screens?.cards?.[card.name];
+  if (!s) return card;
+  const out = { ...card, desc: s.desc ?? card.desc };
+  if (s.epiphanies) {
+    const ROMANS = ["", "I", "II", "III", "IV", "V"];
+    const own = new Map((card.epiphanies || []).map((e) => [e.level, e]));
+    for (const [lv, e] of Object.entries(s.epiphanies)) {
+      const level = Number(lv);
+      const prev = own.get(level);
+      own.set(level, {
+        ...(prev || { level, name: `${card.name} ${ROMANS[level]}`, cost: card.cost, type: card.type }),
+        ...(e.name ? { name: e.name } : {}),
+        ...(e.cost != null ? { cost: e.cost } : {}),
+        ...(e.type ? { type: e.type } : {}),
+        desc: e.desc,
+      });
+    }
+    out.epiphanies = [...own.values()].sort((a, b) => a.level - b.level);
+  }
+  return out;
+}
+
+/**
+ * A combatant's recommended Memory Fragments (the game's piece_valid_setting, as the hub's
+ * char_presets.py gives it) in the site's build shape: sets in order (Best, Alternative 1…),
+ * main stats of parts IV–VI and substats with the game's names (cznFragments.json); a main stat
+ * the part cannot have in the game's table is left out.
+ * preset: { sets: [id], main_4, main_5, main_6, substats }; setNames: id → name.
+ */
+function fragmentBuild(preset, setNames, table) {
+  if (!preset) return undefined;
+  const name = (s) => table.statNames[s] || s;
+  const sets = (preset.sets || []).map((id) => setNames[id]).filter(Boolean);
+  const slots = table.parts
+    .filter((p) => preset[`main_${p.slot}`]?.length)
+    .map((p) => {
+      const allowed = new Set(p.mainStats.map((m) => m.name));
+      return { slot: `${p.roman} · ${p.name}`, stats: preset[`main_${p.slot}`].map(name).filter((s) => allowed.has(s)) };
+    })
+    .filter((s) => s.stats.length);
+  const substats = (preset.substats || []).map(name);
+  return {
+    sets: sets.length ? [{ label: "Sets", names: sets }] : [],
+    slots,
+    substats: substats.length ? substats : undefined,
+  };
 }
 
 // ── Official names and terms ─────────────────────────────────────────────────
@@ -422,4 +553,11 @@ const TERMS = [
 ];
 const officialTerms = (text) => TERMS.reduce((t, [re, to]) => t.replace(re, to), String(text || ""));
 
-module.exports = { divinePool, epiphanyText, epiphanyRules, officialName, sameEquipmentName, fillValues, officialTerms, wikiFile, pyLiteral, mwJson, wikiText, cardText, infobox, fillPassive, decode, unmojibake, deckBuilderCards };
+/**
+ * Card texts in the game's current wording: the game now writes "Proc" where the game files of
+ * the hub and the guides say "Activate" ("Proc 5 Effulgent Blade in Graveyard…", user 2026-10-11).
+ * "activated" (a card activated) is unchanged.
+ */
+const currentWording = (text) => (text == null ? text : String(text).replace(/\bActivate\b/g, "Proc").replace(/\bactivate\b/g, "proc"));
+
+module.exports = { currentWording, divinePool, commonRows, commonPool, applyScreens, fragmentBuild, epiphanyText, epiphanyRules, officialName, sameEquipmentName, fillValues, officialTerms, wikiFile, pyLiteral, mwJson, wikiText, cardText, infobox, fillPassive, decode, unmojibake, deckBuilderCards };

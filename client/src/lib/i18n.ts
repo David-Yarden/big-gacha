@@ -145,6 +145,9 @@ const UI: Record<string, string> = {
   // Build tab
   Recommended: "Recommandé", "Recommended Weapons": "Armes recommandées", "Recommended Relics": "Reliques recommandées",
   "Recommended Drive Discs": "Disques recommandés", "Recommended Echoes": "Échos recommandés", Best: "Meilleur",
+  "Recommended Memory Fragments": "Fragments de mémoire recommandés", "Recommended for": "Recommandé pour",
+  "No picture yet": "Pas encore d'image", "Memory Fragment": "Fragment de mémoire", Chance: "Chance",
+  "Chance · one roll": "Chance · un jet",
   Alternatives: "Alternatives", "Main stats": "Stats principales", "Main Stat Options": "Stats principales possibles",
   "Substats priority": "Priorité des sous-stats", "Substat:": "Sous-stat :", "Community builds": "Builds communautaires",
   "No community build for this character yet.": "Pas encore de build communautaire pour ce personnage.",
@@ -159,7 +162,7 @@ const UI: Record<string, string> = {
   "Used by": "Utilisé par", Source: "Source", Sources: "Sources", "Version:": "Version :", Version: "Version",
   "No release versions known for this game yet.": "Aucune version de sortie connue pour ce jeu.",
   // Banners
-  "Live now": "En cours", Upcoming: "À venir", "Banner type": "Type de bannière", Chronicled: "Chroniques",
+  "Live now": "En cours", Upcoming: "À venir", Limited: "Limité", "Banner type": "Type de bannière", Chronicled: "Chroniques",
   Collab: "Collab", "First banner": "Première bannière", "On a banner now": "Sur une bannière en ce moment",
   "Last banner ended": "Dernière bannière terminée il y a", "In the pool": "Dans le pool", "Featured 4★": "4★ mis en avant",
   "All banners →": "Toutes les bannières →", "No banner matches.": "Aucune bannière ne correspond.",
@@ -194,6 +197,7 @@ const UI: Record<string, string> = {
   "Community transcription (unverified)": "Transcription communautaire (non vérifiée)",
   "Text: Prydwen": "Texte : Prydwen",
   "Basic cards take no epiphany.": "Les cartes de base ne prennent aucune révélation.",
+  "A combatant's Mythic card takes no epiphany.": "La carte mythique d'un combattant ne prend aucune révélation.",
   "The game offers a divine epiphany only on a card that has an epiphany: choose one of its epiphanies or a common epiphany first.":
     "Le jeu ne propose une révélation divine que sur une carte qui a déjà une révélation : choisis d'abord une de ses révélations ou une révélation commune.",
   "Checked against the game's probability screen for this card.": "Vérifié avec l'écran de probabilités du jeu pour cette carte.",

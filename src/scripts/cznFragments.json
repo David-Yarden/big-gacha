@@ -1,0 +1,42 @@
+{
+  "_about": "Memory Fragments: the game's parts and the probabilities of their main and sub options, typed from the official tables of the Stove site (user's screenshots, 2026-10-11) and the in-game part names (user's screenshot). Read at each sync. statNames: the hub's names (char_presets.py, constants.py) → the game's. The hub's constants.py also lists Defense % on Ideal and Desire: the game's table does not.",
+  "parts": [
+    { "slot": 1, "roman": "I", "name": "Shock", "mainStats": [{ "name": "Attack +", "chance": "100%" }] },
+    { "slot": 2, "roman": "II", "name": "Suppression", "mainStats": [{ "name": "Defense +", "chance": "100%" }] },
+    { "slot": 3, "roman": "III", "name": "Denial", "mainStats": [{ "name": "Health +", "chance": "100%" }] },
+    { "slot": 4, "roman": "IV", "name": "Ideal", "mainStats": [
+      { "name": "Attack %", "chance": "25%" }, { "name": "Health %", "chance": "25%" },
+      { "name": "Critical Chance %", "chance": "25%" }, { "name": "Critical Damage %", "chance": "25%" }] },
+    { "slot": 5, "roman": "V", "name": "Desire", "mainStats": [
+      { "name": "Attack %", "chance": "14.29%" }, { "name": "Health %", "chance": "14.29%" },
+      { "name": "Passion Damage %", "chance": "14.29%" }, { "name": "Justice Damage %", "chance": "14.29%" },
+      { "name": "Order Damage %", "chance": "14.29%" }, { "name": "Void Damage %", "chance": "14.29%" },
+      { "name": "Instinct Damage %", "chance": "14.29%" }] },
+    { "slot": 6, "roman": "VI", "name": "Imagination", "mainStats": [
+      { "name": "Attack %", "chance": "25%" }, { "name": "Defense %", "chance": "25%" },
+      { "name": "Health %", "chance": "25%" }, { "name": "Ego Recovery", "chance": "25%" }] }
+  ],
+  "partNote": "Each part drops with the same chance (16.67%).",
+  "substats": [
+    { "name": "Attack +", "chance": "10.64%", "value": "5 → 8" },
+    { "name": "Defense +", "chance": "10.64%", "value": "3 → 5" },
+    { "name": "Health +", "chance": "10.64%", "value": "10 → 12" },
+    { "name": "Attack %", "chance": "9.57%", "value": "0.8% → 1.3%" },
+    { "name": "Defense %", "chance": "9.57%", "value": "0.8% → 1.3%" },
+    { "name": "Health %", "chance": "9.57%", "value": "0.8% → 1.3%" },
+    { "name": "Critical Chance %", "chance": "7.45%", "value": "1.2% → 2.0%" },
+    { "name": "Critical Damage %", "chance": "7.45%", "value": "2.4% → 4.0%" },
+    { "name": "Ego Recovery", "chance": "7.45%", "value": "2 → 5" },
+    { "name": "Extra Damage %", "chance": "8.51%", "value": "2.7% → 3.4%" },
+    { "name": "Damage over Time %", "chance": "8.51%", "value": "2.7% → 3.4%" }
+  ],
+  "substatNote": "One roll gives one of the values between the two shown (steps of 1, or 0.1%), each equally likely. A part never gets its main option as a sub option.",
+  "statNames": {
+    "Flat ATK": "Attack +", "Flat DEF": "Defense +", "Flat HP": "Health +",
+    "ATK%": "Attack %", "DEF%": "Defense %", "HP%": "Health %",
+    "CRate": "Critical Chance %", "CDmg": "Critical Damage %", "Ego": "Ego Recovery",
+    "Extra DMG%": "Extra Damage %", "DoT%": "Damage over Time %",
+    "Passion DMG%": "Passion Damage %", "Justice DMG%": "Justice Damage %", "Order DMG%": "Order Damage %",
+    "Void DMG%": "Void Damage %", "Instinct DMG%": "Instinct Damage %"
+  }
+}

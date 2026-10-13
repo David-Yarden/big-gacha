@@ -24,7 +24,7 @@ const connectDB = require("../config/db");
 const sink = require("../sync/sink");
 const { Character, AgentKit, Weapon, Relic, Reference } = require("../models");
 const { fetchData } = require("../sync/http");
-const { wikiFile, pyLiteral, mwJson, wikiText, cardText, infobox, fillPassive, deckBuilderCards, epiphanyText, epiphanyRules, officialName, sameEquipmentName, fillValues, officialTerms } = require("./cznParse");
+const { wikiFile, pyLiteral, mwJson, wikiText, cardText, infobox, fillPassive, deckBuilderCards, epiphanyText, commonRows, applyScreens, fragmentBuild, officialName, sameEquipmentName, fillValues, officialTerms, currentWording } = require("./cznParse");
 
 const GAME = "czn";
 const REPO = "steve1316/hub-czn-updated";
@@ -130,6 +130,13 @@ async function fetchAll() {
       wiki[key] = {};
     }
   }
+  // The game's recommended Memory Fragments per combatant (piece_valid_setting, optional)
+  let presets = {};
+  try {
+    presets = pyLiteral(await text("api/game_data/char_presets.py"), "_RAW");
+  } catch (err) {
+    console.warn(`  ⚠ Memory Fragment recommendations: ${err.message}`);
+  }
   // Community card list (optional)
   let community = {};
   try {
@@ -213,8 +220,16 @@ async function fetchAll() {
   }
   // The game's English texts of combatants the game files and the wiki do not cover yet
   // (read at each sync: an edit of the file needs no restart)
-  const officialTexts = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "cznTexts.json"), "utf8")).combatants;
-  D = { index, base, levels, ascend, db, deck, epiphanies, characters, partners, sets, wiki, community, official: officialTexts, hubFiles, builderFiles, bigCards, viewer, neutral, monsterGrades, divine, commonEpiphanies, persona, equipment };
+  const textsFile = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "cznTexts.json"), "utf8"));
+  const officialTexts = textsFile.combatants;
+  // The game's wording typed from in-game screenshots: replaces every other source
+  const screens = textsFile.screens;
+  D = { index, base, levels, ascend, db, deck, epiphanies, characters, partners, sets, wiki, community, official: officialTexts, screens, presets, fragments: require("./cznFragments.json"), announced: readJson("cznAnnounced.json"), hubFiles, builderFiles, bigCards, viewer, neutral, monsterGrades, divine, commonEpiphanies, persona, equipment };
+}
+
+/** A table of this folder, read again at each sync (edits apply without a restart). */
+function readJson(file) {
+  return JSON.parse(require("fs").readFileSync(require("path").join(__dirname, file), "utf8"));
 }
 
 function check(cond, message) {
@@ -271,6 +286,9 @@ async function seedCharacters() {
       name: c.name,
       rarity,
       version: await releaseOf(c.name), // a date (YYYY-MM-DD): sorts like the other games' versions
+      // Released: an announced entry of the same name (cznAnnounced.json) becomes this full page
+      upcoming: false,
+      limited: (D.announced.limited || []).includes(c.name),
       element: ATTRIBUTES.includes(c.attribute) ? c.attribute : undefined,
       specialty: c.class,
       description: wikiText(info.background_text) || own.description,
@@ -289,6 +307,8 @@ async function seedCharacters() {
         { name: "Crit DMG", value: `${D.base[id]?.cri_dmg ?? c.base_crit_dmg ?? 125}%` },
       ],
       profile: profile.length ? profile : own.profile || [],
+      // The game's recommended Memory Fragments (sets, main stats of parts IV–VI, substats)
+      build: fragmentBuild(D.presets?.[id], Object.fromEntries(Object.entries(D.sets).map(([k, v]) => [k, v?.name])), D.fragments),
       stats: statsOf(id),
       gallery: await galleryOf(c.name, id),
       animated: animatedOf(id),
@@ -313,6 +333,29 @@ async function seedCharacters() {
     await sleep(300);
   }
   console.log(`  ✓ ${count} combatants`);
+}
+
+/**
+ * Officially announced combatants (cznAnnounced.json) not in the game files yet: their picture,
+ * element and class, tagged upcoming. Once the hub has the combatant, seedCharacters builds its
+ * full page under the same name instead; an entry taken off the table disappears.
+ */
+async function seedAnnounced() {
+  const released = new Set(Object.values(D.characters).filter((c) => c && c.name).map((c) => c.name));
+  const list = (D.announced.upcoming || []).filter((u) => u.name && !released.has(u.name));
+  for (const u of list) {
+    await upsert(Character, { game: GAME, name: u.name }, {
+      game: GAME,
+      name: u.name,
+      upcoming: true,
+      limited: (D.announced.limited || []).includes(u.name),
+      element: ATTRIBUTES.includes(u.element) ? u.element : undefined,
+      specialty: u.class,
+      images: u.image ? { icon: u.image, splash: u.image, portrait: u.image } : {},
+    });
+  }
+  await sink.deleteMany(Character, { game: GAME, upcoming: true, name: { $nin: list.map((u) => u.name) } });
+  console.log(`  ✓ ${list.length} announced combatants`);
 }
 
 /** Full-size artwork of a combatant (the wiki's originals). */
@@ -507,7 +550,13 @@ async function seedKits() {
     // Not on the wiki yet: cznTexts.json (the game's text)
     if (!manifestations.length && D.official?.[c.name]?.manifestations?.length) manifestations = D.official[c.name].manifestations;
     if (!cards.length && !manifestations.length) continue;
-    await upsert(AgentKit, { game: GAME, name: c.name }, { game: GAME, name: c.name, cards, manifestations });
+    // The game's wording from in-game screenshots first, then its current wording ("Proc", not "Activate")
+    const current = cards.map((x) => applyScreens(x, D.screens)).map((x) => ({
+      ...x,
+      desc: currentWording(x.desc),
+      epiphanies: x.epiphanies?.map((e) => ({ ...e, desc: currentWording(e.desc) })),
+    }));
+    await upsert(AgentKit, { game: GAME, name: c.name }, { game: GAME, name: c.name, cards: current, manifestations });
     count++;
   }
   console.log(`  ✓ ${count} combatant kits`);
@@ -563,22 +612,45 @@ async function seedPartners() {
 // ── Memory Fragment sets ────────────────────────────────────────────────────
 
 async function seedFragments() {
+  const F = D.fragments;
+  // A picture of the hub, when the file is in its tree (Wireth's Steel has none yet: no broken image)
+  const piece = (id, slot) => {
+    const path = `pieces/item_piece_set_${String(id).padStart(3, "0")}_${slot}.png`;
+    return !D.hubFiles || D.hubFiles.has(`android-app/app/src/main/assets/${path}`) ? ASSETS(path) : undefined;
+  };
   let count = 0;
   for (const [id, s] of Object.entries(D.sets)) {
     if (!s?.name) continue;
     const [two, four] = String(s.bonus || "").split(/\s*\|\s*4pc:\s*/);
+    const icon = piece(id, 1);
     await upsert(Relic, { game: GAME, name: s.name }, {
       game: GAME,
       sourceId: Number(id),
       name: s.name,
+      // "2-piece" / "4-piece": the list's filter and badge
+      type: `${s.pieces}-piece`,
       setPieces: s.pieces,
       // "2pc: … | 4pc: …" (one bonus at each step) or a single bonus for its piece count
       twoPieceBonus: four ? two.replace(/^2pc:\s*/, "") : s.pieces === 2 ? s.bonus : undefined,
       fourPieceBonus: four || (s.pieces === 4 ? s.bonus : undefined),
-      images: { icon: ASSETS(`pieces/item_piece_set_${String(id).padStart(3, "0")}_1.png`) },
+      // The six parts, with the main options each can have (the game's table)
+      items: F.parts.map((p) => ({ name: `${p.roman} · ${p.name}`, slot: p.mainStats.map((m) => m.name).join(" · "), icon: piece(id, p.slot) })),
+      images: icon ? { icon } : {},
     });
     count++;
   }
+  // Main and sub options with the game's probabilities (the list's "Main stats & substats" table)
+  await upsert(Reference, { game: GAME, name: "Memory Fragment stats" }, {
+    game: GAME,
+    name: "Memory Fragment stats",
+    data: {
+      slots: F.parts.map((p) => ({ slot: `${p.roman} · ${p.name}`, mainStats: p.mainStats })),
+      slotNote: F.partNote,
+      substats: F.substats,
+      substatNote: F.substatNote,
+      source: "The game's probability tables (Stove)",
+    },
+  });
   console.log(`  ✓ ${count} Memory Fragment sets`);
 }
 
@@ -659,7 +731,7 @@ async function seedCards() {
     cost: c.cost,
     type: c.card_type === "Curse" ? undefined : c.card_type,
     kind: c.card_type === "Curse" ? "Curse" : undefined,
-    desc: cardText(c.description?.replace(/\u200b/g, "")),
+    desc: D.screens?.cards?.[c.name]?.desc ?? currentWording(cardText(c.description?.replace(/\u200b/g, ""))),
     group: groupOf(c),
     classes: c.allowed_classes?.length ? c.allowed_classes : undefined,
     rarity: c.category === "monster" ? OFFICIAL_GRADE[normName(c.name)] ?? D.monsterGrades[normName(c.name)] : undefined,
@@ -701,14 +773,19 @@ async function seedEpiphanies() {
       forbids: e.forbids,
       excludes: e.excludes,
       excludeCards: e.excludeCards,
+      includeCards: e.includeCards,
       shared: e.gods === "all" || undefined,
       seen: e.seen?.length ? e.seen : undefined,
     }))
   );
-  const common = (D.commonEpiphanies || []).map((e) => {
-    const text = textOf(e);
-    return { id: e.id, text, types: e.card_types || [], ...epiphanyRules(text, e.levels), classes: e.allowed_classes?.length ? e.allowed_classes : undefined };
-  });
+  // Common epiphanies: the hub's list (a copy of the game's table, in blocks of one row per
+  // cost), filtered by our rules (cznCommon.json, read at each sync) into the game's three pools,
+  // checked against in-game probability screens
+  const commonRules = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "cznCommon.json"), "utf8"));
+  const common = commonRows(
+    (D.commonEpiphanies || []).map((e) => ({ id: e.id, text: textOf(e), types: e.card_types || [], levels: e.levels || [], classes: e.allowed_classes })),
+    commonRules
+  );
   const gods = table.gods;
   await upsert(Reference, { game: GAME, name: "Epiphanies" }, { game: GAME, name: "Epiphanies", data: { gods, divine, common } });
   console.log(`  ✓ ${divine.length} divine and ${common.length} common epiphanies`);
@@ -789,6 +866,7 @@ async function seedEquipment() {
 async function seedAll() {
   await fetchAll();
   await seedCharacters();
+  await seedAnnounced();
   await seedKits();
   await seedPartners();
   await seedFragments();

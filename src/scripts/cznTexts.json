@@ -99,7 +99,7 @@
         { "name": "Soulfire Dance II", "cost": -1, "type": "Attack", "desc": "**Unique** 100% Damage × X+1. Activate Inferno Rhapsody in Graveyard on the target for each Hit Count." },
         { "name": "Soulfire Dance III", "cost": -1, "type": "Attack", "desc": "150% Damage × X+1. Increase Damage Amount of the next Heavensfall by 50% for each Hit Count (max 500%)." },
         { "name": "Soulfire Dance IV", "cost": -1, "type": "Skill", "desc": "Draw X, X Flame Arts × 2, X Descent." },
-        { "name": "Soulfire Dance V", "cost": -1, "type": "Upgrade", "desc": "**Unique** Add 1 Hit(s) to Flame Arts." }
+        { "name": "Soulfire Dance V", "cost": 2, "type": "Upgrade", "desc": "**Unique** Add 1 Hit(s) to Flame Arts." }
       ]
     },
     "Hilde": {
@@ -227,6 +227,33 @@
         { "name": "Encore IV", "cost": 3, "type": "Skill", "desc": "**Unique** Activate all Rhythm cards in Graveyard." },
         { "name": "Encore V", "cost": 0, "type": "Skill", "desc": "Draw 1. If that card was a Rhythm card, increase Damage Amount by 100% until activated for 1 turn and repeat 1 more time (max 2 times)." }
       ]
+    }
+  },
+  "screens": {
+    "_about": "The game's wording typed from the user's in-game screenshots (a card's face; Epiphany screen: its five epiphanies), 2026-10-11. They replace every other source. Numbers: the game's base values (the hub's game_db.json effect values of the card, rsp1–rsp5 = epiphanies I–V), not the screenshot's, which carry the user's card upgrades (Hew 480% = level 2 'mut' 480, Shields +20%). Epiphanies by level; name / cost / type only for a card the game files give no epiphanies of (Hew).",
+    "cards": {
+      "Freezing Blade": { "source": "card face and Epiphany screen (Yuki)", "desc": "**Unique** When an Inspiration-enabled card of this unit is activated, 120% Damage to all enemies.", "epiphanies": {
+        "1": {"desc": "**Unique** When an Inspiration-enabled card of this unit is activated, 160% Damage to all enemies."},
+        "2": {"desc": "**Unique** **Initiation** When an Inspiration-enabled card of this unit is activated, 120% Damage to all enemies."},
+        "3": {"desc": "**Unique** When an Inspiration-enabled card of this unit is activated, 120% Damage × 2 to a random enemy."},
+        "4": {"desc": "**Unique** Increase Damage Amount of All-Target Attack Cards of this unit by 50%."},
+        "5": {"desc": "**Unique** At the start of the turn, enable the Inspiration effect for 2 random cards in hand."}
+      } },
+      "Ice Wall": { "source": "card face and Epiphany screen (Magna)", "desc": "200% Shield. 2 Counterattack. Set the target of Counterattack to all enemies for 2 turn(s).", "epiphanies": {
+        "1": {"desc": "300% Shield. 3 Counterattack. Set the target of Counterattack to all enemies for 2 turn(s)."},
+        "2": {"desc": "300% Shield. 2 Counterattack. +30% Shield Gain Amount for each Counterattack of this unit."},
+        "3": {"desc": "**Lead** 200% Shield. Set the target of Counterattack to all enemies."},
+        "4": {"desc": "200% Shield. Inflict Fixed Damage to all enemies equal to Shield held."},
+        "5": {"desc": "200% Shield. 3 Counterattack. Set the target of Counterattack to all enemies for 3 turn(s)."}
+      } },
+      "Hew": { "source": "Epiphany screen (Nine)", "epiphanies": {
+        "1": {"name": "Hew (Ironclad)", "cost": 3, "type": "Attack", "desc": "**Unique** **Initiation** **Exhaust** **Ephemeral** 400% Defense-Based Damage. 200% Shield. Incinerate: Create 1 Hew (Ironclad) Lv. 1"},
+        "2": {"name": "Hew (Extreme)", "cost": 3, "type": "Attack", "desc": "**Unique** **Initiation** **Exhaust** **Ephemeral** 300% Defense-Based Damage. Incinerate: Create 1 Hew (Extreme) Lv. 1"},
+        "3": {"name": "Hew (Flash)", "cost": 3, "type": "Attack", "desc": "**Unique** **Initiation** **Ignition** **Exhaust** **Retain** 400% Defense-Based Damage. Incinerate: Create 1 Hew (Flash) Lv. 1"},
+        "4": {"name": "Hew (Massacre)", "cost": 3, "type": "Attack", "desc": "**Unique** **Initiation** **Exhaust** **Ephemeral** 400% Defense-Based Damage to all enemies. Decrease Damage Amount by 10% for each target. Incinerate: Create 1 Hew (Massacre) Lv. 1"},
+        "5": {"name": "Hew (Ambush)", "cost": 3, "type": "Attack", "desc": "**Unique** **Initiation** **Exhaust** **Retain** 400% Defense-Based Damage. On ally Counterattack, proc this card. Incinerate: Create 1 Hew (Ambush) Lv. 1"}
+      } },
+      "Attack!": {"source": "card face (neutral card)", "desc": "Select 1 Attack Card(s) in Draw Pile and move those cards to hand."}
     }
   }
 }

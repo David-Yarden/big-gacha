@@ -10,6 +10,9 @@ import { getRelic } from "@/lib/api";
 import { relicIconUrl } from "@/lib/images";
 import type { Game } from "@/lib/types";
 import { renderMarkdownText, GameText } from "@/components/character/shared";
+import { RecommendedFor } from "@/components/shared/RecommendedFor";
+import { keyName } from "@/lib/i18n";
+import { registryGame } from "@/lib/registry";
 
 const CAVERN_PIECES = ["head", "hands", "body", "feet"] as const;
 const PLANAR_PIECES = ["sphere", "rope"] as const;
@@ -25,6 +28,8 @@ const PIECE_LABELS: Record<string, string> = {
 
 export function RelicDetailPage() {
   const { game, name } = useParams<{ game: string; name: string }>();
+  // The list's name in this game ("Relics", "Drive Discs", "Memory Fragments"…)
+  const listLabel = registryGame(game)?.resources.find((r) => r.path === "relics")?.label ?? "Relics";
 
   const { data, loading, error } = useApiQuery(
     () => getRelic(game as Game, name!),
@@ -66,7 +71,7 @@ export function RelicDetailPage() {
     <div className="space-y-6">
       <Link to={`/${game}/relics`}>
         <Button variant="ghost" size="sm">
-          <ArrowLeft className="mr-1 h-4 w-4" /> {isDisc ? "Drive Discs" : "Relics"}
+          <ArrowLeft className="mr-1 h-4 w-4" /> {listLabel}
         </Button>
       </Link>
 
@@ -74,11 +79,15 @@ export function RelicDetailPage() {
       <div className="flex flex-col gap-6 md:flex-row">
         <div className="w-full md:w-48 shrink-0">
           <Card className="overflow-hidden bg-muted/10">
-            <ImageWithFallback
-              src={relicIconUrl(relic.images)}
-              alt={relic.name}
-              className={`w-full h-48 object-contain p-4 ${game === "endfield" ? "invert hue-rotate-180 opacity-85" : ""}`}
-            />
+            {relicIconUrl(relic.images) ? (
+              <ImageWithFallback
+                src={relicIconUrl(relic.images)}
+                alt={relic.name}
+                className={`w-full h-48 object-contain p-4 ${game === "endfield" ? "invert hue-rotate-180 opacity-85" : ""}`}
+              />
+            ) : (
+              <div className="flex h-48 items-center justify-center text-xs text-muted-foreground">No picture yet</div>
+            )}
           </Card>
         </div>
 
@@ -87,8 +96,9 @@ export function RelicDetailPage() {
             <h1 className="text-3xl font-bold">{relic.name}</h1>
             <div className="mt-1 flex items-center gap-2">
               <Badge variant="secondary">
-                {isDisc ? "Drive Disc" : isPlanar ? "Planar Ornaments" : "Relics"}
+                {isDisc ? "Drive Disc" : isPlanar ? "Planar Ornaments" : game === "czn" ? "Memory Fragment" : "Relics"}
               </Badge>
+              {game === "czn" && relic.setPieces && <Badge variant="secondary">{`${relic.setPieces}-Piece`}</Badge>}
               {relic.version && (
                 <Badge variant="outline">v{relic.version}</Badge>
               )}
@@ -200,6 +210,8 @@ export function RelicDetailPage() {
           })}
         </div>
       </div>}
+
+      {game && <RecommendedFor game={game as Game} set={keyName(relic)} who={game === "czn" ? "combatants" : game === "zzz" ? "agents" : "characters"} />}
     </div>
   );
 }

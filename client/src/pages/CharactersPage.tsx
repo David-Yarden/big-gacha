@@ -8,6 +8,7 @@ import { ResourceGrid } from "@/components/shared/ResourceGrid";
 import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
 import { TrimmedImage } from "@/components/shared/TrimmedImage";
 import { ClassIcon } from "@/components/shared/ClassIcon";
+import { StatusTag } from "@/components/shared/StatusTag";
 import { RarityStars, rarityLabel, rankIcon, rarityTextClass } from "@/components/shared/RarityStars";
 import { getCharacters, getEnhancements } from "@/lib/api";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -110,6 +111,12 @@ function CharacterCard({ character, game }: { character: Character; game: string
             alt={character.name}
             className={`h-full w-full ${ui.portraitFit === "cover" ? "object-cover object-top" : "object-contain"} transition-transform duration-300 group-hover:scale-105`}
           />
+          {(character.upcoming || character.limited) && (
+            <span className="absolute top-1.5 left-1.5 flex flex-col items-start gap-1">
+              {character.upcoming && <StatusTag kind="upcoming" />}
+              {character.limited && <StatusTag kind="limited" />}
+            </span>
+          )}
           {character.enhancements && character.enhancements.length > 0 && (
             <span
               className="absolute bottom-2 left-2 rounded-full bg-background/80 px-1.5 py-0.5 text-[10px] font-medium text-amber-300 backdrop-blur-sm"
@@ -158,7 +165,8 @@ function CharacterCard({ character, game }: { character: Character; game: string
 
 function buildSort(sortBy: string, sortDir: string): string {
   const desc = sortDir === "desc";
-  if (sortBy === "version") return desc ? "-version,name" : "version,name";
+  // Announced characters come after the newest release (not released yet)
+  if (sortBy === "version") return desc ? "-upcoming,-version,name" : "upcoming,version,name";
   if (sortBy === "name") return desc ? "-name" : "name";
   return "-rarity,name";
 }

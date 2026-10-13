@@ -10,6 +10,7 @@ import { GameText } from "@/components/character/shared";
 import { CardFace } from "@/components/czn/CardFace";
 import { Modal } from "@/components/shared/Modal";
 import { CardCustomizer, type CardVariant } from "@/components/czn/CardCustomizer";
+import { BuildTab } from "@/components/character/BuildTab";
 import type { CharacterKit, KitArgs } from "./types";
 
 export interface CznCard {
@@ -36,6 +37,12 @@ export interface CznKit {
 
 /** A combatant's basic card: a starting card with no epiphany of its own (it takes none at all). */
 export const isBasic = (card: CznCard) => card.kind === "start" && !card.epiphanies?.length;
+/**
+ * A card that takes no epiphany at all (no own epiphany, no common, no divine): a basic card, the
+ * combatant's purple Mythic card (user, 2026-10-11: Khalipe's Absolute Protection), the Ego skill.
+ */
+export const takesNoEpiphany = (card: CznCard) =>
+  isBasic(card) || card.kind === "ego" || (card.kind === "unique" && card.rarity === "Mythic" && !card.epiphanies?.length);
 
 /** The card and its epiphanies, for the customiser and the deck builder. */
 export function variantsOf(card: CznCard): CardVariant[] {
@@ -46,17 +53,18 @@ export function variantsOf(card: CznCard): CardVariant[] {
   ];
 }
 
-function CardView({ card, owner, attribute }: { card: CznCard; owner: string; attribute?: string }) {
+function CardView({ card, owner, attribute, cls }: { card: CznCard; owner: string; attribute?: string; cls?: string }) {
   const [open, setOpen] = useState(false);
   const variants = card.epiphanies ?? [];
   const face = { name: card.name, cost: card.cost, type: card.type, desc: card.desc, rarity: card.rarity, image: card.image };
   const all = variantsOf(card);
-  // A basic card (starting card with no epiphany of its own) takes no epiphany at all
+  // A basic card or a Mythic card takes no epiphany at all
   const basic = isBasic(card);
+  const locked = takesNoEpiphany(card);
   return (
     <div className="space-y-1.5">
-      <CardFace card={face} attribute={attribute} basic={basic} onClick={basic ? undefined : () => setOpen(true)} />
-      {!basic && (
+      <CardFace card={face} attribute={attribute} basic={basic} onClick={locked ? undefined : () => setOpen(true)} />
+      {!locked && (
         <button type="button" onClick={() => setOpen(true)} className="w-full text-center text-xs font-medium text-primary hover:underline">
           {variants.length ? `Epiphanies (${variants.length})` : "Divine Epiphany"}
         </button>
@@ -75,7 +83,7 @@ function CardView({ card, owner, attribute }: { card: CznCard; owner: string; at
         </p>
       )}
       <Modal open={open} onClose={() => setOpen(false)} title={`${owner} · ${card.name}`}>
-        <CardCustomizer variants={all} attribute={attribute} />
+        <CardCustomizer variants={all} attribute={attribute} cls={cls} />
       </Modal>
     </div>
   );
@@ -96,7 +104,7 @@ const GROUPS: Array<{ kind: CznCard["kind"]; label: string }> = [
   { kind: "ego", label: "Ego skill" },
 ];
 
-export function useCznKit({ game, name, element }: KitArgs): CharacterKit {
+export function useCznKit({ game, name, element, specialty }: KitArgs): CharacterKit {
   const { data } = useApiQuery(() => getAgentKit(game, name), [game, name]);
   const kit = data?.data as unknown as CznKit | undefined;
   const cards = kit?.cards ?? [];
@@ -111,7 +119,7 @@ export function useCznKit({ game, name, element }: KitArgs): CharacterKit {
             <h3 className="text-lg font-semibold">{label}</h3>
             <div className="grid grid-cols-2 items-start gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
               {list.map((c) => (
-                <CardView key={c.id} card={c} owner={name} attribute={element} />
+                <CardView key={c.id} card={c} owner={name} attribute={element} cls={specialty} />
               ))}
             </div>
           </section>
@@ -143,6 +151,7 @@ export function useCznKit({ game, name, element }: KitArgs): CharacterKit {
     tabs: [
       { value: "cards", label: "Cards", content: cardsTab },
       { value: "ego", label: "Ego Manifestation", content: egoTab },
+      { value: "build", label: "Build", content: <BuildTab game={game} name={name} /> },
     ],
     skillSections: [],
     skillsLabel: "Cards",

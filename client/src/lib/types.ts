@@ -33,6 +33,10 @@ export interface Character {
   title?: string;
   description?: string;
   rarity: number;
+  /** Officially announced, not released yet (picture, element and class only) */
+  upcoming?: boolean;
+  /** Only on limited banners */
+  limited?: boolean;
   element?: string;
   elementType?: string;
   weaponType?: string;

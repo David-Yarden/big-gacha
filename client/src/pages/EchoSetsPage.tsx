@@ -118,7 +118,6 @@ export function EchoSetsPage() {
         defaultSortDir="asc"
       />
 
-      <GearStatTable game={game ?? "wuwa"} />
 
       {error && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
@@ -150,6 +149,9 @@ export function EchoSetsPage() {
           {`All ${total} sonata effects loaded`}
         </p>
       )}
+
+      {/* The sets first, the stats table under them */}
+      <GearStatTable game={game ?? "wuwa"} />
     </div>
   );
 }

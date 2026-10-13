@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, type ReactNode } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { formatDate } from "@/lib/banners";
 import { TrimmedImage } from "@/components/shared/TrimmedImage";
 import { ClassIcon } from "@/components/shared/ClassIcon";
 import { RarityStars } from "@/components/shared/RarityStars";
+import { StatusTag } from "@/components/shared/StatusTag";
 import { TotalCostCalculator } from "@/components/character/TotalCostCalculator";
 import { MaterialCostTable, StatIcon, GlossaryContext, GameText, type GlossaryTerm } from "@/components/character/shared";
 import { KITS, useNoKit } from "@/components/character/kits";
@@ -78,7 +79,9 @@ function CharacterDetail({ game, name }: { game: Game; name: string }) {
     }
   }, [baseCharacter, name, game, navigate]);
 
-  const kit = useKit({ game, name, activeElement, element: character?.element });
+  const [searchParams] = useSearchParams();
+  const wantedTab = searchParams.get("tab");
+  const kit = useKit({ game, name, activeElement, element: character?.element, specialty: character?.specialty });
 
   const ascensionPhase = ui.levelToPhase(Math.min(charLevel, ui.maxLevel));
   const levelMaterials = useMemo(
@@ -152,7 +155,8 @@ function CharacterDetail({ game, name }: { game: Game; name: string }) {
 
       {kit.controls}
 
-      <Tabs defaultValue={skillsTab?.value ?? "ascension"}>
+      {/* "?tab=build": open on that tab (links from a set's "Recommended for") */}
+      <Tabs defaultValue={wantedTab && kit.tabs.some((t) => t.value === wantedTab) ? wantedTab : (skillsTab?.value ?? "ascension")}>
         <TabsList>
           {kit.tabs.map((t) => (
             <TabsTrigger key={t.value} value={t.value}>{t.label}</TabsTrigger>
@@ -386,6 +390,8 @@ function CharacterHeader({
               </Badge>
             )}
             <RarityStars rarity={character.rarity} className="text-lg" badge />
+            {character.upcoming && <StatusTag kind="upcoming" className="text-xs" />}
+            {character.limited && <StatusTag kind="limited" className="text-xs" />}
           </div>
           {character.title && <p className="text-muted-foreground">{character.title}</p>}
         </div>

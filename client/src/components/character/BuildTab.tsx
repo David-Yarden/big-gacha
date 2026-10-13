@@ -3,6 +3,7 @@
  * - ZZZ: Drive Disc sets, main stats of discs 4/5/6, substat priority, alternatives
  * - HSR: Cavern relic sets, Planar ornaments, main stats per slot, substat priority
  * - WuWa: Sonata sets, main stats per echo cost
+ * - CZN: Memory Fragment sets, main stats of parts IV–VI, substats (piece_valid_setting)
  * - Genshin: the game has none; link to the community builds of the Genshin Impact Helper
  *   Team. Their content is "all rights reserved" (no copying or rehosting), so it is linked
  *   and credited, never imported.
@@ -25,10 +26,21 @@ const COPY: Record<string, { title: string; gear: string; who: string; route: st
   hsr: { title: "Recommended Relics", gear: "", who: "character", route: "relics" },
   wuwa: { title: "Recommended Echoes", gear: "", who: "Resonator", route: "echosets" },
   endfield: { title: "Recommended Weapons", gear: "", who: "operator", route: "weapons" },
+  czn: { title: "Recommended Memory Fragments", gear: "", who: "combatant", route: "relics" },
 };
 
+/**
+ * The label of a set (or weapon) at position i of a build group: "Best" / "Alternative n" in an
+ * ordered list; Endfield gives two unordered lists, "Recommended weapons" and "Alternatives".
+ */
+export function rankInGroup(group: string, i: number): string {
+  if (/^alternatives?$/i.test(group)) return "Alternative";
+  if (/^recommended/i.test(group)) return "Recommended";
+  return i === 0 ? "Best" : `Alternative ${i}`;
+}
+
 /** ZZZ builds are stored in their own shape: the same groups as the other games. */
-function normalize(build: Build): { sets: SetGroup[]; slots: { slot: string; stats: string[] }[] } {
+export function normalizeBuild(build: Build): { sets: SetGroup[]; slots: { slot: string; stats: string[] }[] } {
   if (build.sets || build.slots) return { sets: build.sets ?? [], slots: build.slots ?? [] };
   const sets: SetGroup[] = [];
   if (build.fourPiece) sets.push({ label: "4-Piece", names: [build.fourPiece] });
@@ -112,7 +124,7 @@ function GameBuild({ game, name }: { game: Game; name: string }) {
 
   if (!charData) return <p className="text-sm text-muted-foreground">Loading…</p>;
   if (!build) return <p className="text-sm text-muted-foreground">The game has no recommended build for this {copy.who}.</p>;
-  const { sets, slots } = normalize(build);
+  const { sets, slots } = normalizeBuild(build);
 
   const SetCard = ({ set, label }: { set: string; label: string }) => (
     <Link
@@ -143,7 +155,7 @@ function GameBuild({ game, name }: { game: Game; name: string }) {
               <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{group.label}</h4>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {group.names.map((set, i) => (
-                  <SetCard key={set} set={set} label={i === 0 ? "Best" : `Alternative ${i}`} />
+                  <SetCard key={set} set={set} label={rankInGroup(group.label, i)} />
                 ))}
               </div>
             </div>

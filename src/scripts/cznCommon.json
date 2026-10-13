@@ -1,0 +1,31 @@
+{
+  "_about": "Common epiphanies: which rows of the hub's list (deck-builder-common-epiphanies.json, a copy of the game's table) the game offers, checked against in-game probability screens (user, 2026-10-11). The hub's list comes in blocks of 5 rows, one per cost: a block's first row (levels 1, 2, 3, 4+) is its 0-cost row (Observer's Pleasure, Counterblade). Many effects have two blocks, a first one with high values and a last one with low values; rows repeating an earlier block (end of the list) are copies. The game has three pools: Upgrade cards; Skill cards with Exhaust (tag exhaust: Shuffle, Guilty Pleasure, Snack Time) — permanent buffs, Ego Points, AP, the first blocks; every other Attack and Skill card — buffs for 1 turn, the last blocks. block: which block of the effect the pool uses. An effect is offered only when a family below matches its text and card types; never seen: Morale / Resolve / Fortitude next turn, Counterattack, Immunity and Reduce Cost on Attack and Skill cards, Reduce Cost on Upgrades. Classes come from the hub's list (allowed_classes). Every effect of a card's pool has the same chance (1 / size of the pool). requires / forbids: what the card must do / must not do (targetable: the card's own text hits one chosen enemy; draw: it draws; exhaust: a Skill card with Exhaust). wording: the game's text where the hub's differs. The screen leaves out the common epiphany the card already has (Tactical Analysis and Dice Trick already had Morale for 1 turn).",
+  "families": [
+    { "match": "^For 1 turn, gain [\\d.]+ Morale$", "types": ["Attack", "Skill"], "forbids": ["exhaust"], "note": "Tactical Analysis and Dice Trick: left out of the screen because the user's copies already had it", "seen": ["Dice Trick", "Tactical Analysis", "Blessing of Waves", "Scream For Me", "Hollow Verdict", "Sadistic Restraint", "Observer’s Pleasure", "Whirlpool", "Karmic Flames"] },
+    { "match": "^For 1 turn, gain [\\d.]+ (?:Resolve|Fortitude)$", "types": ["Attack", "Skill"], "forbids": ["exhaust"], "seen": ["Blessing of Waves", "Scream For Me", "Hollow Verdict", "Sadistic Restraint", "Draw & Release", "Plasma Rain", "Observer’s Pleasure", "Whirlpool", "Hew", "Karmic Flames", "Ballad of Pitch Black", "Tactical Analysis", "Dice Trick"] },
+    { "match": "^Draw [\\d.]+$", "types": ["Attack", "Skill"], "block": "last", "forbids": ["exhaust", "draw"], "note": "absent on Draw & Release (it draws), offered on Plasma Rain; the low block has no 0-cost row (Tactical Analysis)", "seen": ["Plasma Rain", "Whirlpool", "Ballad of Pitch Black", "Blessing of Waves", "Dice Trick"] },
+    { "match": "^Gain [\\d.]+ AP$", "types": ["Attack", "Skill"], "block": "last", "forbids": ["exhaust"], "note": "the low block has no 0-cost and no 1-cost row: absent on Plasma Rain, Draw & Release, Tactical Analysis", "seen": ["Whirlpool", "Hew", "Dice Trick"] },
+    { "match": "^Apply [\\d.]+ (?:Weaken|Vulnerable|Mark|Agony) to the target$", "types": ["Attack", "Skill"], "block": "last", "requires": ["targetable"], "forbids": ["exhaust"], "seen": ["Sadistic Restraint", "Hew", "Karmic Flames", "Ballad of Pitch Black"] },
+    { "match": "^Apply (?:Weaken|Vulnerable|Mark|Agony) [\\d.]+ to all enemies$", "types": ["Attack", "Skill"], "block": "last", "forbids": ["exhaust", "targetable"], "seen": ["Scream For Me", "Hollow Verdict", "Draw & Release", "Plasma Rain", "Observer’s Pleasure"] },
+    { "match": "^Increase Action Count by [\\d.]+$", "types": ["Attack", "Skill"], "requires": ["targetable"], "forbids": ["exhaust"], "seen": ["Hew", "Karmic Flames", "Ballad of Pitch Black"] },
+    { "match": "^Increase Action Count of all enemies by [\\d.]+$", "types": ["Attack", "Skill"], "forbids": ["exhaust", "targetable"], "note": "absent on Guilty Pleasure (exhaust)", "seen": ["Draw & Release", "Plasma Rain"] },
+    { "match": "^[\\d.]+ Damage Reduction$", "types": ["Attack", "Skill"], "block": "last", "forbids": ["exhaust"], "seen": ["Scream For Me", "Hollow Verdict", "Sadistic Restraint", "Observer’s Pleasure", "Hew"] },
+    { "match": "^[\\d.]+ Tenacity Damage$", "types": ["Attack", "Skill"], "block": "last", "requires": ["targetable"], "forbids": ["exhaust"], "note": "absent on Hollow Verdict and Scream For Me (all enemies)", "seen": ["Sadistic Restraint", "Karmic Flames"] },
+
+    { "match": "^(?:Morale|Resolve|Fortitude) [\\d.]+$", "types": ["Attack", "Skill"], "requires": ["exhaust"], "note": "Morale: Snack Time and Shuffle (no Wave)", "seen": ["Shuffle", "Guilty Pleasure", "Snack Time"] },
+    { "match": "^Gain [\\d.]+ Ego Points$", "types": ["Attack", "Skill"], "requires": ["exhaust"], "seen": ["Shuffle", "Snack Time"] },
+    { "match": "^Gain [\\d.]+ AP$", "types": ["Attack", "Skill"], "block": "first", "requires": ["exhaust"], "seen": ["Shuffle", "Guilty Pleasure", "Snack Time"] },
+    { "match": "^[\\d.]+ AP next turn$", "types": ["Attack", "Skill"], "requires": ["exhaust"], "seen": ["Shuffle", "Guilty Pleasure", "Snack Time"] },
+    { "match": "^Apply (?:Weaken|Vulnerable|Mark|Agony) [\\d.]+ to all enemies$", "types": ["Attack", "Skill"], "block": "first", "requires": ["exhaust"], "forbids": ["targetable"], "seen": ["Guilty Pleasure"] },
+
+    { "match": "^(?:Morale|Resolve|Fortitude) [\\d.]+$", "types": ["Upgrade"], "seen": ["Counterblade", "Big Game Ranger", "Pop Eyed Popper", "Freezing Blade"] },
+    { "match": "^At turn start, Counterattack [\\d.]+$", "types": ["Upgrade"], "seen": ["Counterblade"] },
+    { "match": "^At the end of the turn, Fixed (?:Shield|Heal) [\\d.]+%$", "types": ["Upgrade"], "seen": ["Counterblade", "Big Game Ranger", "Pop Eyed Popper", "Freezing Blade"] },
+    { "match": "^At the start of the turn, [\\d.]+ Agony to all enemies$", "types": ["Upgrade"], "seen": ["Big Game Ranger"] },
+    { "match": "^Gain [\\d.]+ Ego Points$", "types": ["Upgrade"], "seen": ["Pop Eyed Popper"] },
+    { "match": "^[\\d.]+ Immunity$", "types": ["Upgrade"], "note": "no 0-cost row (absent on Counterblade)", "seen": ["Freezing Blade"] }
+  ],
+  "wording": [
+    { "from": "^Apply ([\\d.]+) Agony to the target$", "to": "$1 Agony to the target", "seen": ["Karmic Flames", "Ballad of Pitch Black"] }
+  ]
+}

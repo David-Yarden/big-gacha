@@ -39,6 +39,8 @@ export interface Effect {
   excludes?: string[];
   /** Not offered to these card versions ("Name II") */
   excludeCards?: string[];
+  /** Card versions the game offers it to although they do not meet `requires` */
+  includeCards?: string[];
   /** Offered by every god */
   shared?: boolean;
   /** Cards whose in-game probability screen shows it */
@@ -65,16 +67,28 @@ export function cardTags(variant: { type?: string; desc?: string }, base?: { nam
   if (/\d+% (?:\w+-Based )?Shield|\bShield \d/i.test(both)) tags.add("shield");
   // Draws a card: "Draw", or a card taken from the Draw Pile to hand (Attack!: no draw effect at all);
   // a card only acting "in Draw Pile" does not draw
-  if (/\bDraw\b(?! Pile)/i.test(desc) || /from the Draw Pile[^.]*\bhand\b/i.test(desc)) tags.add("draw");
-  // Hits one chosen enemy. A version that hits all enemies has no target (Devil Dice V); one whose
-  // text says nothing of a target keeps its base card's (Soulfire Dance IV, a Skill that only
-  // draws, keeps the target of its base Attack and gets the Coordinated Attack)
-  const spread = (d: string) => /all enemies|random enem|enemy with the (?:highest|lowest)|all allies/i.test(d);
-  const aims = (c: { type?: string; desc?: string }) => (c.type === "Attack" ? /Damage|Attack/i.test(c.desc ?? "") : /\bthe target\b/i.test(c.desc ?? ""));
-  const targetable = spread(desc) ? false : aims(variant) || (!!base?.desc && !spread(base.desc) && aims(base));
-  if (targetable) tags.add("targetable");
+  // (game: "Select 1 Attack Card(s) in Draw Pile and move those cards to hand"; hub: "Choose … from the Draw Pile, move it to hand")
+  // Gaining Fei's Flame Arts counts as drawing too: Night Rain II and V (screens), Night Rain IV
+  // (no Streak: a third-party site) get no draw effect; Soulfire Dance V, which only adds a Hit to
+  // Flame Arts, does
+  if (/\bDraw\b(?! Pile)/i.test(desc) || /Draw Pile[^.]*\bto hand\b/i.test(desc) || /\b(?:\d+|X) Flame Arts\b/.test(desc))
+    tags.add("draw");
+  // Hits one chosen enemy, by the version's own text: an Attack dealing Damage; a Skill naming
+  // "the target" or hitting several times ("X Flame Arts × 2": Soulfire Dance IV); none when it hits
+  // all enemies (Devil Dice V). A version saying nothing of a target does not keep its base card's
+  // (Thread of Light IV, Night Rain)
+  const spread = /all enemies|random enem|enemy with the (?:highest|lowest)|all allies/i.test(desc);
+  const aims = variant.type === "Attack" ? /Damage|Attack/i.test(desc) : /\bthe target\b/i.test(desc) || /×\s*\d/.test(desc);
+  if (!spread && aims) tags.add("targetable");
+  // Common epiphanies: a Skill with Exhaust gets the game's other pool (permanent buffs, AP,
+  // Ego Points: Shuffle, Guilty Pleasure, Snack Time); an Attack with Exhaust does not (Hew)
+  if (variant.type === "Skill" && /\*\*Exhaust(?: \d+)?\*\*/.test(desc)) tags.add("exhaust");
   // Keywords of the card ("**Weakness Attack**")
-  for (const m of desc.matchAll(/\*\*([^*]+)\*\*/g)) tags.add(`kw:${m[1]}`);
+  // ("**Exhaust 2**" counts as Exhaust: Kyrken's Decrease Stress by 5 requires "kw:Exhaust")
+  for (const m of desc.matchAll(/\*\*([^*]+)\*\*/g)) {
+    tags.add(`kw:${m[1]}`);
+    tags.add(`kw:${m[1].replace(/\s+\d+$/, "")}`);
+  }
   if ((variant as { name?: string }).name) tags.add(`card:${(variant as { name?: string }).name}`);
   return tags;
 }
@@ -85,7 +99,7 @@ export const fits = (e: Effect, type?: string, cost?: number, tags?: Set<string>
   // An X-cost card (cost −1) counts as 0 for the divine epiphanies (checked on Soulfire Dance IV)
   (e.minCost == null || (cost != null && Math.max(0, cost) >= e.minCost)) &&
   (e.maxCost == null || (cost != null && Math.max(0, cost) <= e.maxCost)) &&
-  (!tags || !e.requires?.length || e.requires.every((r) => tags.has(r))) &&
+  (!tags || !e.requires?.length || e.requires.every((r) => tags.has(r)) || !!e.includeCards?.some((n) => tags.has(`card:${n}`))) &&
   (!tags || !e.forbids?.some((r) => tags.has(r))) &&
   (!tags || !e.excludes?.some((k) => tags.has(`kw:${k}`))) &&
   (!tags || !e.excludeCards?.some((n) => tags.has(`card:${n}`)));
@@ -129,10 +143,13 @@ export function CardCustomizer({
   onChange,
   cls,
   basic = false,
+  locked = false,
 }: {
   variants: CardVariant[];
   /** A basic card: no epiphany of any kind */
   basic?: boolean;
+  /** No epiphany of any kind (a basic card, or a combatant's Mythic card) */
+  locked?: boolean;
   /** The owner's class: common epiphanies of other classes are left out */
   cls?: string;
   attribute?: string;
@@ -200,13 +217,13 @@ export function CardCustomizer({
 
   const shownDivine = god ? divineFor.filter((e) => e.god === god) : divineFor;
 
-  if (basic) {
+  if (basic || locked) {
     return (
       <div className="space-y-3">
         <div className="max-w-[280px]">
-          <CardFace card={variants[0]} attribute={attribute} basic />
+          <CardFace card={variants[0]} attribute={attribute} basic={basic} />
         </div>
-        <p className="text-sm text-muted-foreground">Basic cards take no epiphany.</p>
+        <p className="text-sm text-muted-foreground">{basic ? "Basic cards take no epiphany." : "A combatant's Mythic card takes no epiphany."}</p>
       </div>
     );
   }
@@ -284,7 +301,14 @@ export function CardCustomizer({
                 {level === 0 && <p className="text-xs text-muted-foreground">{`${commonFor.length} possible`}</p>}
               </div>
               {level === 0 ? (
-                <EffectList items={commonFor} selected={commonId} onSelect={pickCommon} />
+                <>
+                  <EffectList items={commonFor} selected={commonId} onSelect={pickCommon} chance={100 / commonFor.length} />
+                  {commonFor.every((e) => e.seen?.includes(variant.name)) ? (
+                    <p className="text-xs text-emerald-300/80">Checked against the game's probability screen for this card.</p>
+                  ) : (
+                    <p className="text-xs text-amber-300/80">Worked out from the game's rules (class, card type, cost and what the card does): not yet checked in game for this card.</p>
+                  )}
+                </>
               ) : (
                 <p className="text-sm text-muted-foreground">A card takes either one of its epiphanies or a common epiphany, not both. Choose Base to add a common epiphany.</p>
               )}

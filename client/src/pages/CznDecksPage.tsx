@@ -35,7 +35,7 @@ import {
 import { CardFace } from "@/components/czn/CardFace";
 import { CardCustomizer, builtCard, useEpiphanyTables, plain, type CardChoice, type EpiphanyTables } from "@/components/czn/CardCustomizer";
 import { PersonaBuilder, personaFace, usePersonaTables, type PersonaChoice, type PersonaTables } from "@/components/czn/PersonaBuilder";
-import { isBasic, variantsOf, type CznCard, type CznKit } from "@/components/character/kits/czn";
+import { isBasic, takesNoEpiphany, variantsOf, type CznCard, type CznKit } from "@/components/character/kits/czn";
 import { Modal } from "@/components/shared/Modal";
 import { ClassIcon } from "@/components/shared/ClassIcon";
 import { viaCache } from "@/components/shared/ImageWithFallback";
@@ -169,9 +169,9 @@ function resolve(
   if (entry.source === "kit") {
     const card = ctx.kits[entry.owner ?? ""]?.cards?.find((c) => c.id === entry.cardId);
     if (!card) return null;
-    // A basic card takes no epiphany: choices saved on it are ignored
+    // A basic card or a Mythic card takes no epiphany: choices saved on it are ignored
     const basic = isBasic(card);
-    const b = builtCard(variantsOf(card), basic ? { level: 0 } : (entry as Partial<CardChoice>), ctx.tables);
+    const b = builtCard(variantsOf(card), takesNoEpiphany(card) ? { level: 0 } : (entry as Partial<CardChoice>), ctx.tables);
     // Epiphany variants are usually named "Card II": the level only when the name does not say it
     const level = b.variant.level && !b.variant.name.endsWith(` ${ROMAN[b.variant.level]}`) ? ` [Epiphany ${ROMAN[b.variant.level]}]` : "";
     const parts = [b.variant.name + level];
@@ -902,7 +902,8 @@ export function CznDecksPage() {
   const exportRef = useRef<HTMLDivElement>(null);
 
   const { data: charData } = useApiQuery(() => getCharacters(GAME, { limit: 100, sort: "-version" }), []);
-  const characters = useMemo(() => (charData?.data ?? []) as Character[], [charData]);
+  // Announced combatants have no cards yet: not offered
+  const characters = useMemo(() => ((charData?.data ?? []) as Character[]).filter((c) => !c.upcoming), [charData]);
   const byName = useMemo(() => new Map(characters.map((c) => [keyName(c), c])), [characters]);
   const { data: partnerData } = useApiQuery(() => getWeapons(GAME, { limit: 200 }), []);
   const partners = useMemo(() => (partnerData?.data ?? []) as Weapon[], [partnerData]);
@@ -1292,6 +1293,7 @@ export function CznDecksPage() {
               <CardCustomizer
                 key={editingCard.entry.uid}
                 basic={!!editingCard.kitCard && isBasic(editingCard.kitCard)}
+                locked={!!editingCard.kitCard && takesNoEpiphany(editingCard.kitCard)}
                 cls={editingCol?.member.specialty}
                 variants={
                   editingCard.kitCard
